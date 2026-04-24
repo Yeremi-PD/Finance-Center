@@ -12,7 +12,7 @@ CATEGORIAS = [
 
 # --- CONEXIÓN A GOOGLE SHEETS ---
 # Pega aquí la URL de tu Google Sheet
-URL_GOOGLE_SHEET = "https://docs.google.com/spreadsheets/d/1abc123xyz456..."
+URL_GOOGLE_SHEET = "https://docs.google.com/spreadsheets/d/1lswvfo2ggmqvyslLCYj-WWpO56v0jgV0dVpNwXnEuDY/edit?gid=0#gid=0"
 
 # Establecer conexión
 conn = st.connection("gsheets", type=GSheetsConnection)

@@ -1,36 +1,35 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import os
+from streamlit_gsheets import GSheetsConnection
 
-# 1. Configuración de la página (para que se vea ancha y bonita)
 st.set_page_config(page_title="Mis Finanzas", page_icon="💰", layout="wide")
 
-# 2. Las categorías de tu imagen
 CATEGORIAS = [
     "Gasolina", "Pa La Se", "Bebe", "Elect", "Gas", "Agua", 
     "Gym", "Deuda", "Subs", "Pelo", "Otros", "Inversion", "Ahorro", "Disfrute"
 ]
 
-ARCHIVO_CSV = "mis_datos_finanzas.csv"
+# --- CONEXIÓN A GOOGLE SHEETS ---
+# Pega aquí la URL de tu Google Sheet
+URL_GOOGLE_SHEET = "PON_AQUI_LA_URL_DE_TU_GOOGLE_SHEET_COMPLETA"
 
-# 3. Función para cargar y guardar datos
+# Establecer conexión
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+# Función para cargar datos desde Sheets
 def cargar_datos():
-    if os.path.exists(ARCHIVO_CSV):
-        return pd.read_csv(ARCHIVO_CSV)
-    else:
-        return pd.DataFrame(columns=["Fecha", "Categoría", "Monto", "Descripción"])
-
-def guardar_datos(df):
-    df.to_csv(ARCHIVO_CSV, index=False)
+    # Leemos las primeras 4 columnas
+    df = conn.read(spreadsheet=URL_GOOGLE_SHEET, usecols=[0, 1, 2, 3])
+    # Limpiamos filas que estén completamente vacías
+    df = df.dropna(how="all")
+    return df
 
 df = cargar_datos()
 
-# 4. Título Principal
-st.title("📊 Dashboard de Mis Finanzas")
+st.title("📊 Dashboard de Mis Finanzas (Conectado a Google Sheets)")
 st.markdown("---")
 
-# 5. BARRA LATERAL (Sidebar) para ingresar datos
 with st.sidebar:
     st.header("➕ Nuevo Registro")
     fecha = st.date_input("Fecha")
@@ -39,20 +38,28 @@ with st.sidebar:
     descripcion = st.text_input("Descripción (Opcional)")
     
     if st.button("Guardar Registro", type="primary"):
+        # Crear el nuevo registro
         nuevo_registro = pd.DataFrame([{
-            "Fecha": fecha, 
+            "Fecha": fecha.strftime("%Y-%m-%d"), 
             "Categoría": categoria, 
-            "Monto": monto, 
+            "Monto": float(monto), 
             "Descripción": descripcion
         }])
-        df = pd.concat([df, nuevo_registro], ignore_index=True)
-        guardar_datos(df)
-        st.success("¡Guardado correctamente!")
-        st.rerun() # Recarga la página para mostrar los datos nuevos
+        
+        # Unir lo viejo con lo nuevo
+        df_actualizado = pd.concat([df, nuevo_registro], ignore_index=True)
+        
+        # Sobreescribir el Google Sheet con los datos actualizados
+        conn.update(spreadsheet=URL_GOOGLE_SHEET, data=df_actualizado)
+        
+        st.success("¡Guardado en Google Sheets! 🚀")
+        st.cache_data.clear() # Limpiar la memoria para forzar la recarga
+        st.rerun()
 
-# 6. PANEL PRINCIPAL (Dashboard)
 if not df.empty:
-    # Fila de métricas
+    # Asegurarnos de que el monto sea un número para poder sumarlo
+    df['Monto'] = pd.to_numeric(df['Monto'], errors='coerce').fillna(0)
+    
     total_gastos = df["Monto"].sum()
     st.metric(label="Total Registrado", value=f"${total_gastos:,.2f}")
     
@@ -60,7 +67,6 @@ if not df.empty:
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        # Gráfico de pastel súper bonito usando Plotly
         gastos_cat = df.groupby("Categoría")["Monto"].sum().reset_index()
         fig_pie = px.pie(gastos_cat, values="Monto", names="Categoría", 
                          title="Distribución por Categoría", hole=0.4,
@@ -68,18 +74,7 @@ if not df.empty:
         st.plotly_chart(fig_pie, use_container_width=True)
         
     with col2:
-        # Tabla con el historial
         st.markdown("**Historial Detallado**")
         st.dataframe(df.sort_values(by="Fecha", ascending=False), use_container_width=True, hide_index=True)
-        
-        # OJO: Botón vital para descargar tu información
-        st.markdown("<br>", unsafe_allow_html=True)
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Descargar mis datos (Backup CSV)",
-            data=csv,
-            file_name='backup_mis_finanzas.csv',
-            mime='text/csv',
-        )
 else:
-    st.info("👋 ¡Hola! Tu dashboard está vacío. Usa el menú de la izquierda para agregar tu primer gasto.")
+    st.info("👋 Tu Google Sheet está vacío. ¡Empieza a agregar gastos!")

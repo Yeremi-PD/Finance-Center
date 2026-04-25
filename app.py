@@ -13,20 +13,41 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 CATEGORIAS_BASE = ["Gasolina", "Pa La Se", "Bebe", "Elect", "Gas", "Agua", "Gym", "Deuda", "Subs", "Pelo", "Otros", "Inversion", "Ahorro", "Disfrute", "Seguro"]
 MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 
-# --- CARGAR DATOS ---
-def cargar_hoja(nombre):
-    try:
-        return conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre).dropna(how="all")
-    except:
-        return pd.DataFrame()
+# --- SISTEMA DE AUTO-CONFIGURACIÓN DE EXCEL ---
+def inicializar_y_cargar():
+    client = conn.client
+    spreadsheet = client.open_by_url(URL_GOOGLE_SHEET)
+    
+    # Definimos qué hojas queremos y qué columnas debe tener cada una
+    config_hojas = {
+        "Gastos_Fijos": ["Categoría", "Monto_Mensual", "Fondo_Disponible"],
+        "Movimientos": ["Fecha", "Cuenta", "Concepto", "Monto"],
+        "Cuentas": ["Cuenta", "Saldo"],
+        "Excepciones": ["Cuenta", "Categoria_Excluida"]
+    }
+    
+    for nombre, columnas in config_hojas.items():
+        try:
+            spreadsheet.worksheet(nombre)
+        except:
+            # Si la hoja no existe, el robot la crea con sus títulos
+            nueva = spreadsheet.add_worksheet(title=nombre, rows="100", cols="20")
+            nueva.append_row(columnas)
+            st.toast(f"Pestaña '{nombre}' creada automáticamente.", icon="✅")
 
-df_fijos = cargar_hoja("Gastos_Fijos")
-df_movs = cargar_hoja("Movimientos")
-df_cuentas = cargar_hoja("Cuentas")
-df_excep = cargar_hoja("Excepciones") 
+# Ejecutamos la creación automática
+inicializar_y_cargar()
 
-if not df_fijos.empty and "Fondo_Disponible" not in df_fijos.columns:
-    df_fijos["Fondo_Disponible"] = 0.0
+# Ahora cargamos los datos normalmente
+df_fijos = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos").dropna(how="all")
+df_movs = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos").dropna(how="all")
+df_cuentas = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas").dropna(how="all")
+df_excep = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones").dropna(how="all")
+
+# Asegurar que los números sean números
+if not df_fijos.empty:
+    df_fijos["Monto_Mensual"] = pd.to_numeric(df_fijos["Monto_Mensual"], errors="coerce").fillna(0)
+    df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"], errors="coerce").fillna(0)
 
 # --- NAVEGACIÓN ---
 st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MI CENTRO FINANCIERO</h1>", unsafe_allow_html=True)

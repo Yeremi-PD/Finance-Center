@@ -381,7 +381,12 @@ elif st.session_state.seccion == 'Trading':
         concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
     with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
     
-    if st.button("🚀 EJECUTAR OPERACIÓN", use_container_width=True, type="primary"):
+    # Creamos dos columnas: una ancha vacía a la izquierda y una pequeña a la derecha
+    _, col_btn_op = st.columns([4, 1])
+    with col_btn_op:
+        btn_ejecutar = st.button("🚀 EJECUTAR OPERACIÓN", use_container_width=True, type="primary")
+        
+    if btn_ejecutar:
         if monto_t > 0:
             monto_trading = monto_t if tipo_t == "Inversión" else -monto_t
             monto_banco = -monto_t if tipo_t == "Inversión" else monto_t
@@ -448,7 +453,12 @@ elif st.session_state.seccion == 'Trading':
             }
         )
 
-        if st.button("💾 GUARDAR CAMBIOS EN HISTORIAL", use_container_width=True, type="primary"):
+        # Igual aquí, usamos columnas para empujarlo a la derecha
+        _, col_btn_hist = st.columns([3, 2])
+        with col_btn_hist:
+            btn_guardar = st.button("💾 GUARDAR CAMBIOS EN HISTORIAL", use_container_width=True, type="primary")
+            
+        if btn_guardar:
             # 1. REVERSIÓN TOTAL DE LO QUE HABÍA ANTES
             # (Anulamos el efecto de todos los movimientos actuales en la memoria para 'empezar de cero')
             for _, fila_vieja in st.session_state.df_trading.iterrows():

@@ -30,7 +30,7 @@ if not df_fijos.empty and "Fondo_Disponible" not in df_fijos.columns:
     df_fijos["Fondo_Disponible"] = 0.0
 
 # --- NAVEGACIÓN ---
-st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MI CENTRO FINANCIERO</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 col_n1, col_n2, col_n3, col_n4, col_n5 = st.columns(5)
 
 # Por defecto, abrimos la primera pestaña del nuevo orden
@@ -152,7 +152,6 @@ elif st.session_state.seccion == 'Pagos':
     
     with col_i1:
         opciones_inyec = ["TODAS"] + nombres_cuentas
-        cuenta_inyec = st.selectbox("📥 Cuenta que recibe la inyección:", opciones_inyec)
         
         if cuenta_inyec != "TODAS":
             exc_c = df_excep[df_excep["Cuenta"] == cuenta_inyec]["Categoria_Excluida"].tolist() if not df_excep.empty else []

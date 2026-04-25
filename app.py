@@ -16,7 +16,8 @@ MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto
 # --- CARGAR DATOS ---
 def cargar_hoja(nombre):
     try:
-        return conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre).dropna(how="all")
+        # ttl=0 obliga a la app a leer datos frescos del Excel cada vez que se reinicia o cambias de pestaña
+        return conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre, ttl=0).dropna(how="all")
     except:
         return pd.DataFrame()
 
@@ -214,17 +215,25 @@ elif st.session_state.seccion == 'Pagos':
     with col_g3: m_gasto = st.number_input("💲 Monto a Restar:", min_value=0.0)
     with col_g4:
         st.write("")
-        if st.button("APLICAR GASTO", use_container_width=True):
+        if st.button("APLICAR GASTO", use_container_width=True, type="primary"):
             if m_gasto > 0:
                 fecha_h = datetime.now().strftime("%Y-%m-%d")
-                df_movs = pd.concat([df_movs, pd.DataFrame([{"Fecha": fecha_h, "Cuenta": c_gasto, "Concepto": s_gasto, "Monto": -m_gasto}])], ignore_index=True)
-                df_cuentas.loc[df_cuentas["Cuenta"] == c_gasto, "Saldo"] = float(df_cuentas.loc[df_cuentas["Cuenta"] == c_gasto, "Saldo"]) - m_gasto
-                df_fijos.loc[df_fijos["Categoría"] == s_gasto, "Fondo_Disponible"] = float(df_fijos.loc[df_fijos["Categoría"] == s_gasto, "Fondo_Disponible"]) - m_gasto
                 
+                # 1. Registrar el movimiento
+                nuevo_mov = pd.DataFrame([{"Fecha": fecha_h, "Cuenta": c_gasto, "Concepto": s_gasto, "Monto": -m_gasto}])
+                df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
+                
+                # 2. Descontar del fondo (Acceso seguro al valor con .iloc[0])
+                idx_fijo = df_fijos.index[df_fijos["Categoría"] == s_gasto].tolist()[0]
+                fondo_actual = float(df_fijos.at[idx_fijo, "Fondo_Disponible"])
+                df_fijos.at[idx_fijo, "Fondo_Disponible"] = fondo_actual - m_gasto
+                
+                # 3. Guardar cambios (No actualizamos 'Cuentas' porque el saldo ahora es calculado)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                st.cache_data.clear()
+                
+                st.cache_data.clear() # Limpia el caché para que no reaparezcan datos viejos
+                st.success("Gasto aplicado correctamente")
                 st.rerun()
 
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -245,7 +254,14 @@ elif st.session_state.seccion == 'Pagos':
         f_sel = st.selectbox("📜 Selecciona un filtro para tu historial:", l_filtros)
         if not df_movs.empty:
             df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
-            st.dataframe(df_h, use_container_width=True, height=450, hide_index=True)
+            st.dataframe(df_h, use_container_width=True, height=400, hide_index=True)
+            if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
+                if not df_movs.empty:
+                    # Elimina la última fila real del dataframe original
+                    df_movs = df_movs.drop(df_movs.index[-1])
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                    st.cache_data.clear()
+                    st.rerun()
 
 # ---------------------------------------------------------
 # NUEVA SECCIÓN: TRADING (Inversiones y Retiros)

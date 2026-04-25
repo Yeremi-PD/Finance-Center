@@ -242,7 +242,7 @@ elif st.session_state.seccion == 'Pagos':
 # NUEVA SECCIÓN: TRADING (Inversiones y Retiros)
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Trading':
-    st.markdown("<h3 style='font-weight: 400; color: #555;'>📈 Gestión de Cartera Trading</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-weight: 400; color: #555;'>📈 Gestión de Trading</h3>", unsafe_allow_html=True)
     
     # Cálculo de Balance de Trading Detallado
     if not df_trading.empty:

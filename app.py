@@ -182,13 +182,8 @@ elif st.session_state.seccion == 'Pagos':
                 st.cache_data.clear()
                 st.rerun()
 
-    # --- SECCIÓN: REGISTRAR GASTO (DISEÑO PREMIUM) ---
+    # --- SECCIÓN: REGISTRAR GASTO ---
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("""
-        <div style="background-color: #ffebee; padding: 15px 25px; border-left: 6px solid #d32f2f; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="color: #b71c1c; margin: 0; font-family: sans-serif;">🔥 Salida de Dinero (Nuevo Gasto)</h3>
-        </div>
-    """, unsafe_allow_html=True)
     
     col_g1, col_g2, col_g3, col_g4 = st.columns(4)
     with col_g1: c_gasto = st.selectbox("💳 Cuenta a Descontar:", nombres_cuentas)
@@ -216,7 +211,12 @@ elif st.session_state.seccion == 'Pagos':
     with cf1:
         st.markdown("<h4 style='color: #2E7D32;'>💰 Sobres Disponibles</h4>", unsafe_allow_html=True)
         df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
-        st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=400, hide_index=True)
+        
+        # Tamaño dinámico: (cantidad de conceptos + 1 de encabezado + 2 de margen) * 38 píxeles por fila
+        altura_dinamica_sobres = (len(df_fijos) + 3) * 38
+        
+        st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=altura_dinamica_sobres, hide_index=True)
+    
     with cf2:
         l_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
         f_sel = st.selectbox("📜 Selecciona un filtro para tu historial:", l_filtros)

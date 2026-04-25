@@ -375,36 +375,38 @@ elif st.session_state.seccion == 'Trading':
 
     if not df_trading.empty:
         st.markdown("---")
-        col_h1, col_h2 = st.columns([2, 1])
-        with col_h1: st.markdown("**Historial de Capital Trading**")
-        with col_h2: f_t = st.selectbox("Filtrar historial:", ["VER TODO", "Inversiones", "Retiros"], label_visibility="collapsed")
+        st.markdown("**📝 Historial de Capital (Edición Directa)**")
+        st.caption("Modifica cualquier celda directamente. Para borrar filas, marca la casilla '🗑️' y presiona el botón de abajo.")
         
-        # Lógica de Filtrado
-        df_t_final = df_trading.copy()
-        if f_t == "Inversiones":
-            df_t_final = df_trading[df_trading["Monto"] > 0]
-        elif f_t == "Retiros":
-            df_t_final = df_trading[df_trading["Monto"] < 0]
-            
-        st.dataframe(df_t_final.sort_index(ascending=False), use_container_width=True, hide_index=True)
+        # Preparamos los datos: añadimos la columna del zafacón al final
+        df_edit_t = df_trading.copy()
+        df_edit_t["🗑️"] = False
+        
+        # Editor de datos profesional
+        edited_df_t = st.data_editor(
+            df_edit_t,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
+                "Fecha": st.column_config.DateColumn("Fecha"),
+                "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro"]),
+                "Concepto": st.column_config.TextColumn("Concepto"),
+                "Cuenta": st.column_config.TextColumn("Cuenta"),
+                "🗑️": st.column_config.CheckboxColumn("Borrar", help="Selecciona para eliminar")
+            }
+        )
 
-        # Botón para eliminar el último movimiento registrado en Trading
-        if st.button("🗑️ ELIMINAR ÚLTIMA OPERACIÓN", use_container_width=True):
-            if not st.session_state.df_trading.empty:
-                # 1. Crear copia y eliminar la última fila
-                df_temp = st.session_state.df_trading.copy()
-                df_temp = df_temp.drop(df_temp.index[-1])
-                
-                # 2. Actualizar Google Sheets
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_temp)
-                
-                # 3. Actualizar Memoria de Sesión para que sea instantáneo
-                st.session_state.df_trading = df_temp
-                
-                st.success("Operación eliminada correctamente.")
-                st.rerun()
-            else:
-                st.warning("No hay operaciones para eliminar.")
+        if st.button("💾 GUARDAR CAMBIOS EN HISTORIAL", use_container_width=True, type="primary"):
+            # 1. Filtramos: nos quedamos solo con lo que NO tiene el zafacón marcado
+            df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
+            
+            # 2. Guardamos en Google Sheets y Memoria Local
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
+            st.session_state.df_trading = df_final_t
+            
+            st.success("Historial de Trading actualizado.")
+            st.rerun()
 
 # ---------------------------------------------------------
 # 4. CUENTAS (Compacto y Minimalista)

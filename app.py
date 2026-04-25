@@ -55,36 +55,62 @@ if st.session_state.seccion == 'Vista':
         st.warning("No hay gastos fijos registrados. Ve a la pestaña 'GASTOS FIJOS'.")
 
 # ---------------------------------------------------------
-# 2. AJUSTES: GASTOS FIJOS
+# 2. AJUSTES: GASTOS FIJOS (Con Edición Avanzada)
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Ajustes':
-    st.subheader("⚙️ Configurar Gastos Fijos")
+    st.subheader("⚙️ Configurar y Editar Gastos Fijos")
+    st.info("Selecciona una categoría. Si ya existe, verás sus datos actuales para poder editarlos.")
     
     cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
     todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
     
-    c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
-    with c1: cat_sel = st.selectbox("Categoría", todas_categorias)
-    with c2: monto_sel = st.number_input("Monto Mensual ($)", min_value=0.0, step=100.0)
+    # Hemos añadido una columna más para poder editar el Fondo
+    c1, c2, c3, c4, c5 = st.columns([2, 2, 2, 1, 1])
+    
+    with c1: 
+        cat_sel = st.selectbox("Categoría", todas_categorias)
+        
+    # Lógica para "Cargar" los datos actuales si la categoría ya existe
+    monto_actual = 0.0
+    fondo_actual = 0.0
+    if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+        monto_actual = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"].values[0])
+        fondo_actual = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"].values[0])
+        
+    with c2: 
+        # Mostramos el monto actual por defecto
+        monto_sel = st.number_input("Monto Mensual ($)", min_value=0.0, step=100.0, value=monto_actual)
     with c3:
+        # Permitimos editar el fondo acumulado manualmente (por si hay algún error o quieres ajustarlo)
+        fondo_sel = st.number_input("Ajustar Fondo ($)", value=fondo_actual, step=10.0)
+        
+    with c4:
         st.write("")
         if st.button("💾 GUARDAR", use_container_width=True, type="primary"):
             if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+                # Actualizar categoría existente
                 df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = monto_sel
+                df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"] = fondo_sel
             else:
-                nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": monto_sel, "Fondo_Disponible": 0.0}])
+                # Crear nueva categoría
+                nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": monto_sel, "Fondo_Disponible": fondo_sel}])
                 df_fijos = pd.concat([df_fijos, nuevo], ignore_index=True)
+            
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
             st.cache_data.clear()
+            st.success("¡Datos actualizados!")
             st.rerun()
-    with c4:
+            
+    with c5:
         st.write("")
-        if st.button("🗑️ ELIMINAR", use_container_width=True):
+        if st.button("🗑️ BORRAR", use_container_width=True):
             if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
                 df_fijos = df_fijos[df_fijos["Categoría"] != cat_sel]
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                 st.cache_data.clear()
                 st.rerun()
+            else:
+                st.warning("Esa categoría no existe aún.")
 
     # Mostrar tabla con el Fondo Disponible
     st.markdown("**Presupuesto y Fondos Actuales:**")

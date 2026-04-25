@@ -370,8 +370,9 @@ elif st.session_state.seccion == 'Cuentas':
     st.write("") 
     
     if not df_cuentas.empty and not df_fijos.empty:
-        # El Balance Total es la suma de TODOS los fondos disponibles
-        t_total = pd.to_numeric(df_fijos["Fondo_Disponible"]).sum()
+        # Convertimos a número ignorando errores (lo que no sea número será 0)
+        fondos_limpios = pd.to_numeric(df_fijos["Fondo_Disponible"], errors='coerce').fillna(0)
+        t_total = fondos_limpios.sum()
         
         st.markdown(f"""
             <div style="background: linear-gradient(90deg, #0F2027 0%, #2C5364 100%); 
@@ -386,10 +387,12 @@ elif st.session_state.seccion == 'Cuentas':
         colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
         
         for i, (index, row) in enumerate(df_cuentas.iterrows()):
-            # Lógica: Sumar fondos de categorías NO excluidas para esta cuenta
+            # Filtramos categorías que NO están en la lista de excepciones de esta cuenta
             excluidas = df_excep[df_excep["Cuenta"] == row['Cuenta']]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-            cats_permitidas = df_fijos[~df_fijos["Categoría"].isin(excluidas)]
-            saldo_calculado = pd.to_numeric(cats_permitidas["Fondo_Disponible"]).sum()
+            
+            # Sumamos solo los fondos de las categorías permitidas
+            mask = ~df_fijos["Categoría"].isin(excluidas)
+            saldo_calculado = pd.to_numeric(df_fijos.loc[mask, "Fondo_Disponible"], errors='coerce').fillna(0).sum()
             
             color_acento = colores_neon[i % len(colores_neon)]
             with cols[i % 4]:

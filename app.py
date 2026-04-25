@@ -200,30 +200,61 @@ elif st.session_state.seccion == 'Pagos':
 
     with col_i3:
         st.write("")
-        if st.button("➕ AGREGAR OTRA SEMANA", use_container_width=True, type="primary"):
+        # Botón para Agregar
+        if st.button("➕ AGREGAR SEMANA", use_container_width=True, type="primary"):
             if not df_cuentas.empty and not df_fijos.empty:
                 ctas_a_procesar = nombres_cuentas if cuenta_inyec == "TODAS" else [cuenta_inyec]
-                
                 for cta in ctas_a_procesar:
-                    excepciones_de_esta_cta = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                    cats_validas = df_fijos[~df_fijos["Categoría"].isin(excepciones_de_esta_cta)].copy()
+                    lista_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                    cats_validas = df_fijos[~df_fijos["Categoría"].isin(lista_negra)].copy()
                     monto_total_cta = (pd.to_numeric(cats_validas["Monto_Mensual"]) / 4).sum()
                     
                     for idx, row in cats_validas.iterrows():
-                        f_actual = pd.to_numeric(df_fijos.loc[df_fijos["Categoría"] == row["Categoría"], "Fondo_Disponible"]).values[0]
-                        df_fijos.loc[df_fijos["Categoría"] == row["Categoría"], "Fondo_Disponible"] = f_actual + (pd.to_numeric(row["Monto_Mensual"]) / 4)
+                        idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
+                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) + (float(row["Monto_Mensual"]) / 4)
                     
-                    s_banco = float(df_cuentas.loc[df_cuentas["Cuenta"] == cta, "Saldo"].values[0])
-                    df_cuentas.loc[df_cuentas["Cuenta"] == cta, "Saldo"] = s_banco + monto_total_cta
+                    idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
+                    df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_total_cta
                     
-                    fecha_h = datetime.now().strftime("%Y-%m-%d")
-                    nuevo_ingreso = pd.DataFrame([{"Fecha": fecha_h, "Cuenta": cta, "Concepto": "INYECCIÓN SEMANAL", "Monto": monto_total_cta}])
-                    df_movs = pd.concat([df_movs, nuevo_ingreso], ignore_index=True)
+                    nuevo_mov = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta, "Concepto": "INYECCIÓN SEMANAL", "Monto": monto_total_cta}])
+                    df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
 
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                st.cache_data.clear()
+                st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
+                st.rerun()
+
+        # Botón para Deshacer
+        if st.button("↩️ DESHACER ÚLTIMA", use_container_width=True, help="Revierte la última inyección semanal realizada"):
+            if not df_movs.empty and "INYECCIÓN SEMANAL" in df_movs["Concepto"].values:
+                # 1. Identificar la última fecha de inyección
+                ult_fecha = df_movs[df_movs["Concepto"] == "INYECCIÓN SEMANAL"]["Fecha"].iloc[-1]
+                inyec_a_revertir = df_movs[(df_movs["Concepto"] == "INYECCIÓN SEMANAL") & (df_movs["Fecha"] == ult_fecha)]
+                
+                for _, mov in inyec_a_revertir.iterrows():
+                    cta = mov["Cuenta"]
+                    # Restar del saldo de la cuenta
+                    if cta in df_cuentas["Cuenta"].values:
+                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - float(mov["Monto"])
+                    
+                    # Restar de los sobres (usando las excepciones actuales de esa cuenta)
+                    lista_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                    cats_revertir = df_fijos[~df_fijos["Categoría"].isin(lista_negra)]
+                    for _, row in cats_revertir.iterrows():
+                        idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
+                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - (float(row["Monto_Mensual"]) / 4)
+
+                # 2. Eliminar esos registros del historial
+                df_movs = df_movs.drop(inyec_a_revertir.index)
+                
+                # 3. Guardar cambios
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
+                st.success(f"Inyección del {ult_fecha} revertida.")
                 st.rerun()
 
     # --- SECCIÓN: REGISTRAR GASTO ---

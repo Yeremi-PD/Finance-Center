@@ -244,22 +244,36 @@ elif st.session_state.seccion == 'Pagos':
 elif st.session_state.seccion == 'Trading':
     st.markdown("<h3 style='font-weight: 400; color: #555;'>📈 Gestión de Cartera Trading</h3>", unsafe_allow_html=True)
     
-    # Cálculo de Balance de Trading
+    # Cálculo de Balance de Trading Detallado
     if not df_trading.empty:
         df_trading["Monto"] = pd.to_numeric(df_trading["Monto"]).fillna(0)
-        capital_actual = df_trading["Monto"].sum()
-        st.markdown(f"""
-            <div style="background-color: #1a1a1a; padding: 20px; border-radius: 10px; border-left: 5px solid #F57C00; margin-bottom: 25px;">
-                <p style="margin:0; color: #888; font-size: 12px; letter-spacing: 1px;">CAPITAL TOTAL EN TRADING</p>
-                <h2 style="margin:0; color: #F57C00;">${capital_actual:,.2f}</h2>
-            </div>
-        """, unsafe_allow_html=True)
+        cap_disponible = df_trading["Monto"].sum()
+        cap_invertido = df_trading[df_trading["Monto"] > 0]["Monto"].sum()
+        cap_retirado = abs(df_trading[df_trading["Monto"] < 0]["Monto"].sum())
 
-    # Formulario de Movimiento
+        col_k1, col_k2, col_k3 = st.columns(3)
+        with col_k1:
+            st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F57C00;">
+                <p style="margin:0; color: #888; font-size: 11px;">DINERO DISPONIBLE</p>
+                <h3 style="margin:0; color: #F57C00;">${cap_disponible:,.2f}</h3></div>""", unsafe_allow_html=True)
+        with col_k2:
+            st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50;">
+                <p style="margin:0; color: #888; font-size: 11px;">CAPITAL INVERTIDO</p>
+                <h3 style="margin:0; color: #4CAF50;">${cap_invertido:,.2f}</h3></div>""", unsafe_allow_html=True)
+        with col_k3:
+            st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F44336;">
+                <p style="margin:0; color: #888; font-size: 11px;">CAPITAL RETIRADO</p>
+                <h3 style="margin:0; color: #F44336;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
+    st.write("")
+
+    # Formulario de Movimiento con Conceptos Fijos
     col_t1, col_t2, col_t3, col_t4 = st.columns([2, 2, 2, 1])
     with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
     with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión (Sale de Banco)", "Retiro (Entra a Banco)"])
-    with col_t3: concepto_t = st.text_input("Nota:", placeholder="Ej: Depósito en PocketOption")
+    with col_t3: 
+        lista_c = ["Trading View", "Cuenta de fondeo", "fx replay", "mentoria", "OTRO"]
+        c_sel_t = st.selectbox("Concepto:", lista_c)
+        concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
     with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
     
     if st.button("🚀 EJECUTAR OPERACIÓN", use_container_width=True, type="primary"):
@@ -283,8 +297,18 @@ elif st.session_state.seccion == 'Trading':
 
     if not df_trading.empty:
         st.markdown("---")
-        st.markdown("**Historial de Capital Trading**")
-        st.dataframe(df_trading.sort_index(ascending=False), use_container_width=True, hide_index=True)
+        col_h1, col_h2 = st.columns([2, 1])
+        with col_h1: st.markdown("**Historial de Capital Trading**")
+        with col_h2: f_t = st.selectbox("Filtrar historial:", ["VER TODO", "Inversiones", "Retiros"], label_visibility="collapsed")
+        
+        # Lógica de Filtrado
+        df_t_final = df_trading.copy()
+        if f_t == "Inversiones":
+            df_t_final = df_trading[df_trading["Monto"] > 0]
+        elif f_t == "Retiros":
+            df_t_final = df_trading[df_trading["Monto"] < 0]
+            
+        st.dataframe(df_t_final.sort_index(ascending=False), use_container_width=True, hide_index=True)
 
 # ---------------------------------------------------------
 # 4. CUENTAS (Compacto y Minimalista)

@@ -331,21 +331,34 @@ elif st.session_state.seccion == 'Trading':
     
     if st.button("🚀 EJECUTAR OPERACIÓN", use_container_width=True, type="primary"):
         if monto_t > 0:
-            # Lógica: Inversión suma a Trading y resta a Banco. Retiro es al revés.
-            monto_trading = monto_t if "Inversión" in tipo_t else -monto_t
-            monto_banco = -monto_t if "Inversión" in tipo_t else monto_t
+            monto_trading = monto_t if tipo_t == "Inversión" else -monto_t
+            monto_banco = -monto_t if tipo_t == "Inversión" else monto_t
             
-            # 1. Guardar en Trading
+            # 1. Actualizar Hoja de Trading y Memoria
             nueva_op = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
             df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+            st.session_state.df_trading = df_trading
             
-            # 2. Actualizar Saldo de Cuenta Bancaria
-            saldo_act = float(df_cuentas.loc[df_cuentas["Cuenta"] == cta_t, "Saldo"].values[0])
-            df_cuentas.loc[df_cuentas["Cuenta"] == cta_t, "Saldo"] = saldo_act + monto_banco
+            # 2. Actualizar Saldo Real de la Cuenta Bancaria
+            idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
+            df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+            st.session_state.df_cuentas = df_cuentas
+
+            # 3. NUEVO: Si es Inversión, descontar del sobre "Inversion" en Gastos Fijos
+            if tipo_t == "Inversión":
+                if "Inversion" in df_fijos["Categoría"].values:
+                    idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                    fondo_actual = float(df_fijos.at[idx_inv, "Fondo_Disponible"])
+                    df_fijos.at[idx_inv, "Fondo_Disponible"] = fondo_actual - monto_t
+                    
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    st.session_state.df_fijos = df_fijos
+                    st.success(f"Inversión realizada: Se descontaron ${monto_t:,.2f} del sobre 'Inversion'")
+                else:
+                    st.warning("No se encontró la categoría 'Inversion' para descontar el fondo.")
             
-            st.cache_data.clear()
             st.rerun()
 
     if not df_trading.empty:

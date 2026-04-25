@@ -13,38 +13,40 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 CATEGORIAS_BASE = ["Gasolina", "Pa La Se", "Bebe", "Elect", "Gas", "Agua", "Gym", "Deuda", "Subs", "Pelo", "Otros", "Inversion", "Ahorro", "Disfrute", "Seguro"]
 MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 
-# --- CARGAR DATOS ---
-def cargar_hoja(nombre):
+# --- CARGAR DATOS (MEMORIA LOCAL) ---
+def cargar_base_datos(nombre):
+    # Aquí sí usamos un ttl mayor (ej. 3600 segundos) para que no descargue en cada clic
     try:
-        df = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre, ttl=0).dropna(how="all")
-        
-        # Si la hoja está vacía, inicializamos con columnas básicas para evitar errores
+        df = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre, ttl=3600).dropna(how="all")
         if df.empty:
-            if nombre == "Gastos_Fijos":
-                return pd.DataFrame(columns=["Categoría", "Monto_Mensual", "Fondo_Disponible"])
-            if nombre == "Movimientos":
-                return pd.DataFrame(columns=["Fecha", "Cuenta", "Concepto", "Monto"])
-            if nombre == "Cuentas":
-                return pd.DataFrame(columns=["Cuenta", "Saldo"])
-            if nombre == "Excepciones":
-                return pd.DataFrame(columns=["Cuenta", "Categoria_Excluida"])
-            if nombre == "Trading":
-                return pd.DataFrame(columns=["Fecha", "Cuenta", "Tipo", "Concepto", "Monto"])
-        
-        # Si tiene datos pero falta la columna de fondos en Gastos_Fijos, la agregamos
+            columnas = {
+                "Gastos_Fijos": ["Categoría", "Monto_Mensual", "Fondo_Disponible"],
+                "Movimientos": ["Fecha", "Cuenta", "Concepto", "Monto"],
+                "Cuentas": ["Cuenta", "Saldo"],
+                "Excepciones": ["Cuenta", "Categoria_Excluida"],
+                "Trading": ["Fecha", "Cuenta", "Tipo", "Concepto", "Monto"]
+            }
+            return pd.DataFrame(columns=columnas.get(nombre, []))
         if nombre == "Gastos_Fijos" and "Fondo_Disponible" not in df.columns:
             df["Fondo_Disponible"] = 0.0
-            
         return df
     except:
-        # En caso de error crítico de conexión, devolvemos DF vacío con columnas de Gastos_Fijos por defecto
-        return pd.DataFrame(columns=["Categoría", "Monto_Mensual", "Fondo_Disponible"])
+        return pd.DataFrame()
 
-df_fijos = cargar_hoja("Gastos_Fijos")
-df_movs = cargar_hoja("Movimientos")
-df_cuentas = cargar_hoja("Cuentas")
-df_excep = cargar_hoja("Excepciones")
-df_trading = cargar_hoja("Trading") # Nueva hoja cargada
+# Solo descargamos de Google Sheets si la app se acaba de abrir o se refrescó con F5
+if 'df_fijos' not in st.session_state:
+    st.session_state.df_fijos = cargar_base_datos("Gastos_Fijos")
+    st.session_state.df_movs = cargar_base_datos("Movimientos")
+    st.session_state.df_cuentas = cargar_base_datos("Cuentas")
+    st.session_state.df_excep = cargar_base_datos("Excepciones")
+    st.session_state.df_trading = cargar_base_datos("Trading")
+
+# Usamos las variables de la sesión para que todo sea instantáneo
+df_fijos = st.session_state.df_fijos
+df_movs = st.session_state.df_movs
+df_cuentas = st.session_state.df_cuentas
+df_excep = st.session_state.df_excep
+df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
 # --- NAVEGACIÓN ---
@@ -246,11 +248,14 @@ elif st.session_state.seccion == 'Pagos':
                 df_fijos.at[idx_fijo, "Fondo_Disponible"] = fondo_actual - m_gasto
                 
                 # 3. Guardar cambios (No actualizamos 'Cuentas' porque el saldo ahora es calculado)
+# Actualizar Google Sheets
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                 
-                st.cache_data.clear() # Limpia el caché para que no reaparezcan datos viejos
-                st.success("Gasto aplicado correctamente")
+                # Actualizar Memoria de Sesión (Esto hace que sea instantáneo)
+                st.session_state.df_movs = df_movs
+                st.session_state.df_fijos = df_fijos
+                
                 st.rerun()
 
     st.markdown("<hr>", unsafe_allow_html=True)

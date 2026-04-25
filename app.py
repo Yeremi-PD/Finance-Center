@@ -245,86 +245,69 @@ elif st.session_state.seccion == 'Trading':
     st.info("¡Bienvenido a tu panel de Trading! Aquí construiremos tu nueva herramienta.")
 
 # ---------------------------------------------------------
-# 4. CUENTAS
+# 4. CUENTAS (Minimalista y Elegante)
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Cuentas':
-    st.markdown("<h2 style='color: #2E7D32;'>💳 Estado de Mis Cuentas</h2>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-weight: 400; color: #555; margin-bottom: 0;'>Mis Cuentas</h3>", unsafe_allow_html=True)
     
     if not df_cuentas.empty:
         df_cuentas["Saldo"] = pd.to_numeric(df_cuentas["Saldo"]).fillna(0)
         t_total = df_cuentas["Saldo"].sum()
         
-        # Banner de Total con mejor diseño
+        # Total gigante, sin fondo, muy limpio
         st.markdown(f"""
-            <div style="background: linear-gradient(90deg, #4CAF50 0%, #2E7D32 100%); 
-                        padding: 30px; border-radius: 15px; color: white; text-align: center; margin-bottom: 25px;">
-                <p style="margin: 0; font-size: 18px; opacity: 0.9;">Balance Total Real Disponible</p>
-                <h1 style="margin: 0; font-size: 45px;">${t_total:,.2f}</h1>
+            <div style="text-align: center; margin-top: 20px; margin-bottom: 40px;">
+                <p style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin: 0;">Total Disponible</p>
+                <h1 style="color: #111; font-size: 55px; font-weight: 300; margin: 0; letter-spacing: -1px;">${t_total:,.2f}</h1>
             </div>
         """, unsafe_allow_html=True)
         
-        # Grid de Tarjetas de Cuentas
-        num_cuentas = len(df_cuentas)
-        cols = st.columns(min(num_cuentas, 4)) # Máximo 4 columnas
-        
+        # Tarjetas sutiles, solo con un borde gris clarito
+        cols = st.columns(4)
         for i, (index, row) in enumerate(df_cuentas.iterrows()):
             with cols[i % 4]:
                 st.markdown(f"""
-                    <div style="background-color: #ffffff; padding: 20px; border-left: 5px solid #4CAF50; 
-                                border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px;">
-                        <p style="color: #666; margin: 0; font-size: 14px; font-weight: bold;">{row['Cuenta'].upper()}</p>
-                        <h3 style="color: #333; margin: 5px 0 0 0;">${row['Saldo']:,.2f}</h3>
+                    <div style="border: 1px solid #eaeaea; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px;">
+                        <p style="color: #999; font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">{row['Cuenta']}</p>
+                        <h4 style="color: #333; font-size: 22px; font-weight: 400; margin: 5px 0 0 0;">${row['Saldo']:,.2f}</h4>
                     </div>
                 """, unsafe_allow_html=True)
+    else:
+        st.info("Aún no tienes cuentas registradas.")
 
-    st.markdown("<br><hr>", unsafe_allow_html=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
     
-    # GESTIÓN DE CUENTAS (Edición y Borrado)
-    st.subheader("🛠️ Administrar Cuentas")
-    tab_edit, tab_del = st.tabs(["📝 Crear o Modificar", "🗑️ Eliminar Cuenta"])
-    
-    with tab_edit:
+    # Menú oculto en un expander para no ensuciar la pantalla
+    with st.expander("⚙️ Administrar Cuentas (Crear, Editar o Eliminar)", expanded=False):
         col_e1, col_e2 = st.columns(2)
-        opciones_cta = ["➕ CREAR NUEVA CUENTA"] + (df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
         
         with col_e1:
-            cta_a_editar = st.selectbox("Selecciona la cuenta que quieres cambiar:", opciones_cta)
+            st.markdown("<p style='color:#666; font-size:14px; margin-bottom:5px;'><b>Crear o Modificar</b></p>", unsafe_allow_html=True)
+            opc = ["➕ NUEVA CUENTA"] + (df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
+            c_edit = st.selectbox("Selecciona:", opc, label_visibility="collapsed")
             
-            # Cargar datos para editar
-            if cta_a_editar == "➕ CREAR NUEVA CUENTA":
-                nombre_final = st.text_input("Nombre de la nueva cuenta:", placeholder="Ej: Banreservas, Efectivo...")
-                saldo_inicial = 0.0
-            else:
-                nombre_final = cta_a_editar
-                saldo_inicial = float(df_cuentas.loc[df_cuentas["Cuenta"] == cta_a_editar, "Saldo"].values[0])
-        
-        with col_e2:
-            nuevo_saldo = st.number_input("Saldo Total Actual ($):", value=saldo_inicial, step=100.0)
-            st.write("") # Espacio
-            if st.button("✅ GUARDAR CAMBIOS EN CUENTA", use_container_width=True, type="primary"):
-                if nombre_final:
-                    if not df_cuentas.empty and nombre_final in df_cuentas["Cuenta"].values:
-                        df_cuentas.loc[df_cuentas["Cuenta"] == nombre_final, "Saldo"] = nuevo_saldo
+            s_base = float(df_cuentas.loc[df_cuentas["Cuenta"] == c_edit, "Saldo"].values[0]) if c_edit != "➕ NUEVA CUENTA" else 0.0
+            n_nombre = st.text_input("Nombre de la cuenta:", placeholder="Ej: Efectivo") if c_edit == "➕ NUEVA CUENTA" else c_edit
+            n_saldo = st.number_input("Saldo Actual:", value=s_base, step=100.0)
+            
+            if st.button("Guardar Cambios", use_container_width=True):
+                if n_nombre:
+                    if not df_cuentas.empty and n_nombre in df_cuentas["Cuenta"].values:
+                        df_cuentas.loc[df_cuentas["Cuenta"] == n_nombre, "Saldo"] = n_saldo
                     else:
-                        nueva_row = pd.DataFrame([{"Cuenta": nombre_final, "Saldo": nuevo_saldo}])
-                        df_cuentas = pd.concat([df_cuentas, nueva_row], ignore_index=True)
-                    
+                        df_cuentas = pd.concat([df_cuentas, pd.DataFrame([{"Cuenta": n_nombre, "Saldo": n_saldo}])], ignore_index=True)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     st.cache_data.clear()
-                    st.success(f"Cuenta '{nombre_final}' actualizada correctamente.")
                     st.rerun()
-                else:
-                    st.error("Por favor, ingresa un nombre para la cuenta.")
 
-    with tab_del:
-        if not df_cuentas.empty:
-            cta_a_borrar = st.selectbox("Selecciona la cuenta que deseas eliminar definitivamente:", df_cuentas["Cuenta"].tolist())
-            st.warning(f"Atención: Se borrará la cuenta '{cta_a_borrar}' y su saldo dejará de sumarse al total.")
-            if st.button("🔥 ELIMINAR CUENTA PERMANENTEMENTE", use_container_width=True):
-                df_cuentas = df_cuentas[df_cuentas["Cuenta"] != cta_a_borrar]
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                st.cache_data.clear()
-                st.success("Cuenta eliminada.")
-                st.rerun()
-        else:
-            st.info("No hay cuentas para eliminar.")
+        with col_e2:
+            st.markdown("<p style='color:#666; font-size:14px; margin-bottom:5px;'><b>Eliminar Cuenta</b></p>", unsafe_allow_html=True)
+            if not df_cuentas.empty:
+                c_del = st.selectbox("Borrar:", df_cuentas["Cuenta"].tolist(), label_visibility="collapsed")
+                st.write("") # Espaciador
+                st.write("") # Espaciador
+                if st.button("Eliminar Permanentemente", use_container_width=True):
+                    df_cuentas = df_cuentas[df_cuentas["Cuenta"] != c_del]
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    st.cache_data.clear()
+                    st.rerun()

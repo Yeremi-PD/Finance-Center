@@ -24,62 +24,17 @@ df_fijos = cargar_hoja("Gastos_Fijos")
 df_movs = cargar_hoja("Movimientos")
 df_cuentas = cargar_hoja("Cuentas")
 df_excep = cargar_hoja("Excepciones")
-df_trading = cargar_hoja("Trading")
-df_config = cargar_hoja("Config")
-
-# --- FUNCIÓN PARA GUARDAR MEMORIA ---
-def guardar_memoria(parametro, valor):
-    global df_config
-    if not df_config.empty and parametro in df_config["Parametro"].values:
-        df_config.loc[df_config["Parametro"] == parametro, "Valor"] = str(valor)
-    else:
-        nueva_conf = pd.DataFrame([{"Parametro": parametro, "Valor": str(valor)}])
-        df_config = pd.concat([df_config, nueva_conf], ignore_index=True)
-    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Config", data=df_config)
-
-# --- CARGAR MEMORIA AL INICIAR ---
-def leer_memoria(parametro, default):
-    if not df_config.empty and parametro in df_config["Parametro"].values:
-        return df_config.loc[df_config["Parametro"] == parametro, "Valor"].values[0]
-    return default # Nueva hoja cargada
+df_trading = cargar_hoja("Trading") # Nueva hoja cargada
 
 if not df_fijos.empty and "Fondo_Disponible" not in df_fijos.columns:
     df_fijos["Fondo_Disponible"] = 0.0
 
-# --- NAVEGACIÓN CON MEMORIA ---
+# --- NAVEGACIÓN ---
 st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MI CENTRO FINANCIERO</h1>", unsafe_allow_html=True)
 col_n1, col_n2, col_n3, col_n4, col_n5 = st.columns(5)
 
-# Leer la última sección guardada
-if 'seccion' not in st.session_state: 
-    st.session_state.seccion = leer_memoria("ultima_seccion", "Ajustes")
-
-with col_n1:
-    if st.button("⚙️ GASTOS FIJOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Ajustes' else "secondary"): 
-        st.session_state.seccion = 'Ajustes'
-        guardar_memoria("ultima_seccion", "Ajustes")
-        st.rerun()
-with col_n2:
-    if st.button("💸 REGISTRAR GASTOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Pagos' else "secondary"): 
-        st.session_state.seccion = 'Pagos'
-        guardar_memoria("ultima_seccion", "Pagos")
-        st.rerun()
-with col_n3:
-    if st.button("📈 TRADING", use_container_width=True, type="primary" if st.session_state.seccion == 'Trading' else "secondary"): 
-        st.session_state.seccion = 'Trading'
-        guardar_memoria("ultima_seccion", "Trading")
-        st.rerun()
-with col_n4:
-    if st.button("📊 PROYECCIÓN ANUAL", use_container_width=True, type="primary" if st.session_state.seccion == 'Vista' else "secondary"): 
-        st.session_state.seccion = 'Vista'
-        guardar_memoria("ultima_seccion", "Vista")
-        st.rerun()
-with col_n5:
-    if st.button("💳 MIS CUENTAS", use_container_width=True, type="primary" if st.session_state.seccion == 'Cuentas' else "secondary"): 
-        st.session_state.seccion = 'Cuentas'
-        guardar_memoria("ultima_seccion", "Cuentas")
-        st.rerun()
-st.markdown("---")
+# Por defecto, abrimos la primera pestaña del nuevo orden
+if 'seccion' not in st.session_state: st.session_state.seccion = 'Ajustes'
 
 with col_n1:
     if st.button("⚙️ GASTOS FIJOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Ajustes' else "secondary"): 
@@ -245,13 +200,7 @@ elif st.session_state.seccion == 'Pagos':
     st.markdown("<br>", unsafe_allow_html=True)
     
     col_g1, col_g2, col_g3, col_g4 = st.columns(4)
-    with col_g1: 
-        cta_recordada = leer_memoria("ultima_cta_pago", nombres_cuentas[0] if nombres_cuentas else "")
-        # Encontrar el índice para que aparezca seleccionada
-        idx_cta = nombres_cuentas.index(cta_recordada) if cta_recordada in nombres_cuentas else 0
-        c_gasto = st.selectbox("💳 Cuenta a Descontar:", nombres_cuentas, index=idx_cta)
-        if c_gasto != cta_recordada:
-            guardar_memoria("ultima_cta_pago", c_gasto)
+    with col_g1: c_gasto = st.selectbox("💳 Cuenta a Descontar:", nombres_cuentas)
     with col_g2: s_gasto = st.selectbox("📂 Sobre / Categoría:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
     with col_g3: m_gasto = st.number_input("💲 Monto a Restar:", min_value=0.0)
     with col_g4:

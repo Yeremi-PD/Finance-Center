@@ -15,10 +15,9 @@ MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto
 
 # --- CARGAR DATOS (MEMORIA LOCAL) ---
 def cargar_base_datos(nombre):
-    # Aquí sí usamos un ttl mayor (ej. 3600 segundos) para que no descargue en cada clic
+    # Ponemos ttl=0 para que al refrescar la página (Ctrl+R) obligue a buscar en Google Sheets
     try:
-        df = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre, ttl=3600).dropna(how="all")
-        if df.empty:
+        df = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre, ttl=0).dropna(how="all")
             columnas = {
                 "Gastos_Fijos": ["Categoría", "Monto_Mensual", "Fondo_Disponible"],
                 "Movimientos": ["Fecha", "Cuenta", "Concepto", "Monto"],

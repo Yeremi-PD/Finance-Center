@@ -336,7 +336,7 @@ elif st.session_state.seccion == 'Trading':
     with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
     with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro"])
     with col_t3: 
-        lista_c = ["Trading View", "Cuenta de fondeo", "fx replay", "mentoria", "OTRO"]
+        lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "OTRO"]
         c_sel_t = st.selectbox("Concepto:", lista_c)
         concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
     with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)

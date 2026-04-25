@@ -378,34 +378,45 @@ elif st.session_state.seccion == 'Trading':
         st.markdown("**📝 Historial de Capital (Edición Directa)**")
         st.caption("Modifica cualquier celda directamente. Para borrar filas, marca la casilla '🗑️' y presiona el botón de abajo.")
         
-        # Preparamos los datos: añadimos la columna del zafacón al final
+        # Preparamos los datos con tipos compatibles
         df_edit_t = df_trading.copy()
+        
+        # Convertimos la columna Fecha a formato fecha real para que no de error
+        if "Fecha" in df_edit_t.columns:
+            df_edit_t["Fecha"] = pd.to_datetime(df_edit_t["Fecha"]).dt.date
+        
+        # Aseguramos que Monto sea numérico
+        if "Monto" in df_edit_t.columns:
+            df_edit_t["Monto"] = pd.to_numeric(df_edit_t["Monto"], errors='coerce').fillna(0.0)
+
         df_edit_t["🗑️"] = False
         
-        # Editor de datos profesional
+        # Editor de datos
         edited_df_t = st.data_editor(
             df_edit_t,
             use_container_width=True,
             hide_index=True,
             column_config={
+                "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
                 "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
-                "Fecha": st.column_config.DateColumn("Fecha"),
                 "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro"]),
-                "Concepto": st.column_config.TextColumn("Concepto"),
-                "Cuenta": st.column_config.TextColumn("Cuenta"),
-                "🗑️": st.column_config.CheckboxColumn("Borrar", help="Selecciona para eliminar")
+                "Fecha": st.column_config.DateColumn("Fecha")
             }
         )
 
         if st.button("💾 GUARDAR CAMBIOS EN HISTORIAL", use_container_width=True, type="primary"):
-            # 1. Filtramos: nos quedamos solo con lo que NO tiene el zafacón marcado
+            # 1. Filtramos las filas que marcaste para borrar
             df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
             
-            # 2. Guardamos en Google Sheets y Memoria Local
+            # 2. Convertimos la fecha de nuevo a texto para el Excel
+            if "Fecha" in df_final_t.columns:
+                df_final_t["Fecha"] = df_final_t["Fecha"].astype(str)
+            
+            # 3. Guardamos en Google Sheets y Memoria Local
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
             st.session_state.df_trading = df_final_t
             
-            st.success("Historial de Trading actualizado.")
+            st.success("¡Cambios guardados!")
             st.rerun()
 
 # ---------------------------------------------------------

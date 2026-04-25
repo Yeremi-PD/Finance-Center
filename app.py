@@ -24,6 +24,7 @@ df_fijos = cargar_hoja("Gastos_Fijos")
 df_movs = cargar_hoja("Movimientos")
 df_cuentas = cargar_hoja("Cuentas")
 df_excep = cargar_hoja("Excepciones")
+df_trading = cargar_hoja("Trading") # Nueva hoja cargada
 
 if not df_fijos.empty and "Fondo_Disponible" not in df_fijos.columns:
     df_fijos["Fondo_Disponible"] = 0.0
@@ -238,33 +239,74 @@ elif st.session_state.seccion == 'Pagos':
             st.dataframe(df_h, use_container_width=True, height=450, hide_index=True)
 
 # ---------------------------------------------------------
-# NUEVA SECCIÓN: TRADING
+# NUEVA SECCIÓN: TRADING (Inversiones y Retiros)
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Trading':
-    st.markdown("<h2 style='color: #F57C00;'>📈 Panel de Trading</h2>", unsafe_allow_html=True)
-    st.info("¡Bienvenido a tu panel de Trading! Aquí construiremos tu nueva herramienta.")
+    st.markdown("<h3 style='font-weight: 400; color: #555;'>📈 Gestión de Cartera Trading</h3>", unsafe_allow_html=True)
+    
+    # Cálculo de Balance de Trading
+    if not df_trading.empty:
+        df_trading["Monto"] = pd.to_numeric(df_trading["Monto"]).fillna(0)
+        capital_actual = df_trading["Monto"].sum()
+        st.markdown(f"""
+            <div style="background-color: #1a1a1a; padding: 20px; border-radius: 10px; border-left: 5px solid #F57C00; margin-bottom: 25px;">
+                <p style="margin:0; color: #888; font-size: 12px; letter-spacing: 1px;">CAPITAL TOTAL EN TRADING</p>
+                <h2 style="margin:0; color: #F57C00;">${capital_actual:,.2f}</h2>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Formulario de Movimiento
+    col_t1, col_t2, col_t3, col_t4 = st.columns([2, 2, 2, 1])
+    with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
+    with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión (Sale de Banco)", "Retiro (Entra a Banco)"])
+    with col_t3: concepto_t = st.text_input("Nota:", placeholder="Ej: Depósito en PocketOption")
+    with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
+    
+    if st.button("🚀 EJECUTAR OPERACIÓN", use_container_width=True, type="primary"):
+        if monto_t > 0:
+            # Lógica: Inversión suma a Trading y resta a Banco. Retiro es al revés.
+            monto_trading = monto_t if "Inversión" in tipo_t else -monto_t
+            monto_banco = -monto_t if "Inversión" in tipo_t else monto_t
+            
+            # 1. Guardar en Trading
+            nueva_op = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
+            df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+            
+            # 2. Actualizar Saldo de Cuenta Bancaria
+            saldo_act = float(df_cuentas.loc[df_cuentas["Cuenta"] == cta_t, "Saldo"].values[0])
+            df_cuentas.loc[df_cuentas["Cuenta"] == cta_t, "Saldo"] = saldo_act + monto_banco
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+            
+            st.cache_data.clear()
+            st.rerun()
+
+    if not df_trading.empty:
+        st.markdown("---")
+        st.markdown("**Historial de Capital Trading**")
+        st.dataframe(df_trading.sort_index(ascending=False), use_container_width=True, hide_index=True)
 
 # ---------------------------------------------------------
-# 4. CUENTAS (Diseño Premium Fintech)
+# 4. CUENTAS (Compacto y Minimalista)
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Cuentas':
-    st.write("") # Espaciador
+    st.write("") 
     
     if not df_cuentas.empty:
         df_cuentas["Saldo"] = pd.to_numeric(df_cuentas["Saldo"]).fillna(0)
         t_total = df_cuentas["Saldo"].sum()
         
-        # Banner Total - Estilo Tarjeta Premium (Azul noche/Metálico)
+        # Banner Total Compacto
         st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%); 
-                        padding: 35px; border-radius: 16px; text-align: center; color: white; 
-                        margin-bottom: 35px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
-                <p style="margin: 0; font-size: 14px; letter-spacing: 3px; color: #b0bec5;">BALANCE TOTAL DISPONIBLE</p>
-                <h1 style="margin: 5px 0 0 0; font-size: 55px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${t_total:,.2f}</h1>
+            <div style="background: linear-gradient(90deg, #0F2027 0%, #2C5364 100%); 
+                        padding: 15px; border-radius: 12px; text-align: center; color: white; 
+                        margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <p style="margin: 0; font-size: 11px; letter-spacing: 2px; color: #b0bec5; font-weight: 600;">BALANCE TOTAL</p>
+                <h1 style="margin: 0; font-size: 38px; font-weight: 700;">${t_total:,.2f}</h1>
             </div>
         """, unsafe_allow_html=True)
         
-        # Grid de Cuentas - Se adaptan al modo oscuro/claro automáticamente con líneas neón
+        # Grid de Cuentas con fondo resaltado
         cols = st.columns(4)
         colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
         
@@ -272,11 +314,12 @@ elif st.session_state.seccion == 'Cuentas':
             color_acento = colores_neon[i % len(colores_neon)]
             with cols[i % 4]:
                 st.markdown(f"""
-                    <div style="background-color: var(--secondary-background-color); padding: 20px; 
-                                border-radius: 12px; border-top: 4px solid {color_acento}; 
-                                margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                        <p style="margin: 0; font-size: 12px; text-transform: uppercase; font-weight: 600; color: var(--text-color); opacity: 0.6;">{row['Cuenta']}</p>
-                        <h3 style="margin: 8px 0 0 0; font-size: 24px; color: var(--text-color);">${row['Saldo']:,.2f}</h3>
+                    <div style="background-color: rgba(255, 255, 255, 0.05); padding: 18px; 
+                                border-radius: 10px; border-top: 3px solid {color_acento}; 
+                                margin-bottom: 15px; border-right: 1px solid rgba(255,255,255,0.05);
+                                border-bottom: 1px solid rgba(255,255,255,0.05); box-shadow: 2px 4px 10px rgba(0,0,0,0.2);">
+                        <p style="margin: 0; font-size: 10px; text-transform: uppercase; font-weight: 700; opacity: 0.6;">{row['Cuenta']}</p>
+                        <h4 style="margin: 5px 0 0 0; font-size: 20px; font-weight: 400;">${row['Saldo']:,.2f}</h4>
                     </div>
                 """, unsafe_allow_html=True)
     else:

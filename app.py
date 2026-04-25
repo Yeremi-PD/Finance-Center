@@ -201,11 +201,11 @@ elif st.session_state.seccion == 'Pagos':
     
     col_g1, col_g2, col_g3, col_g4 = st.columns(4)
     with col_g1: c_gasto = st.selectbox("💳 Cuenta a Descontar:", nombres_cuentas)
-    with col_g2: s_gasto = st.selectbox("📂 Sobre / Categoría:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
+    with col_g2: s_gasto = st.selectbox("📂 Categoría:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
     with col_g3: m_gasto = st.number_input("💲 Monto a Restar:", min_value=0.0)
     with col_g4:
         st.write("")
-        if st.button("🔴 EJECUTAR GASTO", use_container_width=True):
+        if st.button("APLICAR GASTO", use_container_width=True):
             if m_gasto > 0:
                 fecha_h = datetime.now().strftime("%Y-%m-%d")
                 df_movs = pd.concat([df_movs, pd.DataFrame([{"Fecha": fecha_h, "Cuenta": c_gasto, "Concepto": s_gasto, "Monto": -m_gasto}])], ignore_index=True)

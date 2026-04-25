@@ -15,8 +15,10 @@ MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto
 
 # --- SISTEMA DE AUTO-CONFIGURACIÓN DE EXCEL ---
 def inicializar_y_cargar():
+    # Extraemos el "ID Secreto" de forma segura para que la librería no colapse con el link
+    doc_id = URL_GOOGLE_SHEET.split("/d/")[1].split("/")[0]
     client = conn.client
-    spreadsheet = client.open_by_url(URL_GOOGLE_SHEET)
+    spreadsheet = client.open_by_key(doc_id)
     
     # Definimos qué hojas queremos y qué columnas debe tener cada una
     config_hojas = {

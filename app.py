@@ -352,7 +352,7 @@ elif st.session_state.seccion == 'Cuentas':
     st.markdown("<br><br>", unsafe_allow_html=True)
     
     # Menú oculto en un expander para no ensuciar la pantalla
-    with st.expander("⚙️ Administrar Cuentas (Crear, Editar o Eliminar)", expanded=False):
+    with st.expander("⚙️ Administrar Cuentas", expanded=False):
         col_e1, col_e2 = st.columns(2)
         
         with col_e1:

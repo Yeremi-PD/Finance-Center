@@ -182,7 +182,8 @@ elif st.session_state.seccion == 'Pagos':
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             st.markdown("**💰 Dinero disponible por Sobre**")
-            st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format("${:,.0f}"), use_container_width=True, height=400, hide_index=True)
+            df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"], errors="coerce").fillna(0)
+            st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=400, hide_index=True)
         with col_t2:
             st.markdown("**📜 Historial (Monto en negativo = Gasto)**")
             st.dataframe(df_movs.sort_index(ascending=False), use_container_width=True, height=400)

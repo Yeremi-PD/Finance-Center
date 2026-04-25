@@ -245,31 +245,38 @@ elif st.session_state.seccion == 'Trading':
     st.info("¡Bienvenido a tu panel de Trading! Aquí construiremos tu nueva herramienta.")
 
 # ---------------------------------------------------------
-# 4. CUENTAS (Minimalista y Elegante)
+# 4. CUENTAS (Diseño Premium Fintech)
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Cuentas':
-    st.markdown("<h3 style='font-weight: 400; color: #555; margin-bottom: 0;'>Mis Cuentas</h3>", unsafe_allow_html=True)
+    st.write("") # Espaciador
     
     if not df_cuentas.empty:
         df_cuentas["Saldo"] = pd.to_numeric(df_cuentas["Saldo"]).fillna(0)
         t_total = df_cuentas["Saldo"].sum()
         
-        # Total gigante, sin fondo, muy limpio
+        # Banner Total - Estilo Tarjeta Premium (Azul noche/Metálico)
         st.markdown(f"""
-            <div style="text-align: center; margin-top: 20px; margin-bottom: 40px;">
-                <p style="color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin: 0;">Total Disponible</p>
-                <h1 style="color: #111; font-size: 55px; font-weight: 300; margin: 0; letter-spacing: -1px;">${t_total:,.2f}</h1>
+            <div style="background: linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%); 
+                        padding: 35px; border-radius: 16px; text-align: center; color: white; 
+                        margin-bottom: 35px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
+                <p style="margin: 0; font-size: 14px; letter-spacing: 3px; color: #b0bec5;">BALANCE TOTAL DISPONIBLE</p>
+                <h1 style="margin: 5px 0 0 0; font-size: 55px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${t_total:,.2f}</h1>
             </div>
         """, unsafe_allow_html=True)
         
-        # Tarjetas sutiles, solo con un borde gris clarito
+        # Grid de Cuentas - Se adaptan al modo oscuro/claro automáticamente con líneas neón
         cols = st.columns(4)
+        colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
+        
         for i, (index, row) in enumerate(df_cuentas.iterrows()):
+            color_acento = colores_neon[i % len(colores_neon)]
             with cols[i % 4]:
                 st.markdown(f"""
-                    <div style="border: 1px solid #eaeaea; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px;">
-                        <p style="color: #999; font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">{row['Cuenta']}</p>
-                        <h4 style="color: #333; font-size: 22px; font-weight: 400; margin: 5px 0 0 0;">${row['Saldo']:,.2f}</h4>
+                    <div style="background-color: var(--secondary-background-color); padding: 20px; 
+                                border-radius: 12px; border-top: 4px solid {color_acento}; 
+                                margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                        <p style="margin: 0; font-size: 12px; text-transform: uppercase; font-weight: 600; color: var(--text-color); opacity: 0.6;">{row['Cuenta']}</p>
+                        <h3 style="margin: 8px 0 0 0; font-size: 24px; color: var(--text-color);">${row['Saldo']:,.2f}</h3>
                     </div>
                 """, unsafe_allow_html=True)
     else:

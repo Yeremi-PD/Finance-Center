@@ -269,7 +269,7 @@ elif st.session_state.seccion == 'Trading':
     # Formulario de Movimiento con Conceptos Fijos
     col_t1, col_t2, col_t3, col_t4 = st.columns([2, 2, 2, 1])
     with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
-    with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión (Sale de Banco)", "Retiro (Entra a Banco)"])
+    with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro"])
     with col_t3: 
         lista_c = ["Trading View", "Cuenta de fondeo", "fx replay", "mentoria", "OTRO"]
         c_sel_t = st.selectbox("Concepto:", lista_c)

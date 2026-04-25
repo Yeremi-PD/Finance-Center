@@ -297,26 +297,35 @@ elif st.session_state.seccion == 'Pagos':
 elif st.session_state.seccion == 'Trading':
     st.markdown("<h3 style='font-weight: 400; color: #555;'>📈 Gestión de Trading</h3>", unsafe_allow_html=True)
     
-    # Cálculo de Balance de Trading Detallado
+    # --- CÁLCULO SINCRONIZADO DE TRADING ---
+    # 1. El dinero disponible SIEMPRE viene del sobre 'Inversion' de Gastos Fijos
+    cap_disponible = 0.0
+    if "Inversion" in df_fijos["Categoría"].values:
+        idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+        cap_disponible = float(df_fijos.at[idx_inv, "Fondo_Disponible"])
+
+    # 2. Los otros totales sí vienen del historial de la hoja Trading
+    cap_invertido = 0.0
+    cap_retirado = 0.0
     if not df_trading.empty:
         df_trading["Monto"] = pd.to_numeric(df_trading["Monto"]).fillna(0)
-        cap_disponible = df_trading["Monto"].sum()
         cap_invertido = df_trading[df_trading["Monto"] > 0]["Monto"].sum()
         cap_retirado = abs(df_trading[df_trading["Monto"] < 0]["Monto"].sum())
 
-        col_k1, col_k2, col_k3 = st.columns(3)
-        with col_k1:
-            st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F57C00;">
-                <p style="margin:0; color: #888; font-size: 11px;">DINERO DISPONIBLE</p>
-                <h3 style="margin:0; color: #F57C00;">${cap_disponible:,.2f}</h3></div>""", unsafe_allow_html=True)
-        with col_k2:
-            st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50;">
-                <p style="margin:0; color: #888; font-size: 11px;">CAPITAL INVERTIDO</p>
-                <h3 style="margin:0; color: #4CAF50;">${cap_invertido:,.2f}</h3></div>""", unsafe_allow_html=True)
-        with col_k3:
-            st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F44336;">
-                <p style="margin:0; color: #888; font-size: 11px;">CAPITAL RETIRADO</p>
-                <h3 style="margin:0; color: #F44336;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
+    # 3. Mostrar Métricas
+    col_k1, col_k2, col_k3 = st.columns(3)
+    with col_k1:
+        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F57C00;">
+            <p style="margin:0; color: #888; font-size: 11px;">FONDO PARA INVERTIR (SOBRE)</p>
+            <h3 style="margin:0; color: #F57C00;">${cap_disponible:,.2f}</h3></div>""", unsafe_allow_html=True)
+    with col_k2:
+        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50;">
+            <p style="margin:0; color: #888; font-size: 11px;">TOTAL ENVIADO A TRADING</p>
+            <h3 style="margin:0; color: #4CAF50;">${cap_invertido:,.2f}</h3></div>""", unsafe_allow_html=True)
+    with col_k3:
+        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F44336;">
+            <p style="margin:0; color: #888; font-size: 11px;">TOTAL RETIRADO DE TRADING</p>
+            <h3 style="margin:0; color: #F44336;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
     st.write("")
 
     # Formulario de Movimiento con Conceptos Fijos

@@ -405,18 +405,41 @@ elif st.session_state.seccion == 'Trading':
         )
 
         if st.button("💾 GUARDAR CAMBIOS EN HISTORIAL", use_container_width=True, type="primary"):
-            # 1. Filtramos las filas que marcaste para borrar
-            df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
+            # --- LÓGICA DE REVERSIÓN ---
+            filas_a_borrar = edited_df_t[edited_df_t["🗑️"] == True]
             
-            # 2. Convertimos la fecha de nuevo a texto para el Excel
+            if not filas_a_borrar.empty:
+                for _, fila in filas_a_borrar.iterrows():
+                    cta_t = fila["Cuenta"]
+                    m_t = float(fila["Monto"])
+                    tipo_t = fila["Tipo"]
+                    
+                    # 1. Revertir Dinero en Cuenta Bancaria
+                    if cta_t in df_cuentas["Cuenta"].values:
+                        idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
+                        # Si fue inversión (restando), sumamos. Si fue retiro (sumando), restamos.
+                        df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) - m_t
+                    
+                    # 2. Revertir Dinero en Sobre de Inversión (Solo si fue una Inversión)
+                    if tipo_t == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                        idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                        df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) + abs(m_t)
+
+                # Guardar cambios de reversión en Sheets y Memoria
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                st.session_state.df_cuentas = df_cuentas
+                st.session_state.df_fijos = df_fijos
+
+            # --- GUARDAR EL HISTORIAL LIMPIO ---
+            df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
             if "Fecha" in df_final_t.columns:
                 df_final_t["Fecha"] = df_final_t["Fecha"].astype(str)
             
-            # 3. Guardamos en Google Sheets y Memoria Local
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
             st.session_state.df_trading = df_final_t
             
-            st.success("¡Cambios guardados!")
+            st.success("¡Datos revertidos y cambios guardados!")
             st.rerun()
 
 # ---------------------------------------------------------

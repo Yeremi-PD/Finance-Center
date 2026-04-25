@@ -225,28 +225,33 @@ elif st.session_state.seccion == 'Pagos':
                 st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
                 st.rerun()
 
-        # Botón para Deshacer
-        if st.button("↩️ DESHACER ÚLTIMA", use_container_width=True, help="Revierte la última inyección semanal realizada"):
+# Botón para Deshacer
+        if st.button("↩️ DESHACER ÚLTIMA", use_container_width=True, help="Resta la última inyección semanal de los sobres y cuentas"):
             if not df_movs.empty and "INYECCIÓN SEMANAL" in df_movs["Concepto"].values:
-                # 1. Identificar la última fecha de inyección
+                # 1. Identificamos la fecha de la última inyección realizada
                 ult_fecha = df_movs[df_movs["Concepto"] == "INYECCIÓN SEMANAL"]["Fecha"].iloc[-1]
                 inyec_a_revertir = df_movs[(df_movs["Concepto"] == "INYECCIÓN SEMANAL") & (df_movs["Fecha"] == ult_fecha)]
                 
                 for _, mov in inyec_a_revertir.iterrows():
                     cta = mov["Cuenta"]
-                    # Restar del saldo de la cuenta
+                    monto_a_quitar = float(mov["Monto"])
+                    
+                    # RESTAR del saldo de la cuenta bancaria
                     if cta in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
-                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - float(mov["Monto"])
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - monto_a_quitar
                     
-                    # Restar de los sobres (usando las excepciones actuales de esa cuenta)
-                    lista_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                    cats_revertir = df_fijos[~df_fijos["Categoría"].isin(lista_negra)]
-                    for _, row in cats_revertir.iterrows():
+                    # RESTAR de los fondos/sobres individuales
+                    excluidas = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                    cats_reales = df_fijos[~df_fijos["Categoría"].isin(excluidas)]
+                    
+                    for _, row in cats_reales.iterrows():
                         idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
-                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - (float(row["Monto_Mensual"]) / 4)
+                        valor_semanal = float(row["Monto_Mensual"]) / 4
+                        # AQUÍ RESTAMOS:
+                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - valor_semanal
 
-                # 2. Eliminar esos registros del historial
+                # 2. Borrar los registros del historial para que no se dupliquen
                 df_movs = df_movs.drop(inyec_a_revertir.index)
                 
                 # 3. Guardar cambios
@@ -377,11 +382,19 @@ elif st.session_state.seccion == 'Trading':
             monto_trading = monto_t if tipo_t == "Inversión" else -monto_t
             monto_banco = -monto_t if tipo_t == "Inversión" else monto_t
             
-            # 1. Actualizar Hoja de Trading y Memoria
-            nueva_op = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
+# 1. Actualizar Hoja de Trading, Movimientos (Historial General) y Memoria
+            fecha_actual = datetime.now().strftime("%Y-%m-%d")
+            nueva_op = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
             df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
+            
+            # Agregamos también al historial general (Movimientos) para que salga al lado de los sobres
+            nuevo_mov_gen = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Concepto": f"TRADING: {concepto_t}", "Monto": monto_banco}])
+            df_movs = pd.concat([df_movs, nuevo_mov_gen], ignore_index=True)
+            
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
             st.session_state.df_trading = df_trading
+            st.session_state.df_movs = df_movs
             
             # 2. Actualizar Saldo Real de la Cuenta Bancaria
             idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]

@@ -200,83 +200,21 @@ elif st.session_state.seccion == 'Pagos':
 
     with col_i3:
         st.write("")
-        # --- BOTÓN PARA SUMAR SEMANA ---
+        # Botón para Agregar
         if st.button("➕ AGREGAR SEMANA", use_container_width=True, type="primary"):
             if not df_cuentas.empty and not df_fijos.empty:
-                cuentas_a_procesar = nombres_cuentas_disponibles if cuenta_recibe_inyeccion == "TODAS" else [cuenta_recibe_inyeccion]
-                
-                for cuenta_actual in cuentas_a_procesar:
-                    lista_categorias_excluidas = df_excep[df_excep["Cuenta"] == cuenta_actual]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                    categorias_validas_para_esta_cuenta = df_fijos[~df_fijos["Categoría"].isin(lista_categorias_excluidas)].copy()
-                    monto_total_para_la_cuenta = (pd.to_numeric(categorias_validas_para_esta_cuenta["Monto_Mensual"]) / 4).sum()
+                ctas_a_procesar = nombres_cuentas if cuenta_inyec == "TODAS" else [cuenta_inyec]
+                for cta in ctas_a_procesar:
+                    lista_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                    cats_validas = df_fijos[~df_fijos["Categoría"].isin(lista_negra)].copy()
+                    monto_total_cta = (pd.to_numeric(cats_validas["Monto_Mensual"]) / 4).sum()
                     
-                    # Sumar la cuarta parte a cada sobre permitido
-                    for indice, fila_categoria in categorias_validas_para_esta_cuenta.iterrows():
-                        posicion_fijo = df_fijos.index[df_fijos["Categoría"] == fila_categoria["Categoría"]].tolist()[0]
-                        fondo_actual = float(df_fijos.at[posicion_fijo, "Fondo_Disponible"])
-                        df_fijos.at[posicion_fijo, "Fondo_Disponible"] = fondo_actual + (float(fila_categoria["Monto_Mensual"]) / 4)
+                    for idx, row in cats_validas.iterrows():
+                        idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
+                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) + (float(row["Monto_Mensual"]) / 4)
                     
-                    # Actualizar el saldo bancario de la cuenta
-                    posicion_cuenta = df_cuentas.index[df_cuentas["Cuenta"] == cuenta_actual].tolist()[0]
-                    saldo_bancario_actual = float(df_cuentas.at[posicion_cuenta, "Saldo"])
-                    df_cuentas.at[posicion_cuenta, "Saldo"] = saldo_bancario_actual + monto_total_para_la_cuenta
-                    
-                    # Registrar el movimiento en el historial
-                    nuevo_registro_movimiento = pd.DataFrame([{
-                        "Fecha": datetime.now().strftime("%Y-%m-%d"), 
-                        "Cuenta": cuenta_actual, 
-                        "Concepto": "INYECCIÓN SEMANAL", 
-                        "Monto": monto_total_para_la_cuenta
-                    }])
-                    df_movs = pd.concat([df_movs, nuevo_registro_movimiento], ignore_index=True)
-
-                # Guardar cambios y actualizar memoria de sesión
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                st.session_state.df_fijos = df_fijos
-                st.session_state.df_cuentas = df_cuentas
-                st.session_state.df_movs = df_movs
-                st.rerun()
-
-        # --- BOTÓN PARA QUITAR SEMANA (MISMA LÓGICA PERO RESTANDO) ---
-        if st.button("➖ QUITAR SEMANA", use_container_width=True):
-            if not df_cuentas.empty and not df_fijos.empty:
-                cuentas_a_procesar = nombres_cuentas_disponibles if cuenta_recibe_inyeccion == "TODAS" else [cuenta_recibe_inyeccion]
-                
-                for cuenta_actual in cuentas_a_procesar:
-                    lista_categorias_excluidas = df_excep[df_excep["Cuenta"] == cuenta_actual]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                    categorias_validas_para_esta_cuenta = df_fijos[~df_fijos["Categoría"].isin(lista_categorias_excluidas)].copy()
-                    monto_total_a_restar = (pd.to_numeric(categorias_validas_para_esta_cuenta["Monto_Mensual"]) / 4).sum()
-                    
-                    # Restar la cuarta parte a cada sobre permitido
-                    for indice, fila_categoria in categorias_validas_para_esta_cuenta.iterrows():
-                        posicion_fijo = df_fijos.index[df_fijos["Categoría"] == fila_categoria["Categoría"]].tolist()[0]
-                        fondo_actual = float(df_fijos.at[posicion_fijo, "Fondo_Disponible"])
-                        df_fijos.at[posicion_fijo, "Fondo_Disponible"] = fondo_actual - (float(fila_categoria["Monto_Mensual"]) / 4)
-                    
-                    # Restar el saldo bancario de la cuenta
-                    posicion_cuenta = df_cuentas.index[df_cuentas["Cuenta"] == cuenta_actual].tolist()[0]
-                    saldo_bancario_actual = float(df_cuentas.at[posicion_cuenta, "Saldo"])
-                    df_cuentas.at[posicion_cuenta, "Saldo"] = saldo_bancario_actual - monto_total_a_restar
-                    
-                    # Registrar el movimiento de corrección
-                    registro_correccion = pd.DataFrame([{
-                        "Fecha": datetime.now().strftime("%Y-%m-%d"), 
-                        "Cuenta": cuenta_actual, 
-                        "Concepto": "RETIRO SEMANAL (CORRECCIÓN)", 
-                        "Monto": -monto_total_a_restar
-                    }])
-                    df_movs = pd.concat([df_movs, registro_correccion], ignore_index=True)
-
-                # Guardar cambios y actualizar memoria de sesión
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                st.session_state.df_fijos = df_fijos
-                st.session_state.df_cuentas = df_cuentas
-                st.session_state.df_movs = df_movs
-                st.rerun()
+                    idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
+                    df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_total_cta
                     
                     nuevo_mov = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta, "Concepto": "INYECCIÓN SEMANAL", "Monto": monto_total_cta}])
                     df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)

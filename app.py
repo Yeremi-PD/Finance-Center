@@ -16,8 +16,11 @@ MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto
 # --- CARGAR DATOS ---
 def cargar_hoja(nombre):
     try:
-        # ttl=0 obliga a la app a leer datos frescos del Excel cada vez que se reinicia o cambias de pestaña
-        return conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre, ttl=0).dropna(how="all")
+        df = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre, ttl=0).dropna(how="all")
+        # Si es la hoja de Gastos Fijos y no tiene la columna de fondos, la creamos
+        if nombre == "Gastos_Fijos" and not df.empty and "Fondo_Disponible" not in df.columns:
+            df["Fondo_Disponible"] = 0.0
+        return df
     except:
         return pd.DataFrame()
 
@@ -27,8 +30,6 @@ df_cuentas = cargar_hoja("Cuentas")
 df_excep = cargar_hoja("Excepciones")
 df_trading = cargar_hoja("Trading") # Nueva hoja cargada
 
-if not df_fijos.empty and "Fondo_Disponible" not in df_fijos.columns:
-    df_fijos["Fondo_Disponible"] = 0.0
 
 # --- NAVEGACIÓN ---
 st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
@@ -242,7 +243,10 @@ elif st.session_state.seccion == 'Pagos':
     cf1, cf2 = st.columns([1, 3])
     with cf1:
         st.markdown("<h4 style='color: #2E7D32;'>💰 Categorias Disponibles</h4>", unsafe_allow_html=True)
-        df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
+        if not df_fijos.empty:
+            if "Fondo_Disponible" not in df_fijos.columns:
+                df_fijos["Fondo_Disponible"] = 0.0
+            df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
         
         # Tamaño exacto: cantidad de conceptos + 1 para los títulos
         altura_dinamica_sobres = (len(df_fijos) + 1) * 38

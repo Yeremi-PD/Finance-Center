@@ -454,7 +454,7 @@ elif st.session_state.seccion == 'Trading':
         )
 
         # Igual aquí, usamos columnas para empujarlo a la derecha
-        _, col_btn_hist = st.columns([9, 1])
+        _, col_btn_hist = st.columns([7, 1])
         with col_btn_hist:
             btn_guardar = st.button("💾 GUARDAR CAMBIOS EN HISTORIAL", use_container_width=True, type="primary")
             

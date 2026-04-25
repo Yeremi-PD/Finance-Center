@@ -4,21 +4,35 @@ import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import base64
+import streamlit.components.v1 as components
 
 # --- CONFIGURACIÓN ---
-# 1. Cambiamos el icono de la pestaña por la imagen
 st.set_page_config(page_title="Finanzas Master Pro", page_icon="logo.png", layout="wide")
+st.logo("logo.png")
 
-# 2. Inyectamos el código para que iOS lo use en la pantalla de inicio
+# Ocultar marca de agua de Streamlit
+st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}</style>""", unsafe_allow_html=True)
+
+# 2. Obligar a iOS a leer el logo usando JavaScript (Hack para iPhone)
 try:
     with open("logo.png", "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode()
-    st.markdown(
-        f'<link rel="apple-touch-icon" href="data:image/png;base64,{encoded_string}">',
-        unsafe_allow_html=True
-    )
+        
+    icono_js = f"""
+    <script>
+        var doc = window.parent.document;
+        var link = doc.querySelector("link[rel~='apple-touch-icon']");
+        if (!link) {{
+            link = doc.createElement('link');
+            link.rel = 'apple-touch-icon';
+            doc.head.appendChild(link);
+        }}
+        link.href = 'data:image/png;base64,{encoded_string}';
+    </script>
+    """
+    components.html(icono_js, height=0, width=0)
 except FileNotFoundError:
-    pass # Si por error borras la imagen, la app no se crashea
+    pass
 
 URL_GOOGLE_SHEET = "https://docs.google.com/spreadsheets/d/1lswvfo2ggmqvyslLCYj-WWpO56v0jgV0dVpNwXnEuDY/edit#gid=0"
 conn = st.connection("gsheets", type=GSheetsConnection)

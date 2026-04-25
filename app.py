@@ -30,18 +30,31 @@ if not df_fijos.empty and "Fondo_Disponible" not in df_fijos.columns:
 
 # --- NAVEGACIÓN ---
 st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MI CENTRO FINANCIERO</h1>", unsafe_allow_html=True)
-col_n1, col_n2, col_n3, col_n4 = st.columns(4)
+col_n1, col_n2, col_n3, col_n4, col_n5 = st.columns(5)
 
-if 'seccion' not in st.session_state: st.session_state.seccion = 'Vista'
+# Por defecto, abrimos la primera pestaña del nuevo orden
+if 'seccion' not in st.session_state: st.session_state.seccion = 'Ajustes'
 
 with col_n1:
-    if st.button("📊 PROYECCIÓN ANUAL", use_container_width=True): st.session_state.seccion = 'Vista'
+    if st.button("⚙️ GASTOS FIJOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Ajustes' else "secondary"): 
+        st.session_state.seccion = 'Ajustes'
+        st.rerun()
 with col_n2:
-    if st.button("⚙️ GASTOS FIJOS", use_container_width=True): st.session_state.seccion = 'Ajustes'
+    if st.button("💸 REGISTRAR GASTOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Pagos' else "secondary"): 
+        st.session_state.seccion = 'Pagos'
+        st.rerun()
 with col_n3:
-    if st.button("💸 REGISTRAR GASTOS", use_container_width=True): st.session_state.seccion = 'Pagos'
+    if st.button("📈 TRADING", use_container_width=True, type="primary" if st.session_state.seccion == 'Trading' else "secondary"): 
+        st.session_state.seccion = 'Trading'
+        st.rerun()
 with col_n4:
-    if st.button("💳 MIS CUENTAS", use_container_width=True): st.session_state.seccion = 'Cuentas'
+    if st.button("📊 PROYECCIÓN ANUAL", use_container_width=True, type="primary" if st.session_state.seccion == 'Vista' else "secondary"): 
+        st.session_state.seccion = 'Vista'
+        st.rerun()
+with col_n5:
+    if st.button("💳 MIS CUENTAS", use_container_width=True, type="primary" if st.session_state.seccion == 'Cuentas' else "secondary"): 
+        st.session_state.seccion = 'Cuentas'
+        st.rerun()
 st.markdown("---")
 
 # ---------------------------------------------------------
@@ -225,7 +238,14 @@ elif st.session_state.seccion == 'Pagos':
             st.dataframe(df_h, use_container_width=True, height=450, hide_index=True)
 
 # ---------------------------------------------------------
-# 4. MIS CUENTAS (Interfaz Mejorada con Tarjetas)
+# NUEVA SECCIÓN: TRADING
+# ---------------------------------------------------------
+elif st.session_state.seccion == 'Trading':
+    st.markdown("<h2 style='color: #F57C00;'>📈 Panel de Trading</h2>", unsafe_allow_html=True)
+    st.info("¡Bienvenido a tu panel de Trading! Aquí construiremos tu nueva herramienta.")
+
+# ---------------------------------------------------------
+# 4. CUENTAS
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Cuentas':
     st.markdown("<h2 style='color: #2E7D32;'>💳 Estado de Mis Cuentas</h2>", unsafe_allow_html=True)

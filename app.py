@@ -112,16 +112,25 @@ elif st.session_state.seccion == 'Ajustes':
     with c3: f_sel = st.number_input("Ajustar Fondo ($)", value=f_act)
     with c4:
         st.write("")
-        if st.button("💾 GUARDAR", use_container_width=True, type="primary"):
-            if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
-                df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = m_sel
-                df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"] = f_sel
-            else:
-                nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": m_sel, "Fondo_Disponible": f_sel}])
-                df_fijos = pd.concat([df_fijos, nuevo], ignore_index=True)
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-            st.cache_data.clear()
-            st.rerun()
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("💾", help="Guardar/Actualizar", use_container_width=True, type="primary"):
+                if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+                    df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = m_sel
+                    df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"] = f_sel
+                else:
+                    nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": m_sel, "Fondo_Disponible": f_sel}])
+                    df_fijos = pd.concat([df_fijos, nuevo], ignore_index=True)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                st.cache_data.clear()
+                st.rerun()
+        with col_btn2:
+            if st.button("🗑️", help="Eliminar Categoría", use_container_width=True):
+                if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+                    df_fijos = df_fijos[df_fijos["Categoría"] != cat_sel]
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    st.cache_data.clear()
+                    st.rerun()
 
     st.markdown("---")
     if not df_fijos.empty:
@@ -316,34 +325,36 @@ elif st.session_state.seccion == 'Trading':
 elif st.session_state.seccion == 'Cuentas':
     st.write("") 
     
-    if not df_cuentas.empty:
-        df_cuentas["Saldo"] = pd.to_numeric(df_cuentas["Saldo"]).fillna(0)
-        t_total = df_cuentas["Saldo"].sum()
+    if not df_cuentas.empty and not df_fijos.empty:
+        # El Balance Total es la suma de TODOS los fondos disponibles
+        t_total = pd.to_numeric(df_fijos["Fondo_Disponible"]).sum()
         
-        # Banner Total Compacto
         st.markdown(f"""
             <div style="background: linear-gradient(90deg, #0F2027 0%, #2C5364 100%); 
                         padding: 15px; border-radius: 12px; text-align: center; color: white; 
                         margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-                <p style="margin: 0; font-size: 11px; letter-spacing: 2px; color: #b0bec5; font-weight: 600;">BALANCE TOTAL</p>
+                <p style="margin: 0; font-size: 11px; letter-spacing: 2px; color: #b0bec5; font-weight: 600;">BALANCE TOTAL FONDOS</p>
                 <h1 style="margin: 0; font-size: 38px; font-weight: 700;">${t_total:,.2f}</h1>
             </div>
         """, unsafe_allow_html=True)
         
-        # Grid de Cuentas con fondo resaltado
         cols = st.columns(4)
         colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
         
         for i, (index, row) in enumerate(df_cuentas.iterrows()):
+            # Lógica: Sumar fondos de categorías NO excluidas para esta cuenta
+            excluidas = df_excep[df_excep["Cuenta"] == row['Cuenta']]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+            cats_permitidas = df_fijos[~df_fijos["Categoría"].isin(excluidas)]
+            saldo_calculado = pd.to_numeric(cats_permitidas["Fondo_Disponible"]).sum()
+            
             color_acento = colores_neon[i % len(colores_neon)]
             with cols[i % 4]:
                 st.markdown(f"""
                     <div style="background-color: rgba(255, 255, 255, 0.05); padding: 18px; 
                                 border-radius: 10px; border-top: 3px solid {color_acento}; 
-                                margin-bottom: 15px; border-right: 1px solid rgba(255,255,255,0.05);
-                                border-bottom: 1px solid rgba(255,255,255,0.05); box-shadow: 2px 4px 10px rgba(0,0,0,0.2);">
+                                margin-bottom: 15px; box-shadow: 2px 4px 10px rgba(0,0,0,0.2);">
                         <p style="margin: 0; font-size: 10px; text-transform: uppercase; font-weight: 700; opacity: 0.6;">{row['Cuenta']}</p>
-                        <h4 style="margin: 5px 0 0 0; font-size: 20px; font-weight: 400;">${row['Saldo']:,.2f}</h4>
+                        <h4 style="margin: 5px 0 0 0; font-size: 20px; font-weight: 400;">${saldo_calculado:,.2f}</h4>
                     </div>
                 """, unsafe_allow_html=True)
     else:

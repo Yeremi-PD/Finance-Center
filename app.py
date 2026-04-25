@@ -17,12 +17,28 @@ MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto
 def cargar_hoja(nombre):
     try:
         df = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre, ttl=0).dropna(how="all")
-        # Si es la hoja de Gastos Fijos y no tiene la columna de fondos, la creamos
-        if nombre == "Gastos_Fijos" and not df.empty and "Fondo_Disponible" not in df.columns:
+        
+        # Si la hoja está vacía, inicializamos con columnas básicas para evitar errores
+        if df.empty:
+            if nombre == "Gastos_Fijos":
+                return pd.DataFrame(columns=["Categoría", "Monto_Mensual", "Fondo_Disponible"])
+            if nombre == "Movimientos":
+                return pd.DataFrame(columns=["Fecha", "Cuenta", "Concepto", "Monto"])
+            if nombre == "Cuentas":
+                return pd.DataFrame(columns=["Cuenta", "Saldo"])
+            if nombre == "Excepciones":
+                return pd.DataFrame(columns=["Cuenta", "Categoria_Excluida"])
+            if nombre == "Trading":
+                return pd.DataFrame(columns=["Fecha", "Cuenta", "Tipo", "Concepto", "Monto"])
+        
+        # Si tiene datos pero falta la columna de fondos en Gastos_Fijos, la agregamos
+        if nombre == "Gastos_Fijos" and "Fondo_Disponible" not in df.columns:
             df["Fondo_Disponible"] = 0.0
+            
         return df
     except:
-        return pd.DataFrame()
+        # En caso de error crítico de conexión, devolvemos DF vacío con columnas de Gastos_Fijos por defecto
+        return pd.DataFrame(columns=["Categoría", "Monto_Mensual", "Fondo_Disponible"])
 
 df_fijos = cargar_hoja("Gastos_Fijos")
 df_movs = cargar_hoja("Movimientos")
@@ -248,10 +264,12 @@ elif st.session_state.seccion == 'Pagos':
                 df_fijos["Fondo_Disponible"] = 0.0
             df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
         
-        # Tamaño exacto: cantidad de conceptos + 1 para los títulos
-        altura_dinamica_sobres = (len(df_fijos) + 1) * 38
-        
-        st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=altura_dinamica_sobres, hide_index=True)
+        if not df_fijos.empty and "Categoría" in df_fijos.columns:
+            # Tamaño exacto: cantidad de conceptos + 1 para los títulos
+            altura_dinamica_sobres = (len(df_fijos) + 1) * 38
+            st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=altura_dinamica_sobres, hide_index=True)
+        else:
+            st.info("No hay categorías configuradas.")
     
     with cf2:
         l_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])

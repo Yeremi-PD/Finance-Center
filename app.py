@@ -152,6 +152,7 @@ elif st.session_state.seccion == 'Pagos':
     
     with col_i1:
         opciones_inyec = ["TODAS"] + nombres_cuentas
+        cuenta_inyec = st.selectbox("📥 Cuenta que recibe la inyección:", opciones_inyec)
         
         if cuenta_inyec != "TODAS":
             exc_c = df_excep[df_excep["Cuenta"] == cuenta_inyec]["Categoria_Excluida"].tolist() if not df_excep.empty else []

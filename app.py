@@ -312,20 +312,23 @@ elif st.session_state.seccion == 'Trading':
         cap_invertido = df_trading[df_trading["Monto"] > 0]["Monto"].sum()
         cap_retirado = abs(df_trading[df_trading["Monto"] < 0]["Monto"].sum())
 
-    # 3. Mostrar Métricas
+    # 3. Mostrar Métricas (Colores Rotados)
     col_k1, col_k2, col_k3 = st.columns(3)
     with col_k1:
-        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F57C00;">
-            <p style="margin:0; color: #888; font-size: 11px;">FONDO PARA INVERTIR (SOBRE)</p>
-            <h3 style="margin:0; color: #F57C00;">${cap_disponible:,.2f}</h3></div>""", unsafe_allow_html=True)
-    with col_k2:
+        # Ahora es VERDE (Traído de "Enviado")
         st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50;">
-            <p style="margin:0; color: #888; font-size: 11px;">TOTAL ENVIADO A TRADING</p>
-            <h3 style="margin:0; color: #4CAF50;">${cap_invertido:,.2f}</h3></div>""", unsafe_allow_html=True)
-    with col_k3:
+            <p style="margin:0; color: #888; font-size: 11px;">FONDO PARA INVERTIR (SOBRE)</p>
+            <h3 style="margin:0; color: #4CAF50;">${cap_disponible:,.2f}</h3></div>""", unsafe_allow_html=True)
+    with col_k2:
+        # Ahora es ROJO (Traído de "Retirado")
         st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F44336;">
+            <p style="margin:0; color: #888; font-size: 11px;">TOTAL ENVIADO A TRADING</p>
+            <h3 style="margin:0; color: #F44336;">${cap_invertido:,.2f}</h3></div>""", unsafe_allow_html=True)
+    with col_k3:
+        # Ahora es NARANJA (Traído de "Fondo")
+        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F57C00;">
             <p style="margin:0; color: #888; font-size: 11px;">TOTAL RETIRADO DE TRADING</p>
-            <h3 style="margin:0; color: #F44336;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
+            <h3 style="margin:0; color: #F57C00;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
     st.write("")
 
     # Formulario de Movimiento con Conceptos Fijos

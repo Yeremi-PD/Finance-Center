@@ -195,102 +195,75 @@ elif st.session_state.seccion == 'Pagos':
                 nuevas_rows = pd.DataFrame([{"Cuenta": cuenta_inyec, "Categoria_Excluida": x} for x in nuevas_exc])
                 df_final_excep = pd.concat([df_temp, nuevas_rows], ignore_index=True)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_final_excep)
-                st.session_state.df_excep = df_final_excep
+                st.cache_data.clear()
                 st.rerun()
 
     with col_i3:
         st.write("")
-        # --- BOTÓN PARA SUMAR SEMANA ---
+        # Botón para Agregar
         if st.button("➕ AGREGAR SEMANA", use_container_width=True, type="primary"):
             if not df_cuentas.empty and not df_fijos.empty:
-                cuentas_a_procesar = nombres_cuentas if cuenta_inyec == "TODAS" else [cuenta_inyec]
-                
-                for cuenta_actual in cuentas_a_procesar:
-                    lista_categorias_excluidas = df_excep[df_excep["Cuenta"] == cuenta_actual]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                    categorias_validas_para_esta_cuenta = df_fijos[~df_fijos["Categoría"].isin(lista_categorias_excluidas)].copy()
-                    monto_total_para_la_cuenta = (pd.to_numeric(categorias_validas_para_esta_cuenta["Monto_Mensual"]) / 4).sum()
+                ctas_a_procesar = nombres_cuentas if cuenta_inyec == "TODAS" else [cuenta_inyec]
+                for cta in ctas_a_procesar:
+                    lista_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                    cats_validas = df_fijos[~df_fijos["Categoría"].isin(lista_negra)].copy()
+                    monto_total_cta = (pd.to_numeric(cats_validas["Monto_Mensual"]) / 4).sum()
                     
-                    # Sumar la cuarta parte a cada sobre permitido
-                    for indice, fila_categoria in categorias_validas_para_esta_cuenta.iterrows():
-                        posicion_fijo = df_fijos.index[df_fijos["Categoría"] == fila_categoria["Categoría"]].tolist()[0]
-                        fondo_actual = float(df_fijos.at[posicion_fijo, "Fondo_Disponible"])
-                        df_fijos.at[posicion_fijo, "Fondo_Disponible"] = fondo_actual + (float(fila_categoria["Monto_Mensual"]) / 4)
+                    for idx, row in cats_validas.iterrows():
+                        idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
+                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) + (float(row["Monto_Mensual"]) / 4)
                     
-                    # Actualizar el saldo bancario de la cuenta
-                    posicion_cuenta = df_cuentas.index[df_cuentas["Cuenta"] == cuenta_actual].tolist()[0]
-                    saldo_bancario_actual = float(df_cuentas.at[posicion_cuenta, "Saldo"])
-                    df_cuentas.at[posicion_cuenta, "Saldo"] = saldo_bancario_actual + monto_total_para_la_cuenta
+                    idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
+                    df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_total_cta
                     
-                    # Registrar el movimiento en el historial
-                    nuevo_registro_movimiento = pd.DataFrame([{
-                        "Fecha": datetime.now().strftime("%Y-%m-%d"), 
-                        "Cuenta": cuenta_actual, 
-                        "Concepto": "INYECCIÓN SEMANAL", 
-                        "Monto": monto_total_para_la_cuenta
-                    }])
-                    df_movs = pd.concat([df_movs, nuevo_registro_movimiento], ignore_index=True)
+                    nuevo_mov = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta, "Concepto": "INYECCIÓN SEMANAL", "Monto": monto_total_cta}])
+                    df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
 
-                # Guardar cambios y actualizar memoria de sesión
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                st.session_state.df_fijos = df_fijos
-                st.session_state.df_cuentas = df_cuentas
-                st.session_state.df_movs = df_movs
+                st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
                 st.rerun()
 
-        # --- BOTÓN PARA QUITAR SEMANA ---
-        if st.button("➖ QUITAR SEMANA", use_container_width=True):
-            if not df_cuentas.empty and not df_fijos.empty:
-                cuentas_a_procesar = nombres_cuentas if cuenta_inyec == "TODAS" else [cuenta_inyec]
+        # Botón para Deshacer
+        if st.button("↩️ DESHACER ÚLTIMA", use_container_width=True, help="Revierte la última inyección semanal realizada"):
+            if not df_movs.empty and "INYECCIÓN SEMANAL" in df_movs["Concepto"].values:
+                # 1. Identificar la última fecha de inyección
+                ult_fecha = df_movs[df_movs["Concepto"] == "INYECCIÓN SEMANAL"]["Fecha"].iloc[-1]
+                inyec_a_revertir = df_movs[(df_movs["Concepto"] == "INYECCIÓN SEMANAL") & (df_movs["Fecha"] == ult_fecha)]
                 
-                for cuenta_actual in cuentas_a_procesar:
-                    lista_categorias_excluidas = df_excep[df_excep["Cuenta"] == cuenta_actual]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                    categorias_validas_para_esta_cuenta = df_fijos[~df_fijos["Categoría"].isin(lista_categorias_excluidas)].copy()
-                    monto_total_a_restar = (pd.to_numeric(categorias_validas_para_esta_cuenta["Monto_Mensual"]) / 4).sum()
+                for _, mov in inyec_a_revertir.iterrows():
+                    cta = mov["Cuenta"]
+                    # Restar del saldo de la cuenta
+                    if cta in df_cuentas["Cuenta"].values:
+                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - float(mov["Monto"])
                     
-                    # Restar la cuarta parte a cada sobre permitido
-                    for indice, fila_categoria in categorias_validas_para_esta_cuenta.iterrows():
-                        posicion_fijo = df_fijos.index[df_fijos["Categoría"] == fila_categoria["Categoría"]].tolist()[0]
-                        fondo_actual = float(df_fijos.at[posicion_fijo, "Fondo_Disponible"])
-                        df_fijos.at[posicion_fijo, "Fondo_Disponible"] = fondo_actual - (float(fila_categoria["Monto_Mensual"]) / 4)
-                    
-                    # Restar el saldo bancario de la cuenta
-                    posicion_cuenta = df_cuentas.index[df_cuentas["Cuenta"] == cuenta_actual].tolist()[0]
-                    saldo_bancario_actual = float(df_cuentas.at[posicion_cuenta, "Saldo"])
-                    df_cuentas.at[posicion_cuenta, "Saldo"] = saldo_bancario_actual - monto_total_a_restar
-                    
-                    # Registrar el movimiento de corrección
-                    registro_correccion = pd.DataFrame([{
-                        "Fecha": datetime.now().strftime("%Y-%m-%d"), 
-                        "Cuenta": cuenta_actual, 
-                        "Concepto": "RETIRO SEMANAL (CORRECCIÓN)", 
-                        "Monto": -monto_total_a_restar
-                    }])
-                    df_movs = pd.concat([df_movs, registro_correccion], ignore_index=True)
+                    # Restar de los sobres (usando las excepciones actuales de esa cuenta)
+                    lista_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                    cats_revertir = df_fijos[~df_fijos["Categoría"].isin(lista_negra)]
+                    for _, row in cats_revertir.iterrows():
+                        idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
+                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - (float(row["Monto_Mensual"]) / 4)
 
-                # Guardar cambios y actualizar memoria de sesión
+                # 2. Eliminar esos registros del historial
+                df_movs = df_movs.drop(inyec_a_revertir.index)
+                
+                # 3. Guardar cambios
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                st.session_state.df_fijos = df_fijos
-                st.session_state.df_cuentas = df_cuentas
-                st.session_state.df_movs = df_movs
+                st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
+                st.success(f"Inyección del {ult_fecha} revertida.")
                 st.rerun()
 
     # --- SECCIÓN: REGISTRAR GASTO ---
     st.markdown("<br>", unsafe_allow_html=True)
     
     col_g1, col_g2, col_g3, col_g4 = st.columns(4)
-    with col_g1: 
-        c_gasto = st.selectbox("💳 Cuenta a Descontar:", nombres_cuentas)
-    with col_g2: 
-        # Lógica de Lista Negra para ocultar categorías excluidas
-        excluidas_gasto = df_excep[df_excep["Cuenta"] == c_gasto]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-        cats_disponibles = [c for c in df_fijos["Categoría"].tolist() if c not in excluidas_gasto] if not df_fijos.empty else []
-        s_gasto = st.selectbox("📂 Categoría:", cats_disponibles)
-    with col_g3: 
-        m_gasto = st.number_input("💲 Monto a Restar:", min_value=0.0)
+    with col_g1: c_gasto = st.selectbox("💳 Cuenta a Descontar:", nombres_cuentas)
+    with col_g2: s_gasto = st.selectbox("📂 Categoría:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
+    with col_g3: m_gasto = st.number_input("💲 Monto a Restar:", min_value=0.0)
     with col_g4:
         st.write("")
         if st.button("APLICAR GASTO", use_container_width=True, type="primary"):
@@ -301,24 +274,20 @@ elif st.session_state.seccion == 'Pagos':
                 nuevo_mov = pd.DataFrame([{"Fecha": fecha_h, "Cuenta": c_gasto, "Concepto": s_gasto, "Monto": -m_gasto}])
                 df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
                 
-                # 2. Descontar del fondo de la categoría
+                # 2. Descontar del fondo (Acceso seguro al valor con .iloc[0])
                 idx_fijo = df_fijos.index[df_fijos["Categoría"] == s_gasto].tolist()[0]
                 fondo_actual = float(df_fijos.at[idx_fijo, "Fondo_Disponible"])
                 df_fijos.at[idx_fijo, "Fondo_Disponible"] = fondo_actual - m_gasto
                 
-                # 3. Guardar cambios en la cuenta (saldo real de la cuenta debe bajar)
-                idx_cta_gasto = df_cuentas.index[df_cuentas["Cuenta"] == c_gasto].tolist()[0]
-                df_cuentas.at[idx_cta_gasto, "Saldo"] = float(df_cuentas.at[idx_cta_gasto, "Saldo"]) - m_gasto
-                
-                # 4. Guardar en Sheets
+                # 3. Guardar cambios (No actualizamos 'Cuentas' porque el saldo ahora es calculado)
+# Actualizar Google Sheets
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 
-                # 5. Actualizar sesión local
+                # Actualizar Memoria de Sesión (Esto hace que sea instantáneo)
                 st.session_state.df_movs = df_movs
                 st.session_state.df_fijos = df_fijos
-                st.session_state.df_cuentas = df_cuentas
+                
                 st.rerun()
 
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -333,6 +302,7 @@ elif st.session_state.seccion == 'Pagos':
             df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
         
         if not df_fijos.empty and "Categoría" in df_fijos.columns:
+            # Tamaño exacto: cantidad de conceptos + 1 para los títulos
             altura_dinamica_sobres = (len(df_fijos) + 1) * 38
             st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=altura_dinamica_sobres, hide_index=True)
         else:
@@ -344,13 +314,180 @@ elif st.session_state.seccion == 'Pagos':
         if not df_movs.empty:
             df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
             st.dataframe(df_h, use_container_width=True, height=400, hide_index=True)
-            
             if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
                 if not df_movs.empty:
+                    # Elimina la última fila real del dataframe original
                     df_movs = df_movs.drop(df_movs.index[-1])
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                    st.session_state.df_movs = df_movs
+                    st.cache_data.clear()
                     st.rerun()
+
+# ---------------------------------------------------------
+# NUEVA SECCIÓN: TRADING (Inversiones y Retiros)
+# ---------------------------------------------------------
+elif st.session_state.seccion == 'Trading':
+    st.markdown("<h3 style='font-weight: 400; color: #555;'>📈 Gestión de Trading</h3>", unsafe_allow_html=True)
+    
+    # --- CÁLCULO SINCRONIZADO DE TRADING ---
+    # 1. El dinero disponible SIEMPRE viene del sobre 'Inversion' de Gastos Fijos
+    cap_disponible = 0.0
+    if "Inversion" in df_fijos["Categoría"].values:
+        idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+        cap_disponible = float(df_fijos.at[idx_inv, "Fondo_Disponible"])
+
+    # 2. Los otros totales sí vienen del historial de la hoja Trading
+    cap_invertido = 0.0
+    cap_retirado = 0.0
+    if not df_trading.empty:
+        df_trading["Monto"] = pd.to_numeric(df_trading["Monto"]).fillna(0)
+        cap_invertido = df_trading[df_trading["Monto"] > 0]["Monto"].sum()
+        cap_retirado = abs(df_trading[df_trading["Monto"] < 0]["Monto"].sum())
+
+    # 3. Mostrar Métricas (Colores Rotados)
+    col_k1, col_k2, col_k3 = st.columns(3)
+    with col_k1:
+        # Ahora es VERDE (Traído de "Enviado")
+        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50;">
+            <p style="margin:0; color: #888; font-size: 11px;">FONDO PARA INVERTIR (SOBRE)</p>
+            <h3 style="margin:0; color: #4CAF50;">${cap_disponible:,.2f}</h3></div>""", unsafe_allow_html=True)
+    with col_k2:
+        # Ahora es ROJO (Traído de "Retirado")
+        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F44336;">
+            <p style="margin:0; color: #888; font-size: 11px;">TOTAL ENVIADO A TRADING</p>
+            <h3 style="margin:0; color: #F44336;">${cap_invertido:,.2f}</h3></div>""", unsafe_allow_html=True)
+    with col_k3:
+        # Ahora es NARANJA (Traído de "Fondo")
+        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F57C00;">
+            <p style="margin:0; color: #888; font-size: 11px;">TOTAL RETIRADO DE TRADING</p>
+            <h3 style="margin:0; color: #F57C00;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
+    st.write("")
+
+    # Formulario de Movimiento con Conceptos Fijos
+    col_t1, col_t2, col_t3, col_t4 = st.columns([2, 2, 2, 1])
+    with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
+    with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro"])
+    with col_t3: 
+        lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "OTRO"]
+        c_sel_t = st.selectbox("Concepto:", lista_c)
+        concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
+    with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
+    
+    if st.button("🚀 EJECUTAR OPERACIÓN", use_container_width=True, type="primary"):
+        if monto_t > 0:
+            monto_trading = monto_t if tipo_t == "Inversión" else -monto_t
+            monto_banco = -monto_t if tipo_t == "Inversión" else monto_t
+            
+            # 1. Actualizar Hoja de Trading y Memoria
+            nueva_op = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
+            df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+            st.session_state.df_trading = df_trading
+            
+            # 2. Actualizar Saldo Real de la Cuenta Bancaria
+            idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
+            df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+            st.session_state.df_cuentas = df_cuentas
+
+            # 3. NUEVO: Si es Inversión, descontar del sobre "Inversion" en Gastos Fijos
+            if tipo_t == "Inversión":
+                if "Inversion" in df_fijos["Categoría"].values:
+                    idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                    fondo_actual = float(df_fijos.at[idx_inv, "Fondo_Disponible"])
+                    df_fijos.at[idx_inv, "Fondo_Disponible"] = fondo_actual - monto_t
+                    
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    st.session_state.df_fijos = df_fijos
+                    st.success(f"Inversión realizada: Se descontaron ${monto_t:,.2f} del sobre 'Inversion'")
+                else:
+                    st.warning("No se encontró la categoría 'Inversion' para descontar el fondo.")
+            
+            st.rerun()
+
+    if not df_trading.empty:
+        st.markdown("---")
+        st.markdown("**📝 Historial de Capital (Edición Directa)**")
+        st.caption("Modifica cualquier celda directamente. Para borrar filas, marca la casilla '🗑️' y presiona el botón de abajo.")
+        
+        # Preparamos los datos con tipos compatibles
+        df_edit_t = df_trading.copy()
+        
+        # Convertimos la columna Fecha a formato fecha real para que no de error
+        if "Fecha" in df_edit_t.columns:
+            df_edit_t["Fecha"] = pd.to_datetime(df_edit_t["Fecha"]).dt.date
+        
+        # Aseguramos que Monto sea numérico
+        if "Monto" in df_edit_t.columns:
+            df_edit_t["Monto"] = pd.to_numeric(df_edit_t["Monto"], errors='coerce').fillna(0.0)
+
+        df_edit_t["🗑️"] = False
+        
+        # Editor de datos
+        edited_df_t = st.data_editor(
+            df_edit_t,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
+                "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
+                "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro"]),
+                "Fecha": st.column_config.DateColumn("Fecha")
+            }
+        )
+
+        if st.button("💾 GUARDAR CAMBIOS EN HISTORIAL", use_container_width=True, type="primary"):
+            # 1. REVERSIÓN TOTAL DE LO QUE HABÍA ANTES
+            # (Anulamos el efecto de todos los movimientos actuales en la memoria para 'empezar de cero')
+            for _, fila_vieja in st.session_state.df_trading.iterrows():
+                cta_v = fila_vieja["Cuenta"]
+                m_v = float(fila_vieja["Monto"])
+                tipo_v = fila_vieja["Tipo"]
+                
+                # Devolvemos saldo al banco
+                if cta_v in df_cuentas["Cuenta"].values:
+                    idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
+                    df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_v
+                
+                # Devolvemos saldo al sobre de Inversion (si era inversión)
+                if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                    idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                    df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
+
+            # 2. APLICAR LOS NUEVOS DATOS (EDITADOS)
+            # Solo procesamos las filas que NO marcaste para borrar
+            df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
+            
+            for _, fila_nueva in df_final_t.iterrows():
+                cta_n = fila_nueva["Cuenta"]
+                m_n = float(fila_nueva["Monto"])
+                tipo_n = fila_nueva["Tipo"]
+                
+                # Aplicamos nuevo saldo al banco
+                if cta_n in df_cuentas["Cuenta"].values:
+                    idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_n].tolist()[0]
+                    df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + m_n
+                
+                # Aplicamos nuevo descuento al sobre de Inversion
+                if tipo_n == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                    idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                    df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) - abs(m_n)
+
+            # 3. GUARDAR TODO EN GOOGLE SHEETS Y REFRESCAR
+            if "Fecha" in df_final_t.columns:
+                df_final_t["Fecha"] = df_final_t["Fecha"].astype(str)
+            
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+            
+            # Actualizamos memoria local
+            st.session_state.df_trading = df_final_t
+            st.session_state.df_cuentas = df_cuentas
+            st.session_state.df_fijos = df_fijos
+            
+            st.success("¡Historial y balances actualizados correctamente!")
+            st.rerun()
+
 # ---------------------------------------------------------
 # 4. CUENTAS (Compacto y Minimalista)
 # ---------------------------------------------------------

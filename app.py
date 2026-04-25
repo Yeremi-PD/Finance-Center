@@ -407,7 +407,6 @@ elif st.session_state.seccion == 'Trading':
     if not df_trading.empty:
         st.markdown("---")
         st.markdown("**📝 Historial de Capital (Edición Directa)**")
-        st.caption("Modifica cualquier celda directamente. Para borrar filas, marca la casilla '🗑️' y presiona el botón de abajo.")
         
         # Preparamos los datos con tipos compatibles
         df_edit_t = df_trading.copy()

@@ -74,8 +74,8 @@ if st.session_state.seccion == 'Vista':
         df_anual["TOTAL MES"] = df_anual.sum(axis=1)
         df_anual.loc["TOTAL ANUAL"] = df_anual.sum()
         
-        st.dataframe(df_anual.style.format("{:,.0f}").background_gradient(cmap="Blues", axis=None), 
-                     use_container_width=True, height=550)
+        # Tabla sin fondo blanco, se adapta perfectamente a tu tema
+        st.dataframe(df_anual.style.format("{:,.0f}"), use_container_width=True, height=550)
 
 # ---------------------------------------------------------
 # 2. AJUSTES: GASTOS FIJOS 
@@ -212,8 +212,8 @@ elif st.session_state.seccion == 'Pagos':
         st.markdown("<h4 style='color: #2E7D32;'>💰 Sobres Disponibles</h4>", unsafe_allow_html=True)
         df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
         
-        # Tamaño dinámico: (cantidad de conceptos + 1 de encabezado + 2 de margen) * 38 píxeles por fila
-        altura_dinamica_sobres = (len(df_fijos) + 3) * 38
+        # Tamaño exacto: cantidad de conceptos + 1 para los títulos
+        altura_dinamica_sobres = (len(df_fijos) + 1) * 38
         
         st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=altura_dinamica_sobres, hide_index=True)
     

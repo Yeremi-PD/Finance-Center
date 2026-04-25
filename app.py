@@ -207,7 +207,7 @@ elif st.session_state.seccion == 'Pagos':
             st.dataframe(df_h, use_container_width=True, height=450, hide_index=True)
 
 # ---------------------------------------------------------
-# 4. CUENTAS
+# 4. MIS CUENTAS
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Cuentas':
     st.subheader("💳 Mis Cuentas Bancarias")

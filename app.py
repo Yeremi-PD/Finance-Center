@@ -56,7 +56,7 @@ if st.session_state.seccion == 'Vista':
         st.write("No hay datos en Gastos Fijos.")
 
 # ---------------------------------------------------------
-# 2. AJUSTES: GASTOS FIJOS (Margen ampliado)
+# 2. AJUSTES: GASTOS FIJOS
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Ajustes':
     st.subheader("⚙️ Configurar y Editar Gastos Fijos")
@@ -64,7 +64,6 @@ elif st.session_state.seccion == 'Ajustes':
     cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
     todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
     
-    # Columnas con más margen
     c1, c2, c3, c4, c5 = st.columns([3, 2, 2, 1, 1])
     with c1: cat_sel = st.selectbox("Categoría", todas_categorias)
     
@@ -102,94 +101,98 @@ elif st.session_state.seccion == 'Ajustes':
                      use_container_width=True, height=(len(df_fijos)+1)*40, hide_index=True)
 
 # ---------------------------------------------------------
-# 3. REGISTRAR GASTOS (Excepciones y Cambio de Concepto)
+# 3. PAGOS Y MOVIMIENTOS
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Pagos':
     st.subheader("💸 Gestión de Fondos y Gastos")
     
-    # --- BLOQUE DE INYECCIÓN CON EXCEPCIONES ---
-    col_e1, col_e2 = st.columns([2, 1])
+    # --- INYECCIÓN SEMANAL ---
+    col_e1, col_e2, col_e3 = st.columns([2, 1, 1])
     with col_e1:
-        excluidos_actuales = df_fijos[df_fijos["Excluir_Inyeccion"] == "SÍ"]["Categoría"].tolist()
-        seleccion_excluir = st.multiselect("🚫 CONCEPTOS EXCLUIDOS DE LA INYECCIÓN SEMANAL (Se guarda para siempre):", 
-                                           df_fijos["Categoría"].tolist(), default=excluidos_actuales)
-        
-        if st.button("CONFIRMAR LISTA DE EXCEPCIONES"):
+        excl_act = df_fijos[df_fijos["Excluir_Inyeccion"] == "SÍ"]["Categoría"].tolist() if not df_fijos.empty else []
+        seleccion_excluir = st.multiselect("🚫 EXCLUIR DE LA SEMANA:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], default=excl_act)
+        if st.button("CONFIRMAR EXCEPCIONES"):
             df_fijos["Excluir_Inyeccion"] = df_fijos["Categoría"].apply(lambda x: "SÍ" if x in seleccion_excluir else "NO")
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
             st.cache_data.clear()
             st.rerun()
 
     with col_e2:
+        cuenta_ingreso = st.selectbox("📥 Cuenta que recibe el dinero:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else ["Crea una cuenta"])
+
+    with col_e3:
         st.write("")
-        if st.button("➕ AGREGAR OTRA SEMANA (Inyectar fondos)", use_container_width=True, type="primary"):
-            df_fijos["Monto_Mensual"] = pd.to_numeric(df_fijos["Monto_Mensual"]).fillna(0)
-            df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
-            # Solo suma a los que NO están excluidos
-            df_fijos.loc[df_fijos["Excluir_Inyeccion"] == "NO", "Fondo_Disponible"] += (df_fijos["Monto_Mensual"] / 4)
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-            st.cache_data.clear()
-            st.rerun()
+        if st.button("➕ AGREGAR OTRA SEMANA", use_container_width=True, type="primary"):
+            if not df_cuentas.empty and not df_fijos.empty:
+                df_fijos["Monto_Mensual"] = pd.to_numeric(df_fijos["Monto_Mensual"]).fillna(0)
+                df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
+                
+                total_inyectar = (df_fijos.loc[df_fijos["Excluir_Inyeccion"] == "NO", "Monto_Mensual"] / 4).sum()
+                df_fijos.loc[df_fijos["Excluir_Inyeccion"] == "NO", "Fondo_Disponible"] += (df_fijos["Monto_Mensual"] / 4)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                
+                saldo_banco = float(df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_ingreso, "Saldo"].values[0])
+                df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_ingreso, "Saldo"] = saldo_banco + total_inyectar
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                
+                fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+                mov_ingreso = pd.DataFrame([{"Fecha": fecha_hoy, "Cuenta": cuenta_ingreso, "Concepto": "INYECCIÓN SEMANAL", "Monto": total_inyectar}])
+                df_movs = pd.concat([df_movs, mov_ingreso], ignore_index=True)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+
+                st.cache_data.clear()
+                st.rerun()
 
     st.markdown("---")
-    # REGISTRO DE GASTO
+    # --- REGISTRO DE GASTO ---
+    st.write("**Registrar Gasto (Se restará solo):**")
     col_g1, col_g2, col_g3, col_g4 = st.columns(4)
-    with col_g1: cuenta_sel = st.selectbox("Cuenta:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
-    with col_g2: concepto_sel = st.selectbox("Sobre/Concepto:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
-    with col_g3: monto_gasto = st.number_input("Monto Gastado ($)", min_value=0.0)
+    with col_g1: cuenta_gasto = st.selectbox("Cuenta:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
+    with col_g2: concepto_gasto = st.selectbox("Sobre:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
+    with col_g3: monto_val = st.number_input("Monto del Gasto ($)", min_value=0.0)
     with col_g4:
         st.write("")
         if st.button("RESTAR GASTO", use_container_width=True):
-            if monto_gasto > 0:
+            if monto_val > 0:
                 fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-                nuevo_mov = pd.DataFrame([{"Fecha": fecha_hoy, "Cuenta": cuenta_sel, "Concepto": concepto_sel, "Monto": -monto_gasto}])
+                nuevo_mov = pd.DataFrame([{"Fecha": fecha_hoy, "Cuenta": cuenta_gasto, "Concepto": concepto_gasto, "Monto": -monto_val}])
                 df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                 
-                # Descontar saldo real
-                saldo_act = float(df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_sel, "Saldo"].values[0])
-                df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_sel, "Saldo"] = saldo_act - monto_gasto
+                s_act = float(df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_gasto, "Saldo"].values[0])
+                df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_gasto, "Saldo"] = s_act - monto_val
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 
-                # Descontar fondo
-                fondo_act = float(df_fijos.loc[df_fijos["Categoría"] == concepto_sel, "Fondo_Disponible"].values[0])
-                df_fijos.loc[df_fijos["Categoría"] == concepto_sel, "Fondo_Disponible"] = fondo_act - monto_gasto
+                f_act = float(df_fijos.loc[df_fijos["Categoría"] == concepto_gasto, "Fondo_Disponible"].values[0])
+                df_fijos.loc[df_fijos["Categoría"] == concepto_gasto, "Fondo_Disponible"] = f_act - monto_val
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                 
                 st.cache_data.clear()
                 st.rerun()
 
     st.markdown("---")
-    # MODIFICAR CONCEPTO EN HISTORIAL
-    st.subheader("📉 Últimos Gastos y Corrección de Conceptos")
-    if not df_movs.empty:
-        # Apartado para cambiar concepto
-        st.write("**Cambiar concepto de un movimiento registrado:**")
-        col_ed1, col_ed2, col_ed3 = st.columns([1, 2, 1])
-        with col_ed1:
-            idx_mod = st.number_input("ID del Movimiento (Fila)", min_value=0, max_value=len(df_movs)-1, step=1)
-        with col_ed2:
-            nuevo_concepto_hist = st.selectbox("Nuevo Concepto para este movimiento:", df_fijos["Categoría"].tolist(), key="hist_edit")
-        with col_ed3:
-            st.write("")
-            if st.button("ACTUALIZAR CONCEPTO", use_container_width=True):
-                df_movs.at[idx_mod, "Concepto"] = nuevo_concepto_hist
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                st.cache_data.clear()
-                st.rerun()
+    # --- HISTORIAL Y SOBRES ---
+    col_f1, col_f2 = st.columns([1, 3])
+    with col_f1:
+        st.markdown("**💰 Fondos Actuales**")
+        df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
+        st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), 
+                     use_container_width=True, height=400, hide_index=True)
 
-        # Mostrar tablas separadas
-        col_t1, col_t2 = st.columns(2)
-        with col_t1:
-            st.markdown("**💰 Dinero disponible por Sobre**")
-            df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"], errors="coerce").fillna(0)
-            st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=400, hide_index=True)
-        with col_t2:
-            st.markdown("**📜 Historial (Monto en negativo = Gasto)**")
-            st.dataframe(df_movs.sort_index(ascending=False), use_container_width=True, height=400)
+    with col_f2:
+        lista_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
+        filtro_sel = st.selectbox("📜 Filtrar historial por concepto:", lista_filtros)
+        
+        if not df_movs.empty:
+            if filtro_sel == "VER TODO":
+                df_hist_final = df_movs.sort_index(ascending=False)
+            else:
+                df_hist_final = df_movs[df_movs["Concepto"] == filtro_sel].sort_index(ascending=False)
+            
+            st.dataframe(df_hist_final, use_container_width=True, height=500, hide_index=True)
 
 # ---------------------------------------------------------
-# 4. MIS CUENTAS (Edición de saldos totales)
+# 4. MIS CUENTAS
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Cuentas':
     st.subheader("💳 Gestión de Cuentas")

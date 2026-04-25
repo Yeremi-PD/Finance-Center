@@ -17,11 +17,15 @@ def cargar_hoja(nombre):
         df = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre).dropna(how="all")
         return df
     except:
-        return pd.DataFrame() # Si hay error, devuelve tabla vacía
+        return pd.DataFrame()
 
 df_fijos = cargar_hoja("Gastos_Fijos")
 df_movs = cargar_hoja("Movimientos")
 df_cuentas = cargar_hoja("Cuentas")
+
+# Asegurar que la columna Fondo_Disponible exista en el código
+if not df_fijos.empty and "Fondo_Disponible" not in df_fijos.columns:
+    df_fijos["Fondo_Disponible"] = 0.0
 
 # --- NAVEGACIÓN ---
 st.markdown("### 🏦 SISTEMA FINANCIERO INTEGRAL")
@@ -51,13 +55,11 @@ if st.session_state.seccion == 'Vista':
         st.warning("No hay gastos fijos registrados. Ve a la pestaña 'GASTOS FIJOS'.")
 
 # ---------------------------------------------------------
-# 2. AJUSTES: GASTOS FIJOS (Agregar, Modificar, Eliminar)
+# 2. AJUSTES: GASTOS FIJOS
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Ajustes':
     st.subheader("⚙️ Configurar Gastos Fijos")
-    st.info("Si seleccionas una categoría que ya existe y le cambias el monto, se actualizará. También puedes eliminarla.")
     
-    # Combinar categorías base con las que ya existan en la tabla
     cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
     todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
     
@@ -70,7 +72,7 @@ elif st.session_state.seccion == 'Ajustes':
             if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
                 df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = monto_sel
             else:
-                nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": monto_sel}])
+                nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": monto_sel, "Fondo_Disponible": 0.0}])
                 df_fijos = pd.concat([df_fijos, nuevo], ignore_index=True)
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
             st.cache_data.clear()
@@ -83,81 +85,114 @@ elif st.session_state.seccion == 'Ajustes':
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                 st.cache_data.clear()
                 st.rerun()
-            else:
-                st.warning("Esa categoría no está en la tabla.")
-    
-    st.markdown("**Presupuesto Actual Guardado:**")
-    st.dataframe(df_fijos, use_container_width=True, hide_index=True)
+
+    # Mostrar tabla con el Fondo Disponible
+    st.markdown("**Presupuesto y Fondos Actuales:**")
+    if not df_fijos.empty:
+        df_mostrar = df_fijos.copy()
+        df_mostrar["Gasto Semanal"] = pd.to_numeric(df_mostrar["Monto_Mensual"], errors="coerce") / 4
+        # Formatear como dinero
+        df_mostrar = df_mostrar[["Categoría", "Monto_Mensual", "Gasto Semanal", "Fondo_Disponible"]]
+        st.dataframe(df_mostrar.style.format({"Monto_Mensual": "${:,.2f}", "Gasto Semanal": "${:,.2f}", "Fondo_Disponible": "${:,.2f}"}), use_container_width=True, hide_index=True)
 
 # ---------------------------------------------------------
-# 3. PAGOS Y MOVIMIENTOS (Conceptos mixtos y descuento a cuenta)
+# 3. PAGOS Y MOVIMIENTOS (Botón Semanal + Filtro por Categoría)
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Pagos':
-    st.subheader("💸 Registrar Pago o Ingreso")
+    st.subheader("💸 Control de Pagos y Sobres")
+    
+    # --- BOTÓN MÁGICO DE INYECCIÓN SEMANAL ---
+    st.markdown("### 📥 Ingreso Semanal Automático")
+    st.info("Al presionar este botón, se sumará a cada Categoría su presupuesto de 1 semana (Monto Mensual / 4).")
+    if st.button("➕ AGREGAR FONDOS DE OTRA SEMANA", use_container_width=True):
+        if not df_fijos.empty:
+            df_fijos["Monto_Mensual"] = pd.to_numeric(df_fijos["Monto_Mensual"], errors="coerce").fillna(0)
+            df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"], errors="coerce").fillna(0)
+            
+            # Sumar una semana (mes / 4) al fondo de cada categoría
+            df_fijos["Fondo_Disponible"] += (df_fijos["Monto_Mensual"] / 4)
+            
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+            st.cache_data.clear()
+            st.success("¡Fondos inyectados correctamente a todas tus categorías! 🎉")
+            st.rerun()
+        else:
+            st.error("No hay gastos fijos configurados.")
+
+    st.markdown("---")
+    st.markdown("### 📤 Registrar Nuevo Gasto/Ingreso")
     
     if df_cuentas.empty or "Cuenta" not in df_cuentas.columns:
-        st.error("⚠️ Primero debes crear una Cuenta en la pestaña 'MIS CUENTAS' para poder hacer movimientos.")
+        st.error("⚠️ Crea una Cuenta en la pestaña 'MIS CUENTAS' primero.")
     else:
-        # Calcular saldo total de todas las cuentas
-        df_cuentas['Saldo'] = pd.to_numeric(df_cuentas['Saldo'], errors='coerce').fillna(0)
-        st.metric("💰 BALANCE TOTAL EN CUENTAS", f"${df_cuentas['Saldo'].sum():,.2f}")
-        st.markdown("---")
-        
-        # Opciones de Concepto
         conceptos_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else CATEGORIAS_BASE
         opciones_concepto = ["➕ OTRO (Escribir nuevo)"] + conceptos_existentes
         
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        
-        with col_m1:
-            cuenta_sel = st.selectbox("¿De qué cuenta sale/entra?", df_cuentas["Cuenta"].tolist())
+        with col_m1: cuenta_sel = st.selectbox("¿De qué cuenta sale?", df_cuentas["Cuenta"].tolist())
         with col_m2:
-            concepto_sel = st.selectbox("Concepto", opciones_concepto)
-            if concepto_sel == "➕ OTRO (Escribir nuevo)":
-                concepto_final = st.text_input("Escribe el nuevo concepto:")
-            else:
-                concepto_final = concepto_sel
-        with col_m3:
-            monto_mov = st.number_input("Monto ($)", format="%.2f", help="Negativo para restar (-500), Positivo para sumar (500)")
+            concepto_sel = st.selectbox("Concepto (Sobre)", opciones_concepto)
+            concepto_final = st.text_input("Escribe el nuevo concepto:") if concepto_sel == "➕ OTRO (Escribir nuevo)" else concepto_sel
+        with col_m3: monto_mov = st.number_input("Monto ($)", format="%.2f", help="Negativo para restar (-500)")
         with col_m4:
             st.write("")
             if st.button("REGISTRAR", use_container_width=True, type="primary"):
                 if concepto_sel == "➕ OTRO (Escribir nuevo)" and not concepto_final:
                     st.error("Escribe un concepto.")
                 else:
-                    # 1. Guardar el movimiento
                     fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+                    
+                    # 1. Registrar Movimiento
                     nuevo_mov = pd.DataFrame([{"Fecha": fecha_hoy, "Cuenta": cuenta_sel, "Concepto": concepto_final, "Monto": monto_mov}])
                     df_movs_up = pd.concat([df_movs, nuevo_mov], ignore_index=True)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs_up)
                     
-                    # 2. Actualizar el saldo de la cuenta elegida
-                    saldo_actual = df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_sel, "Saldo"].values[0]
-                    nuevo_saldo = float(saldo_actual) + float(monto_mov)
-                    df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_sel, "Saldo"] = nuevo_saldo
+                    # 2. Descontar de la Cuenta de Banco
+                    saldo_actual = pd.to_numeric(df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_sel, "Saldo"].values[0])
+                    df_cuentas.loc[df_cuentas["Cuenta"] == cuenta_sel, "Saldo"] = saldo_actual + monto_mov
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                    
+
+                    # 3. Descontar del "Fondo Disponible" del Concepto (Si existe)
+                    if not df_fijos.empty and concepto_final in df_fijos["Categoría"].values:
+                        fondo_actual = pd.to_numeric(df_fijos.loc[df_fijos["Categoría"] == concepto_final, "Fondo_Disponible"].values[0])
+                        df_fijos.loc[df_fijos["Categoría"] == concepto_final, "Fondo_Disponible"] = fondo_actual + monto_mov
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+
                     st.cache_data.clear()
-                    st.success(f"Movimiento registrado. Nuevo saldo en {cuenta_sel}: ${nuevo_saldo:,.2f}")
+                    st.success("Movimiento registrado exitosamente.")
                     st.rerun()
 
-        st.markdown("### Historial de Movimientos")
-        st.dataframe(df_movs.sort_index(ascending=False), use_container_width=True, hide_index=True)
+        st.markdown("---")
+        # --- TABLAS INDIVIDUALES POR CONCEPTO ---
+        st.markdown("### 🔍 Análisis por Concepto")
+        st.info("Elige una categoría para ver cuánto dinero tiene acumulado y todos sus movimientos.")
+        concepto_ver = st.selectbox("Selecciona una Categoría para revisar:", conceptos_existentes)
+        
+        col_v1, col_v2 = st.columns([1, 2])
+        with col_v1:
+            if not df_fijos.empty and concepto_ver in df_fijos["Categoría"].values:
+                fondo = pd.to_numeric(df_fijos.loc[df_fijos["Categoría"] == concepto_ver, "Fondo_Disponible"].values[0])
+                # Mostrar en verde si hay dinero, en rojo si te pasaste
+                color = "normal" if fondo >= 0 else "inverse"
+                st.metric(label=f"Fondo de '{concepto_ver}'", value=f"${fondo:,.2f}", delta=None)
+        
+        with col_v2:
+            if not df_movs.empty:
+                movs_filtrados = df_movs[df_movs["Concepto"] == concepto_ver]
+                if not movs_filtrados.empty:
+                    st.dataframe(movs_filtrados.sort_index(ascending=False), use_container_width=True, hide_index=True)
+                else:
+                    st.write(f"No hay movimientos registrados para {concepto_ver}.")
 
 # ---------------------------------------------------------
-# 4. MIS CUENTAS (Agregar, Modificar, Eliminar Cuentas)
+# 4. MIS CUENTAS
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Cuentas':
     st.subheader("💳 Gestión de Cuentas")
-    
     col_c1, col_c2 = st.columns([1, 2])
-    
     with col_c1:
-        st.markdown("**Agregar o Modificar Cuenta**")
-        st.info("Si pones el nombre de una cuenta que ya existe, se actualizará su saldo. Si no, se creará una nueva.")
-        nombre_cta = st.text_input("Nombre de la Cuenta (ej: Banreservas, Efectivo)")
+        nombre_cta = st.text_input("Nombre de la Cuenta")
         saldo_cta = st.number_input("Saldo Actual ($)", format="%.2f")
-        
         if st.button("💾 Guardar Cuenta", type="primary", use_container_width=True):
             if nombre_cta:
                 if not df_cuentas.empty and nombre_cta in df_cuentas["Cuenta"].values:
@@ -165,15 +200,11 @@ elif st.session_state.seccion == 'Cuentas':
                 else:
                     nueva_cta = pd.DataFrame([{"Cuenta": nombre_cta, "Saldo": saldo_cta}])
                     df_cuentas = pd.concat([df_cuentas, nueva_cta], ignore_index=True)
-                
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 st.cache_data.clear()
                 st.rerun()
-            else:
-                st.warning("Escribe un nombre de cuenta.")
         
         st.markdown("---")
-        st.markdown("**Eliminar Cuenta**")
         cuenta_eliminar = st.selectbox("Selecciona la cuenta a borrar", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else ["No hay cuentas"])
         if st.button("🗑️ Eliminar Cuenta", use_container_width=True):
             if not df_cuentas.empty and cuenta_eliminar != "No hay cuentas":
@@ -183,11 +214,7 @@ elif st.session_state.seccion == 'Cuentas':
                 st.rerun()
 
     with col_c2:
-        st.markdown("**Lista de Cuentas Activas**")
         if not df_cuentas.empty:
             df_cuentas['Saldo'] = pd.to_numeric(df_cuentas['Saldo'], errors='coerce').fillna(0)
-            # Mostrar la tabla bonita con el símbolo de dólar
             st.dataframe(df_cuentas.style.format({"Saldo": "${:,.2f}"}), use_container_width=True, hide_index=True)
-            st.success(f"**Gran Total Disponible:** ${df_cuentas['Saldo'].sum():,.2f}")
-        else:
-            st.info("Aún no tienes cuentas registradas.")
+            st.success(f"**Total Disponible (Dinero Real):** ${df_cuentas['Saldo'].sum():,.2f}")

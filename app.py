@@ -18,6 +18,7 @@ def cargar_base_datos(nombre):
     # Ponemos ttl=0 para que al refrescar la página (Ctrl+R) obligue a buscar en Google Sheets
     try:
         df = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet=nombre, ttl=0).dropna(how="all")
+        if df.empty:
             columnas = {
                 "Gastos_Fijos": ["Categoría", "Monto_Mensual", "Fondo_Disponible"],
                 "Movimientos": ["Fecha", "Cuenta", "Concepto", "Monto"],

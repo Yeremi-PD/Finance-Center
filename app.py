@@ -226,7 +226,7 @@ elif st.session_state.seccion == 'Pagos':
                 st.rerun()
 
 # Botón para Deshacer
-        if st.button("↩️ DESHACER ÚLTIMA", use_container_width=True, help="Resta la última inyección semanal de los sobres y cuentas"):
+        if st.button("↩️ DESHACER ÚLTIMA", use_container_width=True, help="Resta la última inyección semanal de los sobres y cuentas (incluso si queda en negativo)"):
             if not df_movs.empty and "INYECCIÓN SEMANAL" in df_movs["Concepto"].values:
                 # 1. Identificamos la fecha de la última inyección realizada
                 ult_fecha = df_movs[df_movs["Concepto"] == "INYECCIÓN SEMANAL"]["Fecha"].iloc[-1]
@@ -236,32 +236,33 @@ elif st.session_state.seccion == 'Pagos':
                     cta = mov["Cuenta"]
                     monto_a_quitar = float(mov["Monto"])
                     
-                    # RESTAR del saldo de la cuenta bancaria
+                    # RESTAR del saldo de la cuenta bancaria (permite negativos)
                     if cta in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
                         df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - monto_a_quitar
                     
-                    # RESTAR de los fondos/sobres individuales
-                    excluidas = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                    cats_reales = df_fijos[~df_fijos["Categoría"].isin(excluidas)]
+                    # RESTAR de los fondos/sobres individuales de forma forzada (permite negativos)
+                    lista_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                    cats_revertir = df_fijos[~df_fijos["Categoría"].isin(lista_negra)]
                     
-                    for _, row in cats_reales.iterrows():
+                    for _, row in cats_revertir.iterrows():
                         idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
                         valor_semanal = float(row["Monto_Mensual"]) / 4
-                        # AQUÍ RESTAMOS:
+                        
+                        # AQUÍ LA MAGIA: Resta directa, sea cual sea el valor actual, permitiendo que baje de cero
                         df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - valor_semanal
 
                 # 2. Borrar los registros del historial para que no se dupliquen
                 df_movs = df_movs.drop(inyec_a_revertir.index)
                 
-                # 3. Guardar cambios
+                # 3. Guardar cambios en Google Sheets y Memoria
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                 st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
-                st.success(f"Inyección del {ult_fecha} revertida.")
+                
+                st.success(f"Inyección del {ult_fecha} revertida con éxito. Fondos restados.")
                 st.rerun()
-
     # --- SECCIÓN: REGISTRAR GASTO ---
     st.markdown("<br>", unsafe_allow_html=True)
     

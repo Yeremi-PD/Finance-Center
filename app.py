@@ -385,6 +385,24 @@ elif st.session_state.seccion == 'Trading':
             
         st.dataframe(df_t_final.sort_index(ascending=False), use_container_width=True, hide_index=True)
 
+        # Botón para eliminar el último movimiento registrado en Trading
+        if st.button("🗑️ ELIMINAR ÚLTIMA OPERACIÓN", use_container_width=True):
+            if not st.session_state.df_trading.empty:
+                # 1. Crear copia y eliminar la última fila
+                df_temp = st.session_state.df_trading.copy()
+                df_temp = df_temp.drop(df_temp.index[-1])
+                
+                # 2. Actualizar Google Sheets
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_temp)
+                
+                # 3. Actualizar Memoria de Sesión para que sea instantáneo
+                st.session_state.df_trading = df_temp
+                
+                st.success("Operación eliminada correctamente.")
+                st.rerun()
+            else:
+                st.warning("No hay operaciones para eliminar.")
+
 # ---------------------------------------------------------
 # 4. CUENTAS (Compacto y Minimalista)
 # ---------------------------------------------------------

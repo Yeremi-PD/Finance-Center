@@ -207,44 +207,86 @@ elif st.session_state.seccion == 'Pagos':
             st.dataframe(df_h, use_container_width=True, height=450, hide_index=True)
 
 # ---------------------------------------------------------
-# 4. MIS CUENTAS
+# 4. MIS CUENTAS (Interfaz Mejorada con Tarjetas)
 # ---------------------------------------------------------
 elif st.session_state.seccion == 'Cuentas':
-    st.subheader("💳 Mis Cuentas Bancarias")
+    st.markdown("<h2 style='color: #2E7D32;'>💳 Estado de Mis Cuentas</h2>", unsafe_allow_html=True)
     
     if not df_cuentas.empty:
         df_cuentas["Saldo"] = pd.to_numeric(df_cuentas["Saldo"]).fillna(0)
         t_total = df_cuentas["Saldo"].sum()
-        st.markdown(f"<div style='background-color:#e8f5e9; padding:20px; border-radius:10px; text-align:center;'><h2>Balance Total Real: ${t_total:,.2f}</h2></div>", unsafe_allow_html=True)
         
-        st.write("")
-        cols = st.columns(len(df_cuentas))
+        # Banner de Total con mejor diseño
+        st.markdown(f"""
+            <div style="background: linear-gradient(90deg, #4CAF50 0%, #2E7D32 100%); 
+                        padding: 30px; border-radius: 15px; color: white; text-align: center; margin-bottom: 25px;">
+                <p style="margin: 0; font-size: 18px; opacity: 0.9;">Balance Total Real Disponible</p>
+                <h1 style="margin: 0; font-size: 45px;">${t_total:,.2f}</h1>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Grid de Tarjetas de Cuentas
+        num_cuentas = len(df_cuentas)
+        cols = st.columns(min(num_cuentas, 4)) # Máximo 4 columnas
+        
         for i, (index, row) in enumerate(df_cuentas.iterrows()):
-            with cols[i]:
-                st.metric(row["Cuenta"], f"${row['Saldo']:,.2f}")
+            with cols[i % 4]:
+                st.markdown(f"""
+                    <div style="background-color: #ffffff; padding: 20px; border-left: 5px solid #4CAF50; 
+                                border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px;">
+                        <p style="color: #666; margin: 0; font-size: 14px; font-weight: bold;">{row['Cuenta'].upper()}</p>
+                        <h3 style="color: #333; margin: 5px 0 0 0;">${row['Saldo']:,.2f}</h3>
+                    </div>
+                """, unsafe_allow_html=True)
 
-    st.markdown("---")
-    col_c1, col_c2 = st.columns(2)
-    with col_c1:
-        st.write("**Editar o Crear Cuenta**")
-        opc = ["➕ NUEVA"] + (df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
-        c_edit = st.selectbox("Selecciona cuenta:", opc)
-        s_base = float(df_cuentas.loc[df_cuentas["Cuenta"] == c_edit, "Saldo"].values[0]) if c_edit != "➕ NUEVA" else 0.0
-        n_nombre = st.text_input("Nombre:") if c_edit == "➕ NUEVA" else c_edit
-        n_saldo = st.number_input("Saldo Total Actual:", value=s_base)
-        if st.button("GUARDAR CUENTA"):
-            if c_edit == "➕ NUEVA":
-                df_cuentas = pd.concat([df_cuentas, pd.DataFrame([{"Cuenta": n_nombre, "Saldo": n_saldo}])], ignore_index=True)
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+    
+    # GESTIÓN DE CUENTAS (Edición y Borrado)
+    st.subheader("🛠️ Administrar Cuentas")
+    tab_edit, tab_del = st.tabs(["📝 Crear o Modificar", "🗑️ Eliminar Cuenta"])
+    
+    with tab_edit:
+        col_e1, col_e2 = st.columns(2)
+        opciones_cta = ["➕ CREAR NUEVA CUENTA"] + (df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
+        
+        with col_e1:
+            cta_a_editar = st.selectbox("Selecciona la cuenta que quieres cambiar:", opciones_cta)
+            
+            # Cargar datos para editar
+            if cta_a_editar == "➕ CREAR NUEVA CUENTA":
+                nombre_final = st.text_input("Nombre de la nueva cuenta:", placeholder="Ej: Banreservas, Efectivo...")
+                saldo_inicial = 0.0
             else:
-                df_cuentas.loc[df_cuentas["Cuenta"] == c_edit, "Saldo"] = n_saldo
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-            st.cache_data.clear()
-            st.rerun()
-    with col_c2:
-        st.write("**Borrar Cuenta**")
-        c_del = st.selectbox("Eliminar cuenta:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else ["Vacío"])
-        if st.button("ELIMINAR"):
-            df_cuentas = df_cuentas[df_cuentas["Cuenta"] != c_del]
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-            st.cache_data.clear()
-            st.rerun()
+                nombre_final = cta_a_editar
+                saldo_inicial = float(df_cuentas.loc[df_cuentas["Cuenta"] == cta_a_editar, "Saldo"].values[0])
+        
+        with col_e2:
+            nuevo_saldo = st.number_input("Saldo Total Actual ($):", value=saldo_inicial, step=100.0)
+            st.write("") # Espacio
+            if st.button("✅ GUARDAR CAMBIOS EN CUENTA", use_container_width=True, type="primary"):
+                if nombre_final:
+                    if not df_cuentas.empty and nombre_final in df_cuentas["Cuenta"].values:
+                        df_cuentas.loc[df_cuentas["Cuenta"] == nombre_final, "Saldo"] = nuevo_saldo
+                    else:
+                        nueva_row = pd.DataFrame([{"Cuenta": nombre_final, "Saldo": nuevo_saldo}])
+                        df_cuentas = pd.concat([df_cuentas, nueva_row], ignore_index=True)
+                    
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    st.cache_data.clear()
+                    st.success(f"Cuenta '{nombre_final}' actualizada correctamente.")
+                    st.rerun()
+                else:
+                    st.error("Por favor, ingresa un nombre para la cuenta.")
+
+    with tab_del:
+        if not df_cuentas.empty:
+            cta_a_borrar = st.selectbox("Selecciona la cuenta que deseas eliminar definitivamente:", df_cuentas["Cuenta"].tolist())
+            st.warning(f"Atención: Se borrará la cuenta '{cta_a_borrar}' y su saldo dejará de sumarse al total.")
+            if st.button("🔥 ELIMINAR CUENTA PERMANENTEMENTE", use_container_width=True):
+                df_cuentas = df_cuentas[df_cuentas["Cuenta"] != cta_a_borrar]
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                st.cache_data.clear()
+                st.success("Cuenta eliminada.")
+                st.rerun()
+        else:
+            st.info("No hay cuentas para eliminar.")

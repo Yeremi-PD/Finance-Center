@@ -142,7 +142,8 @@ elif st.session_state.seccion == 'Ajustes':
                     nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": m_sel, "Fondo_Disponible": f_sel}])
                     df_fijos = pd.concat([df_fijos, nuevo], ignore_index=True)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                st.cache_data.clear()
+                # ACTUALIZAR MEMORIA LOCAL PARA QUE EL BALANCE CAMBIE AL INSTANTE
+                st.session_state.df_fijos = df_fijos 
                 st.rerun()
         with col_btn2:
             if st.button("🗑️", help="Eliminar Categoría", use_container_width=True):

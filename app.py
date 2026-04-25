@@ -276,19 +276,22 @@ elif st.session_state.seccion == 'Pagos':
             if m_gasto > 0:
                 fecha_h = datetime.now().strftime("%Y-%m-%d")
                 
-                # 1. Registrar el movimiento
+                # 1. Actualizar DataFrames en memoria
                 nuevo_mov = pd.DataFrame([{"Fecha": fecha_h, "Cuenta": c_gasto, "Concepto": s_gasto, "Monto": -m_gasto}])
                 df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
                 
-                # 2. Descontar del fondo (Acceso seguro al valor con .iloc[0])
                 idx_fijo = df_fijos.index[df_fijos["Categoría"] == s_gasto].tolist()[0]
-                fondo_actual = float(df_fijos.at[idx_fijo, "Fondo_Disponible"])
-                df_fijos.at[idx_fijo, "Fondo_Disponible"] = fondo_actual - m_gasto
+                df_fijos.at[idx_fijo, "Fondo_Disponible"] = float(df_fijos.at[idx_fijo, "Fondo_Disponible"]) - m_gasto
                 
-                # 3. Guardar cambios (No actualizamos 'Cuentas' porque el saldo ahora es calculado)
-# Actualizar Google Sheets
+                # 2. GUARDADO INMEDIATO EN GOOGLE SHEETS (Sincronización Total)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                
+                # 3. Actualizar Sesión y Refrescar
+                st.session_state.df_movs = df_movs
+                st.session_state.df_fijos = df_fijos
+                st.success(f"Gasto de ${m_gasto:,.2f} aplicado y guardado.")
+                st.rerun()
                 
                 # Actualizar Memoria de Sesión (Esto hace que sea instantáneo)
                 st.session_state.df_movs = df_movs
@@ -382,40 +385,37 @@ elif st.session_state.seccion == 'Trading':
         if monto_t > 0:
             monto_trading = monto_t if tipo_t == "Inversión" else -monto_t
             monto_banco = -monto_t if tipo_t == "Inversión" else monto_t
-            
-# 1. Actualizar Hoja de Trading, Movimientos (Historial General) y Memoria
             fecha_actual = datetime.now().strftime("%Y-%m-%d")
+            
+            # 1. Preparar datos de Trading e Historial General
             nueva_op = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
             df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
             
-            # Agregamos también al historial general (Movimientos) para que salga al lado de los sobres
             nuevo_mov_gen = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Concepto": f"TRADING: {concepto_t}", "Monto": monto_banco}])
             df_movs = pd.concat([df_movs, nuevo_mov_gen], ignore_index=True)
             
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-            st.session_state.df_trading = df_trading
-            st.session_state.df_movs = df_movs
-            
-            # 2. Actualizar Saldo Real de la Cuenta Bancaria
+            # 2. Actualizar Saldo de la Cuenta Bancaria
             idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
             df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-            st.session_state.df_cuentas = df_cuentas
-
-            # 3. NUEVO: Si es Inversión, descontar del sobre "Inversion" en Gastos Fijos
-            if tipo_t == "Inversión":
-                if "Inversion" in df_fijos["Categoría"].values:
-                    idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                    fondo_actual = float(df_fijos.at[idx_inv, "Fondo_Disponible"])
-                    df_fijos.at[idx_inv, "Fondo_Disponible"] = fondo_actual - monto_t
-                    
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                    st.session_state.df_fijos = df_fijos
-                    st.success(f"Inversión realizada: Se descontaron ${monto_t:,.2f} del sobre 'Inversion'")
-                else:
-                    st.warning("No se encontró la categoría 'Inversion' para descontar el fondo.")
             
+            # 3. Si es Inversión, descontar del sobre "Inversion"
+            if tipo_t == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
+
+            # 4. GUARDADO MASIVO INMEDIATO EN GOOGLE SHEETS
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+            
+            # 5. Actualizar la memoria de la sesión local para reflejar al instante
+            st.session_state.df_trading = df_trading
+            st.session_state.df_movs = df_movs
+            st.session_state.df_cuentas = df_cuentas
+            st.session_state.df_fijos = df_fijos
+            
+            st.success("Operación ejecutada y guardada al instante en todas las bases de datos.")
             st.rerun()
 
     if not df_trading.empty:

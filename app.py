@@ -223,7 +223,7 @@ elif st.session_state.seccion == 'Pagos':
     # --- HISTORIAL Y FONDOS ---
     cf1, cf2 = st.columns([1, 3])
     with cf1:
-        st.markdown("<h4 style='color: #2E7D32;'>💰 Sobres Disponibles</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #2E7D32;'>💰 Categorias Disponibles</h4>", unsafe_allow_html=True)
         df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
         
         # Tamaño exacto: cantidad de conceptos + 1 para los títulos

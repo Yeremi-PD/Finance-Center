@@ -382,7 +382,7 @@ elif st.session_state.seccion == 'Trading':
     with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
     
     # Creamos dos columnas: una ancha vacía a la izquierda y una pequeña a la derecha
-    _, col_btn_op = st.columns([5, 1])
+    _, col_btn_op = st.columns([7, 1])
     with col_btn_op:
         btn_ejecutar = st.button("🚀 EJECUTAR OPERACIÓN", use_container_width=True, type="primary")
         

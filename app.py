@@ -3,9 +3,22 @@ import pandas as pd
 import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
+import base64
 
 # --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Finanzas Master Pro", page_icon="💳", layout="wide")
+# 1. Cambiamos el icono de la pestaña por la imagen
+st.set_page_config(page_title="Finanzas Master Pro", page_icon="logo.png", layout="wide")
+
+# 2. Inyectamos el código para que iOS lo use en la pantalla de inicio
+try:
+    with open("logo.png", "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode()
+    st.markdown(
+        f'<link rel="apple-touch-icon" href="data:image/png;base64,{encoded_string}">',
+        unsafe_allow_html=True
+    )
+except FileNotFoundError:
+    pass # Si por error borras la imagen, la app no se crashea
 
 URL_GOOGLE_SHEET = "https://docs.google.com/spreadsheets/d/1lswvfo2ggmqvyslLCYj-WWpO56v0jgV0dVpNwXnEuDY/edit#gid=0"
 conn = st.connection("gsheets", type=GSheetsConnection)

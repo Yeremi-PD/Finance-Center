@@ -6,13 +6,24 @@ from datetime import datetime
 import base64
 import streamlit.components.v1 as components
 import os
+from PIL import Image
 
 # --- CONFIGURACIÓN ---
-# Creamos una ruta absoluta para asegurar que lea el archivo en cualquier servidor
 ruta_logo = os.path.join(os.path.dirname(__file__), "logo.png")
 
-st.set_page_config(page_title="Finanzas Master Pro", page_icon=ruta_logo, layout="wide")
-st.logo(ruta_logo)
+# Forzamos la lectura de la imagen como un objeto para la pestaña del navegador
+try:
+    icono_pestaña = Image.open(ruta_logo)
+except FileNotFoundError:
+    icono_pestaña = "💰" # Respaldo (emoji) por si la imagen no se encuentra
+
+st.set_page_config(page_title="Finanzas Master Pro", page_icon=icono_pestaña, layout="wide")
+
+# Logo lateral/superior de la app
+try:
+    st.logo(ruta_logo)
+except:
+    pass
 
 # Ocultar marca de agua de Streamlit
 st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}</style>""", unsafe_allow_html=True)

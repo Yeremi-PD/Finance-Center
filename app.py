@@ -7,7 +7,23 @@ import base64
 import streamlit.components.v1 as components
 
 # --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Finanzas Master Pro", page_icon="logo.png", layout="wide")
+from PIL import Image, ImageOps
+
+# Abrimos la imagen asegurando que lea el fondo transparente (RGBA)
+logo_raw = Image.open("logo.png").convert("RGBA")
+
+# 1. Recortar TODO el espacio transparente inútil de los bordes
+caja_del_logo = logo_raw.getbbox()
+if caja_del_logo:
+    logo_recortado = logo_raw.crop(caja_del_logo)
+else:
+    logo_recortado = logo_raw
+
+# 2. Ahora sí, lo volvemos un cuadrado perfecto basado SOLO en el logo
+tamaño_max = max(logo_recortado.size)
+logo_final = ImageOps.pad(logo_recortado, (tamaño_max, tamaño_max))
+
+st.set_page_config(page_title="Finanzas Master Pro", page_icon=logo_final, layout="wide")
 st.logo("logo.png")
 
 # Ocultar marca de agua de Streamlit

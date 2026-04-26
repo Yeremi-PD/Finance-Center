@@ -77,25 +77,7 @@ df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
 # --- NAVEGACIÓN ---
-# Intentamos cargar el logo gigante en Base64 para que se vea premium
-try:
-    import base64
-    with open("logo.png", "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode()
-    
-    # Aquí puedes cambiar el width="250" por "300" o "400" si lo quieres AÚN MÁS GIGANTE
-    st.markdown(
-        f"""
-        <div style='text-align: center; margin-bottom: 20px;'>
-            <img src="data:image/png;base64,{encoded_string}" width="200" style="border-radius: 25px; box-shadow: 0px 10px 20px rgba(0,0,0,0.4);">
-            <h1 style='color: #4CAF50; font-size: 28px; margin-top: 15px; font-weight: 800; letter-spacing: 2px;'>MFC PRO</h1>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
-except Exception as e:
-    # Si por alguna razón no encuentra la imagen, pone el texto por defecto
-    st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 col_n1, col_n2, col_n3, col_n4, col_n5 = st.columns(5)
 
 # Por defecto, abrimos la primera pestaña del nuevo orden

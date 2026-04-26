@@ -5,32 +5,17 @@ from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import base64
 import streamlit.components.v1 as components
-import os
-from PIL import Image
 
 # --- CONFIGURACIÓN ---
-ruta_logo = os.path.join(os.path.dirname(__file__), "logo.png")
-
-# Forzamos la lectura de la imagen como un objeto para la pestaña del navegador
-try:
-    icono_pestaña = Image.open(ruta_logo)
-except FileNotFoundError:
-    icono_pestaña = "💰" # Respaldo (emoji) por si la imagen no se encuentra
-
-st.set_page_config(page_title="Finanzas Master Pro", page_icon=icono_pestaña, layout="wide")
-
-# Logo lateral/superior de la app
-try:
-    st.logo(ruta_logo)
-except:
-    pass
+st.set_page_config(page_title="Finanzas Master Pro", page_icon="logo.png", layout="wide")
+st.logo("logo.png")
 
 # Ocultar marca de agua de Streamlit
 st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}</style>""", unsafe_allow_html=True)
 
 # 2. Obligar a iOS a leer el logo usando JavaScript (Hack para iPhone)
 try:
-    with open(ruta_logo, "rb") as image_file:
+    with open("logo.png", "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode()
         
     icono_js = f"""

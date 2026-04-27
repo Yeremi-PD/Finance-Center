@@ -169,34 +169,30 @@ df_excep = st.session_state.df_excep
 df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
-# --- NAVEGACIÓN ---
+# --- NAVEGACIÓN CON PESTAÑAS (INSTANTÁNEO) ---
 st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+st.markdown("""
+<style>
+    /* Estilizar las pestañas para que resalten */
+    div[data-testid="stTabs"] button {
+        font-size: 16px !important;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# Por defecto, abrimos la primera pestaña del nuevo orden
-if 'seccion' not in st.session_state: st.session_state.seccion = 'Ajustes'
-
-# Función que cambia el estado ANTES de cargar, eliminando el parpadeo de recarga doble
-def cambiar_seccion(nueva_seccion):
-    st.session_state.seccion = nueva_seccion
-
-col_n1, col_n2, col_n3, col_n4, col_n5 = st.columns(5)
-
-with col_n1:
-    st.button("⚙️ GASTOS FIJOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Ajustes' else "secondary", on_click=cambiar_seccion, args=('Ajustes',))
-with col_n2:
-    st.button("💸 REGISTRAR GASTOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Pagos' else "secondary", on_click=cambiar_seccion, args=('Pagos',))
-with col_n3:
-    st.button("📈 TRADING", use_container_width=True, type="primary" if st.session_state.seccion == 'Trading' else "secondary", on_click=cambiar_seccion, args=('Trading',))
-with col_n4:
-    st.button("📊 PROYECCIÓN ANUAL", use_container_width=True, type="primary" if st.session_state.seccion == 'Vista' else "secondary", on_click=cambiar_seccion, args=('Vista',))
-with col_n5:
-    st.button("💳 MIS CUENTAS", use_container_width=True, type="primary" if st.session_state.seccion == 'Cuentas' else "secondary", on_click=cambiar_seccion, args=('Cuentas',))
-st.markdown("---")
+tab_ajustes, tab_pagos, tab_trading, tab_vista, tab_cuentas = st.tabs([
+    "⚙️ GASTOS FIJOS", 
+    "💸 REGISTRAR GASTOS", 
+    "📈 TRADING", 
+    "📊 PROYECCIÓN ANUAL", 
+    "💳 MIS CUENTAS"
+])
 
 # ---------------------------------------------------------
 # 1. VISTA: PROYECCIÓN ANUAL 
 # ---------------------------------------------------------
-if st.session_state.seccion == 'Vista':
+with tab_vista:
     if not df_fijos.empty:
         df_fijos["Monto_Mensual"] = pd.to_numeric(df_fijos["Monto_Mensual"]).fillna(0)
         total_m = df_fijos["Monto_Mensual"].sum()
@@ -229,7 +225,7 @@ if st.session_state.seccion == 'Vista':
 # ---------------------------------------------------------
 # 2. AJUSTES: GASTOS FIJOS 
 # ---------------------------------------------------------
-elif st.session_state.seccion == 'Ajustes':
+with tab_ajustes:
     st.subheader("⚙️ Configurar Gastos Fijos")
     
     cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
@@ -289,7 +285,7 @@ elif st.session_state.seccion == 'Ajustes':
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Interfaz Premium y Limpia)
 # ---------------------------------------------------------
-elif st.session_state.seccion == 'Pagos':
+with tab_pagos:
     st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
     
     col_i1, col_i2, col_i3 = st.columns([2, 1, 1])
@@ -449,7 +445,7 @@ elif st.session_state.seccion == 'Pagos':
 # ---------------------------------------------------------
 # NUEVA SECCIÓN: TRADING (Inversiones y Retiros)
 # ---------------------------------------------------------
-elif st.session_state.seccion == 'Trading':
+with tab_trading:
     st.markdown("<h3 style='font-weight: 400; color: #555;'>📈 Gestión de Trading</h3>", unsafe_allow_html=True)
     
     # --- CÁLCULO SINCRONIZADO DE TRADING ---
@@ -629,7 +625,7 @@ elif st.session_state.seccion == 'Trading':
 # ---------------------------------------------------------
 # 4. CUENTAS (Compacto y Minimalista)
 # ---------------------------------------------------------
-elif st.session_state.seccion == 'Cuentas':
+with tab_cuentas:
     st.write("") 
     
     if not df_cuentas.empty and not df_fijos.empty:

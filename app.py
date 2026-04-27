@@ -470,31 +470,81 @@ with tab_pagos:
 
     st.markdown("<hr>", unsafe_allow_html=True)
     
-    # --- HISTORIAL Y FONDOS ---
-    cf1, cf2 = st.columns([1, 3])
+    # --- HISTORIAL Y FONDOS (VERSIÓN APP PREMIUM) ---
+    cf1, cf2 = st.columns([1.2, 2.8])
+    
     with cf1:
-        st.markdown("<h4 style='color: #2E7D32;'>💰 Categorias Disponibles</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #4CAF50; margin-bottom: 15px;'>💰 Tus Sobres</h4>", unsafe_allow_html=True)
         if not df_fijos.empty:
             if "Fondo_Disponible" not in df_fijos.columns:
                 df_fijos["Fondo_Disponible"] = 0.0
             df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
-        
-        if not df_fijos.empty and "Categoría" in df_fijos.columns:
-            # Tamaño exacto: cantidad de conceptos + 1 para los títulos
-            altura_dinamica_sobres = (len(df_fijos) + 1) * 38
-            st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=altura_dinamica_sobres, hide_index=True)
+            
+            # --- CREAR TARJETAS EN VEZ DE TABLA ---
+            html_sobres = "<div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; max-height: 450px; overflow-y: auto; padding-right: 5px;'>"
+            for _, row in df_fijos.iterrows():
+                cat = row["Categoría"]
+                fondo = float(row["Fondo_Disponible"])
+                # Color rojo si está en negativo, verde si está positivo
+                color_borde = "#F44336" if fondo < 0 else "#4CAF50"
+                color_texto = "#ef9a9a" if fondo < 0 else "#A5D6A7"
+                
+                html_sobres += f"""
+                <div style='background-color: rgba(25,25,25,0.7); border-radius: 10px; border-top: 3px solid {color_borde}; padding: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: center; transition: transform 0.2s;'>
+                    <p style='margin: 0; font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{cat}</p>
+                    <h3 style='margin: 5px 0 0 0; font-size: 18px; color: {color_texto};'>${fondo:,.0f}</h3>
+                </div>
+                """
+            html_sobres += "</div>"
+            st.markdown(html_sobres, unsafe_allow_html=True)
         else:
             st.info("No hay categorías configuradas.")
-    
+
     with cf2:
         l_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
-        f_sel = st.selectbox("📜 Selecciona un filtro para tu historial:", l_filtros)
+        f_sel = st.selectbox("📜 Filtro de Movimientos:", l_filtros)
+        
         if not df_movs.empty:
             df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
-            st.dataframe(df_h, use_container_width=True, height=400, hide_index=True)
-            if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
+            
+            # --- CREAR FEED DE TRANSACCIONES TIPO BANCO EN VEZ DE TABLA ---
+            html_feed = "<div style='max-height: 380px; overflow-y: auto; padding-right: 10px; margin-top: 10px;'>"
+            
+            for _, row in df_h.iterrows():
+                fecha = row["Fecha"]
+                cta = row["Cuenta"]
+                concepto = row["Concepto"]
+                try:
+                    monto = float(row["Monto"])
+                except:
+                    monto = 0.0
+                
+                # Diseño dinámico dependiendo si es ingreso o gasto
+                es_ingreso = monto > 0
+                color_monto = "#4CAF50" if es_ingreso else "#F44336"
+                signo = "+" if es_ingreso else ""
+                icono = "📥" if es_ingreso else "💸"
+                
+                html_feed += f"""
+                <div style='background-color: rgba(30,30,30,0.5); border-radius: 8px; padding: 12px 15px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 2px solid {color_monto};'>
+                    <div style='display: flex; align-items: center; gap: 12px;'>
+                        <div style='font-size: 20px;'>{icono}</div>
+                        <div>
+                            <p style='margin: 0; font-size: 14px; font-weight: 600; color: #e0e0e0;'>{concepto}</p>
+                            <p style='margin: 0; font-size: 11px; color: #777;'>{fecha} • {cta}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 style='margin: 0; font-size: 16px; font-weight: 700; color: {color_monto};'>{signo}${abs(monto):,.2f}</h4>
+                    </div>
+                </div>
+                """
+            html_feed += "</div>"
+            st.markdown(html_feed, unsafe_allow_html=True)
+            
+            st.write("") # Espaciador
+            if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO", use_container_width=True):
                 if not df_movs.empty:
-                    # Elimina la última fila real del dataframe original
                     df_movs = df_movs.drop(df_movs.index[-1])
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                     st.cache_data.clear()

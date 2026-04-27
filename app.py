@@ -484,7 +484,13 @@ with tab_pagos:
             # Tarjetas estilo App para Categorías Disponibles
             html_sobres = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
             for _, row in df_fijos.iterrows():
-                fondo = pd.to_numeric(row["Fondo_Disponible"]).astype(float)
+                # Conversión ultra segura: limpia textos, comas o símbolos de $ antes de convertir a decimal
+                try:
+                    valor_limpio = str(row["Fondo_Disponible"]).replace("$", "").replace(",", "")
+                    fondo = float(valor_limpio)
+                except ValueError:
+                    fondo = 0.0
+                    
                 color = "#4CAF50" if fondo >= 0 else "#F44336"
                 html_sobres += f'''
                 <div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-left: 4px solid {color}; 

@@ -171,31 +171,26 @@ df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 # --- NAVEGACIÓN ---
 st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
-col_n1, col_n2, col_n3, col_n4, col_n5 = st.columns(5)
 
 # Por defecto, abrimos la primera pestaña del nuevo orden
 if 'seccion' not in st.session_state: st.session_state.seccion = 'Ajustes'
 
+# Función que cambia el estado ANTES de cargar, eliminando el parpadeo de recarga doble
+def cambiar_seccion(nueva_seccion):
+    st.session_state.seccion = nueva_seccion
+
+col_n1, col_n2, col_n3, col_n4, col_n5 = st.columns(5)
+
 with col_n1:
-    if st.button("⚙️ GASTOS FIJOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Ajustes' else "secondary"): 
-        st.session_state.seccion = 'Ajustes'
-        st.rerun()
+    st.button("⚙️ GASTOS FIJOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Ajustes' else "secondary", on_click=cambiar_seccion, args=('Ajustes',))
 with col_n2:
-    if st.button("💸 REGISTRAR GASTOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Pagos' else "secondary"): 
-        st.session_state.seccion = 'Pagos'
-        st.rerun()
+    st.button("💸 REGISTRAR GASTOS", use_container_width=True, type="primary" if st.session_state.seccion == 'Pagos' else "secondary", on_click=cambiar_seccion, args=('Pagos',))
 with col_n3:
-    if st.button("📈 TRADING", use_container_width=True, type="primary" if st.session_state.seccion == 'Trading' else "secondary"): 
-        st.session_state.seccion = 'Trading'
-        st.rerun()
+    st.button("📈 TRADING", use_container_width=True, type="primary" if st.session_state.seccion == 'Trading' else "secondary", on_click=cambiar_seccion, args=('Trading',))
 with col_n4:
-    if st.button("📊 PROYECCIÓN ANUAL", use_container_width=True, type="primary" if st.session_state.seccion == 'Vista' else "secondary"): 
-        st.session_state.seccion = 'Vista'
-        st.rerun()
+    st.button("📊 PROYECCIÓN ANUAL", use_container_width=True, type="primary" if st.session_state.seccion == 'Vista' else "secondary", on_click=cambiar_seccion, args=('Vista',))
 with col_n5:
-    if st.button("💳 MIS CUENTAS", use_container_width=True, type="primary" if st.session_state.seccion == 'Cuentas' else "secondary"): 
-        st.session_state.seccion = 'Cuentas'
-        st.rerun()
+    st.button("💳 MIS CUENTAS", use_container_width=True, type="primary" if st.session_state.seccion == 'Cuentas' else "secondary", on_click=cambiar_seccion, args=('Cuentas',))
 st.markdown("---")
 
 # ---------------------------------------------------------

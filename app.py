@@ -486,7 +486,6 @@ with tab_pagos:
             # Tarjetas estilo App para Categorías Disponibles
             html_sobres = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
             for _, row in df_fijos.iterrows():
-                # Conversión ultra segura: limpia textos, comas o símbolos de $ antes de convertir a decimal
                 try:
                     valor_limpio = str(row["Fondo_Disponible"]).replace("$", "").replace(",", "")
                     fondo = float(valor_limpio)
@@ -494,14 +493,10 @@ with tab_pagos:
                     fondo = 0.0
                     
                 color = "#4CAF50" if fondo >= 0 else "#F44336"
-                html_sobres += f'''
-                <div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-left: 4px solid {color}; 
-                            padding: 12px 15px; border-radius: 8px; flex: 1 1 calc(50% - 10px); 
-                            box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: #ddd; font-weight: 500; font-size: 14px;">{row["Categoría"]}</span>
-                    <span style="color: {color}; font-weight: bold; font-size: 16px;">${fondo:,.0f}</span>
-                </div>
-                '''
+                
+                # Todo en una sola línea para evitar que Streamlit lo lea como un bloque de código
+                html_sobres += f'<div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-left: 4px solid {color}; padding: 12px 15px; border-radius: 8px; flex: 1 1 calc(50% - 10px); box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; justify-content: space-between; align-items: center;"><span style="color: #ddd; font-weight: 500; font-size: 14px;">{row["Categoría"]}</span><span style="color: {color}; font-weight: bold; font-size: 16px;">${fondo:,.0f}</span></div>'
+                
             html_sobres += '</div>'
             st.markdown(html_sobres, unsafe_allow_html=True)
         else:

@@ -26,7 +26,7 @@ logo_final = ImageOps.pad(logo_recortado, (tamaño_max, tamaño_max))
 st.set_page_config(page_title="Finanzas Master Pro", page_icon=logo_final, layout="wide")
 st.logo("logo.png")
 
-# Ocultar marca de agua, ajustar espacio y ESTILIZAR UI (Botones, Inputs, Tarjetas y TABLAS)
+# Ocultar marca de agua, ajustar espacio y ESTILIZAR UI (Botones, Inputs, Tarjetas y TABLAS PREMIUM)
 st.markdown("""
 <style>
     /* Ocultar elementos por defecto de Streamlit */
@@ -34,7 +34,7 @@ st.markdown("""
     footer {visibility: hidden;} 
     header {visibility: hidden;}
     
-    /* Ocultar el indicador de "Running..." arriba a la derecha para evitar parpadeos visuales */
+    /* Ocultar el indicador de "Running..." arriba a la derecha */
     [data-testid="stStatusWidget"] {visibility: hidden;}
     
     /* Ajustar el contenedor principal */
@@ -91,17 +91,19 @@ st.markdown("""
         border-color: #4CAF50;
     }
 
-    /* 🌟 ESTILIZAR LAS TABLAS (DataFrames) 🌟 */
-    div[data-testid="stDataFrame"] > div {
-        border-radius: 12px !important;
+    /* 🌟 ESTILIZAR LAS TABLAS COMO TARJETAS DASHBOARD 🌟 */
+    div[data-testid="stDataFrame"] {
+        background: linear-gradient(145deg, #1e1e1e, #121212) !important;
+        padding: 15px !important;
+        border-radius: 16px !important;
         border: 1px solid rgba(76, 175, 80, 0.2) !important; 
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25) !important;
-        overflow: hidden !important; 
-        transition: box-shadow 0.3s ease, border-color 0.3s ease !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+        transition: all 0.3s ease !important;
     }
-    div[data-testid="stDataFrame"] > div:hover {
-        border-color: #4CAF50 !important;
-        box-shadow: 0 8px 20px rgba(76, 175, 80, 0.35) !important; 
+    div[data-testid="stDataFrame"]:hover {
+        border-color: rgba(76, 175, 80, 0.6) !important;
+        box-shadow: 0 12px 25px rgba(76, 175, 80, 0.3) !important; 
+        transform: translateY(-2px) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -170,56 +172,60 @@ df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
-st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #4CAF50; margin-bottom: 0px;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
-    /* 1. Contenedor general de las pestañas */
+    /* 1. Contenedor general de las pestañas (MÁS ESPACIO PARA QUE NO SE CORTE) */
     div[data-testid="stTabs"] {
-        padding: 15px 0px;
+        padding: 25px 0px 20px 0px !important; 
+        margin-top: 5px !important;
     }
 
     /* 2. Estilizar cada pestaña individualmente para simular un botón */
     div[data-testid="stTabs"] button {
-        font-size: 18px !important; /* Aumentar tamaño del texto */
+        font-size: 18px !important; 
         font-weight: 700 !important;
-        background-color: rgba(40, 40, 40, 0.6) !important; /* Fondo oscuro sutil */
-        border-radius: 12px !important; /* Bordes muy redondeados */
+        background-color: rgba(40, 40, 40, 0.6) !important; 
+        border-radius: 12px !important; 
         padding: 12px 24px !important;
         margin: 0px 8px !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        
-        /* 3. Sombreado elegante para simular profundidad */
         box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5), inset 0px 1px 1px rgba(255,255,255,0.1) !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         color: #d1d1d1 !important;
+        overflow: visible !important; /* Clave para que no se corte el sombreado */
     }
 
     /* 4. Efecto Hover: Cuando pasas el mouse */
     div[data-testid="stTabs"] button:hover {
-        transform: translateY(-3px) !important; /* Levanta el botón */
-        box-shadow: 0px 8px 15px rgba(76, 175, 80, 0.4) !important; /* Sombra verde */
+        transform: translateY(-5px) !important; /* Levanta el botón un poco más */
+        box-shadow: 0px 10px 20px rgba(76, 175, 80, 0.4) !important; 
         border-color: #4CAF50 !important;
         color: #ffffff !important;
+        z-index: 10 !important; /* Asegura que pase por encima del texto de arriba */
     }
 
     /* 5. Estilo de la pestaña seleccionada (ACTIVA) */
     div[data-testid="stTabs"] button[aria-selected="true"] {
-        background: linear-gradient(145deg, #4CAF50, #2E7D32) !important; /* Degradado verde */
+        background: linear-gradient(145deg, #4CAF50, #2E7D32) !important; 
         color: white !important;
-        box-shadow: 0px 0px 20px rgba(76, 175, 80, 0.6) !important; /* Brillo de selección */
+        box-shadow: 0px 0px 20px rgba(76, 175, 80, 0.6) !important; 
         border: none !important;
-        transform: scale(1.05) !important; /* Un poquito más grande cuando está activa */
+        transform: scale(1.05) translateY(-2px) !important; 
+        z-index: 10 !important;
     }
 
-    /* 6. Limpieza visual: Quitar líneas y bordes por defecto de Streamlit */
+    /* 6. Limpieza visual */
     div[data-testid="stTabs"] [data-baseweb="tab-highlight-point"] {
-        display: none !important; /* Quita la raya roja/azul de abajo */
+        display: none !important; 
     }
     div[data-baseweb="tab-list"] {
         gap: 12px !important;
-        border-bottom: none !important; /* Quita la línea gris de fondo */
-        justify-content: center !important; /* Centra los botones */
+        border-bottom: none !important; 
+        justify-content: center !important; 
+        padding-top: 15px !important; /* Da aire para el salto */
+        padding-bottom: 15px !important; /* Da aire para la sombra */
     }
 </style>
 """, unsafe_allow_html=True)

@@ -26,8 +26,19 @@ logo_final = ImageOps.pad(logo_recortado, (tamaño_max, tamaño_max))
 st.set_page_config(page_title="Finanzas Master Pro", page_icon=logo_final, layout="wide")
 st.logo("logo.png")
 
-# Ocultar marca de agua de Streamlit
-st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}</style>""", unsafe_allow_html=True)
+# Ocultar marca de agua de Streamlit y eliminar espacio vacio superior
+st.markdown("""
+<style>
+    #MainMenu {visibility: hidden;} 
+    footer {visibility: hidden;} 
+    header {visibility: hidden;}
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        margin-top: 0rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # 2. Obligar a iOS a leer el logo usando JavaScript (Hack para iPhone)
 try:

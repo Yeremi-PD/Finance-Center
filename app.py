@@ -478,7 +478,9 @@ with tab_pagos:
         if not df_fijos.empty:
             if "Fondo_Disponible" not in df_fijos.columns:
                 df_fijos["Fondo_Disponible"] = 0.0
-            df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
+            # Limpiar cualquier símbolo de dólar o coma en TODA la columna antes de convertirla
+            df_fijos["Fondo_Disponible"] = df_fijos["Fondo_Disponible"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
+            df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"], errors='coerce').fillna(0)
         
         if not df_fijos.empty and "Categoría" in df_fijos.columns:
             # Tarjetas estilo App para Categorías Disponibles

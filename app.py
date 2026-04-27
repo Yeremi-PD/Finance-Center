@@ -278,8 +278,8 @@ with tab_vista:
         df_anual.loc["TOTAL ANUAL"] = df_anual.sum()
         
         # --- TABLA DE PROYECCIÓN PREMIUM (HTML CUSTOM) ---
-        # Darle formato de moneda
-        df_anual_fmt = df_anual.applymap(lambda x: f"${x:,.0f}" if pd.notnull(x) else "$0")
+        # Darle formato de moneda (Actualizado para las nuevas versiones de Pandas)
+        df_anual_fmt = df_anual.map(lambda x: f"${x:,.0f}" if pd.notnull(x) else "$0")
         
         # Generar código HTML propio súper estilizado
         html_tabla = f"""

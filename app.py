@@ -26,41 +26,44 @@ logo_final = ImageOps.pad(logo_recortado, (tamaño_max, tamaño_max))
 st.set_page_config(page_title="Finanzas Master Pro", page_icon=logo_final, layout="wide")
 st.logo("logo.png")
 
-# Ocultar marca de agua, ajustar espacio y ESTILIZAR UI (Botones, Inputs, Tarjetas y TABLAS PREMIUM)
+# Ocultar marca de agua, ajustar espacio y ESTILIZAR UI (Botones sin cortes y Tablas Limpias)
 st.markdown("""
 <style>
     /* Ocultar elementos por defecto de Streamlit */
     #MainMenu {visibility: hidden;} 
     footer {visibility: hidden;} 
     header {visibility: hidden;}
-    
-    /* Ocultar el indicador de "Running..." arriba a la derecha */
     [data-testid="stStatusWidget"] {visibility: hidden;}
     
-    /* Ajustar el contenedor principal */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1rem !important;
         margin-top: 0rem !important;
     }
 
-    /* 🌟 MAGIA PARA LOS BOTONES 🌟 */
+    /* 🌟 ARREGLO PARA QUE LOS BOTONES NO SE CORTEN AL ANIMARSE 🌟 */
+    div[data-testid="stButton"] {
+        padding: 5px 0px !important; /* Espacio extra para que no choque */
+        overflow: visible !important;
+    }
+    
     div[data-testid="stButton"] > button {
-        border-radius: 10px !important;
+        border-radius: 8px !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important;
-        transition: all 0.3s ease !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+        transition: all 0.2s ease !important;
     }
     
     div[data-testid="stButton"] > button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow: 0 8px 15px rgba(76, 175, 80, 0.3) !important;
+        /* En lugar de saltar hacia arriba (translateY), el botón se hace un poquito más grande desde el centro. Cero cortes. */
+        transform: scale(1.03) !important; 
+        box-shadow: 0 6px 12px rgba(76, 175, 80, 0.3) !important;
         border-color: #4CAF50 !important;
+        color: #4CAF50 !important; /* El texto se pone verde */
     }
 
     div[data-testid="stButton"] > button:active {
-        transform: translateY(1px) !important;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+        transform: scale(0.98) !important; /* Efecto de pulsado hacia adentro */
     }
 
     /* 🌟 ESTILIZAR LOS INPUTS Y SELECTBOX 🌟 */
@@ -76,34 +79,40 @@ st.markdown("""
         box-shadow: 0 0 8px rgba(76, 175, 80, 0.2) !important;
     }
 
-    /* 🌟 MEJORAR LAS TARJETAS DE MÉTRICAS 🌟 */
+    /* 🌟 MÉTRICAS: ELEGANTES Y SIN CORTES 🌟 */
     div[data-testid="metric-container"] {
-        background: linear-gradient(145deg, #1e1e1e, #121212);
-        border: 1px solid rgba(255,255,255,0.05);
-        border-radius: 12px;
-        padding: 15px 20px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.4);
-        transition: transform 0.3s ease, border-color 0.3s ease;
+        background: rgba(25, 25, 25, 0.4); /* Un fondo gris súper sutil y translúcido */
+        border-left: 4px solid #4CAF50; /* Solo una línea verde a la izquierda para darle clase */
+        border-radius: 4px;
+        padding: 10px 15px;
+        transition: all 0.3s ease;
     }
     
     div[data-testid="metric-container"]:hover {
-        transform: translateY(-3px);
-        border-color: #4CAF50;
+        /* Se mueve un poco hacia la derecha en lugar de hacia arriba */
+        transform: translateX(5px); 
+        background: rgba(35, 35, 35, 0.6);
     }
 
-    /* 🌟 ESTILIZAR LAS TABLAS COMO TARJETAS DASHBOARD 🌟 */
+    /* 🌟 TABLAS ULTRA LIMPIAS Y MINIMALISTAS 🌟 */
+    /* Eliminamos el fondo pesado, el salto y los bordes para dejarla "desnuda" y elegante */
     div[data-testid="stDataFrame"] {
-        background: linear-gradient(145deg, #1e1e1e, #121212) !important;
-        padding: 15px !important;
-        border-radius: 16px !important;
-        border: 1px solid rgba(76, 175, 80, 0.2) !important; 
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
-        transition: all 0.3s ease !important;
+        background: transparent !important;
+        border: none !important; 
+        box-shadow: none !important;
+        padding: 0px !important;
     }
+    
+    div[data-testid="stDataFrame"] > div {
+        border: none !important;
+        border-radius: 0px !important;
+        background: transparent !important;
+    }
+
     div[data-testid="stDataFrame"]:hover {
-        border-color: rgba(76, 175, 80, 0.6) !important;
-        box-shadow: 0 12px 25px rgba(76, 175, 80, 0.3) !important; 
-        transform: translateY(-2px) !important;
+        transform: none !important;
+        box-shadow: none !important;
+        border-color: transparent !important;
     }
 </style>
 """, unsafe_allow_html=True)

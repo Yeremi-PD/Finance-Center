@@ -347,7 +347,8 @@ with tab_ajustes:
 with tab_pagos:
     st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
     
-    col_i1, col_i2, col_i3 = st.columns([2, 1, 1])
+    # Quitamos la columna "fantasma" del medio y acercamos los botones
+    col_i1, col_i3 = st.columns([1.5, 1])
     nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
     
     with col_i1:
@@ -434,9 +435,10 @@ with tab_pagos:
                 st.success(f"Inyección del {ult_fecha} revertida con éxito. Fondos restados.")
                 st.rerun()
     # --- SECCIÓN: REGISTRAR GASTO ---
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Cambiamos el gran salto de línea por un margen sutil y balanceamos los anchos
+    st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
     
-    col_g1, col_g2, col_g3, col_g4 = st.columns(4)
+    col_g1, col_g2, col_g3, col_g4 = st.columns([1.5, 1.5, 1, 1.2])
     with col_g1: c_gasto = st.selectbox("💳 Cuenta a Descontar:", nombres_cuentas)
     with col_g2: s_gasto = st.selectbox("📂 Categoría:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
     with col_g3: m_gasto = st.number_input("💲 Monto a Restar:", min_value=0.0)
@@ -472,7 +474,8 @@ with tab_pagos:
     st.markdown("<hr>", unsafe_allow_html=True)
     
     # --- HISTORIAL Y FONDOS ---
-    cf1, cf2 = st.columns([1, 3])
+    # Le damos más espacio a las tarjetas (1.5) y menos estiramiento al historial (2)
+    cf1, cf2 = st.columns([1.5, 2])
     with cf1:
         st.markdown("<h4 style='color: #2E7D32;'>💰 Categorias Disponibles</h4>", unsafe_allow_html=True)
         if not df_fijos.empty:

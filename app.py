@@ -244,11 +244,16 @@ with tab_vista:
         df_fijos["Monto_Mensual"] = pd.to_numeric(df_fijos["Monto_Mensual"]).fillna(0)
         total_m = df_fijos["Monto_Mensual"].sum()
         
+        # Métricas Premium Neón para Proyección Anual
         c1, c2, c3 = st.columns(3)
-        c1.metric("Presupuesto Mensual", f"${total_m:,.0f}")
-        c2.metric("Inyección Semanal Necesaria", f"${total_m/4:,.0f}")
-        c3.metric("Proyección Anual", f"${total_m*12:,.0f}")
-
+        with c1:
+            st.markdown(f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); border-bottom: 3px solid #00E5FF; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);"><p style="color: #888; font-size: 12px; font-weight: bold; margin:0; text-transform: uppercase; letter-spacing: 1px;">Presupuesto Mensual</p><h2 style="color: #00E5FF; margin:0; font-size: 28px;">${total_m:,.0f}</h2></div>', unsafe_allow_html=True)
+        with c2:
+            st.markdown(f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); border-bottom: 3px solid #B388FF; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);"><p style="color: #888; font-size: 12px; font-weight: bold; margin:0; text-transform: uppercase; letter-spacing: 1px;">Inyección Semanal</p><h2 style="color: #B388FF; margin:0; font-size: 28px;">${total_m/4:,.0f}</h2></div>', unsafe_allow_html=True)
+        with c3:
+            st.markdown(f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); border-bottom: 3px solid #69F0AE; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);"><p style="color: #888; font-size: 12px; font-weight: bold; margin:0; text-transform: uppercase; letter-spacing: 1px;">Proyección Anual</p><h2 style="color: #69F0AE; margin:0; font-size: 28px;">${total_m*12:,.0f}</h2></div>', unsafe_allow_html=True)
+        
+        st.write("")
         st.write("")
         col_g1, col_g2 = st.columns(2)
         with col_g1:
@@ -753,12 +758,13 @@ with tab_cuentas:
             
             color_acento = colores_neon[i % len(colores_neon)]
             with cols[i % 4]:
+                # Tarjetas de cuentas con efecto Glow (Brillo Neón) y mejor contraste
                 st.markdown(f"""
-                    <div style="background-color: rgba(255, 255, 255, 0.05); padding: 18px; 
-                                border-radius: 10px; border-top: 3px solid {color_acento}; 
-                                margin-bottom: 15px; box-shadow: 2px 4px 10px rgba(0,0,0,0.2);">
-                        <p style="margin: 0; font-size: 10px; text-transform: uppercase; font-weight: 700; opacity: 0.6;">{row['Cuenta']}</p>
-                        <h4 style="margin: 5px 0 0 0; font-size: 20px; font-weight: 400;">${saldo_calculado:,.2f}</h4>
+                    <div style="background: linear-gradient(145deg, #222, #111); padding: 20px; 
+                                border-radius: 12px; border-top: 3px solid {color_acento}; 
+                                margin-bottom: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30;">
+                        <p style="margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 1px;">{row['Cuenta']}</p>
+                        <h4 style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">${saldo_calculado:,.2f}</h4>
                     </div>
                 """, unsafe_allow_html=True)
     else:

@@ -665,91 +665,100 @@ with tab_trading:
 
     if not df_trading.empty:
         st.markdown("---")
-        st.markdown("**📝 Historial de Capital (Edición Directa)**")
+        st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL DE OPERACIONES</h4>", unsafe_allow_html=True)
         
-        # Preparamos los datos con tipos compatibles
-        df_edit_t = df_trading.copy()
+        # --- SISTEMA DE FILTROS LINDOS ---
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            f_tipo = st.selectbox("Filtrar por Operación:", ["TODOS", "Inversión", "Retiro"])
+        with col_f2:
+            opciones_conceptos = ["TODOS"] + sorted(df_trading["Concepto"].unique().tolist())
+            f_concepto = st.selectbox("Filtrar por Concepto:", opciones_conceptos)
         
-        # Convertimos la columna Fecha a formato fecha real para que no de error
-        if "Fecha" in df_edit_t.columns:
-            df_edit_t["Fecha"] = pd.to_datetime(df_edit_t["Fecha"]).dt.date
+        # Aplicar Filtros
+        df_filtrado_t = df_trading.copy()
+        if f_tipo != "TODOS":
+            df_filtrado_t = df_filtrado_t[df_filtrado_t["Tipo"] == f_tipo]
+        if f_concepto != "TODOS":
+            df_filtrado_t = df_filtrado_t[df_filtrado_t["Concepto"] == f_concepto]
         
-        # Aseguramos que Monto sea numérico
-        if "Monto" in df_edit_t.columns:
+        df_filtrado_t = df_filtrado_t.sort_index(ascending=False)
+
+        # --- FEED DE TARJETAS DE TRADING ---
+        html_feed_t = '<div style="max-height: 500px; overflow-y: auto; padding-right: 10px; margin-top: 10px;">'
+        for _, row in df_filtrado_t.iterrows():
+            monto = float(row["Monto"])
+            # Color basado en si es Inversión (Rojo/Gasto del banco) o Retiro (Verde/Ingreso al banco)
+            # Pero para el historial de trading, mostramos el color por tipo de operación
+            color_op = "#F44336" if row["Tipo"] == "Inversión" else "#4CAF50"
+            icon = "🚀" if row["Tipo"] == "Inversión" else "💰"
+            
+            html_feed_t += f'''
+            <div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 10px; padding: 15px; 
+                        border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); 
+                        display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="font-size: 24px;">{icon}</div>
+                    <div>
+                        <div style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</div>
+                        <div style="color: #666; font-size: 11px; text-transform: uppercase;">{row["Fecha"]} • {row["Cuenta"]}</div>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="color: {color_op}; font-weight: bold; font-size: 18px;">${abs(monto):,.2f}</div>
+                    <div style="color: #444; font-size: 10px; font-weight: bold; text-transform: uppercase;">{row["Tipo"]}</div>
+                </div>
+            </div>
+            '''
+        html_feed_t += '</div>'
+        st.markdown(html_feed_t, unsafe_allow_html=True)
+
+        # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
+        with st.expander("🛠️ Modo Administrador (Editar o Borrar Historial)"):
+            st.info("Usa esta tabla solo si necesitas corregir un error o borrar una fila.")
+            df_edit_t = df_trading.copy()
+            if "Fecha" in df_edit_t.columns:
+                df_edit_t["Fecha"] = pd.to_datetime(df_edit_t["Fecha"]).dt.date
             df_edit_t["Monto"] = pd.to_numeric(df_edit_t["Monto"], errors='coerce').fillna(0.0)
+            df_edit_t["🗑️"] = False
+            
+            edited_df_t = st.data_editor(
+                df_edit_t, use_container_width=True, hide_index=True,
+                column_config={
+                    "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
+                    "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
+                    "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro"]),
+                }
+            )
+            
+            if st.button("💾 CONFIRMAR CAMBIOS Y RECALCULAR BALANCES", type="primary"):
+                # Reversión y Aplicación (Lógica de balances que ya tenías)
+                for _, fila_v in st.session_state.df_trading.iterrows():
+                    cta_v, m_v, tipo_v = fila_v["Cuenta"], float(fila_v["Monto"]), fila_v["Tipo"]
+                    if cta_v in df_cuentas["Cuenta"].values:
+                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v if tipo_v == "Retiro" else -abs(m_v))
+                    if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                        idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                        df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
 
-        df_edit_t["🗑️"] = False
-        
-        # Editor de datos
-        edited_df_t = st.data_editor(
-            df_edit_t,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
-                "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
-                "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro"]),
-                "Fecha": st.column_config.DateColumn("Fecha")
-            }
-        )
+                df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
+                for _, fila_n in df_final_t.iterrows():
+                    cta_n, m_n, tipo_n = fila_n["Cuenta"], float(fila_n["Monto"]), fila_n["Tipo"]
+                    if cta_n in df_cuentas["Cuenta"].values:
+                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_n].tolist()[0]
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + (m_n if tipo_n == "Retiro" else -abs(m_n))
+                    if tipo_n == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                        idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                        df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) - abs(m_n)
 
-        # Igual aquí, usamos columnas para empujarlo a la derecha
-        _, col_btn_hist = st.columns([7, 1])
-        with col_btn_hist:
-            btn_guardar = st.button("💾 GUARDAR CAMBIOS EN HISTORIAL", use_container_width=True, type="primary")
-            
-        if btn_guardar:
-            # 1. REVERSIÓN TOTAL DE LO QUE HABÍA ANTES
-            # (Anulamos el efecto de todos los movimientos actuales en la memoria para 'empezar de cero')
-            for _, fila_vieja in st.session_state.df_trading.iterrows():
-                cta_v = fila_vieja["Cuenta"]
-                m_v = float(fila_vieja["Monto"])
-                tipo_v = fila_vieja["Tipo"]
-                
-                # Devolvemos saldo al banco
-                if cta_v in df_cuentas["Cuenta"].values:
-                    idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
-                    df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_v
-                
-                # Devolvemos saldo al sobre de Inversion (si era inversión)
-                if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
-                    idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                    df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
-
-            # 2. APLICAR LOS NUEVOS DATOS (EDITADOS)
-            # Solo procesamos las filas que NO marcaste para borrar
-            df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
-            
-            for _, fila_nueva in df_final_t.iterrows():
-                cta_n = fila_nueva["Cuenta"]
-                m_n = float(fila_nueva["Monto"])
-                tipo_n = fila_nueva["Tipo"]
-                
-                # Aplicamos nuevo saldo al banco
-                if cta_n in df_cuentas["Cuenta"].values:
-                    idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_n].tolist()[0]
-                    df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + m_n
-                
-                # Aplicamos nuevo descuento al sobre de Inversion
-                if tipo_n == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
-                    idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                    df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) - abs(m_n)
-
-            # 3. GUARDAR TODO EN GOOGLE SHEETS Y REFRESCAR
-            if "Fecha" in df_final_t.columns:
-                df_final_t["Fecha"] = df_final_t["Fecha"].astype(str)
-            
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-            
-            # Actualizamos memoria local
-            st.session_state.df_trading = df_final_t
-            st.session_state.df_cuentas = df_cuentas
-            st.session_state.df_fijos = df_fijos
-            
-            st.success("¡Historial y balances actualizados correctamente!")
-            st.rerun()
+                if "Fecha" in df_final_t.columns: df_final_t["Fecha"] = df_final_t["Fecha"].astype(str)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                st.session_state.df_trading, st.session_state.df_cuentas, st.session_state.df_fijos = df_final_t, df_cuentas, df_fijos
+                st.success("¡Historial actualizado!")
+                st.rerun()
 
 # ---------------------------------------------------------
 # 4. CUENTAS (Compacto y Minimalista)

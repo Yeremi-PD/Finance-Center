@@ -26,44 +26,41 @@ logo_final = ImageOps.pad(logo_recortado, (tamaño_max, tamaño_max))
 st.set_page_config(page_title="Finanzas Master Pro", page_icon=logo_final, layout="wide")
 st.logo("logo.png")
 
-# Ocultar marca de agua, ajustar espacio y ESTILIZAR UI (Botones sin cortes y Tablas Limpias)
+# Ocultar marca de agua, ajustar espacio y ESTILIZAR UI (Botones, Inputs, Tarjetas y TABLAS)
 st.markdown("""
 <style>
     /* Ocultar elementos por defecto de Streamlit */
     #MainMenu {visibility: hidden;} 
     footer {visibility: hidden;} 
     header {visibility: hidden;}
+    
+    /* Ocultar el indicador de "Running..." arriba a la derecha para evitar parpadeos visuales */
     [data-testid="stStatusWidget"] {visibility: hidden;}
     
+    /* Ajustar el contenedor principal */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1rem !important;
         margin-top: 0rem !important;
     }
 
-    /* 🌟 ARREGLO PARA QUE LOS BOTONES NO SE CORTEN AL ANIMARSE 🌟 */
-    div[data-testid="stButton"] {
-        padding: 5px 0px !important; /* Espacio extra para que no choque */
-        overflow: visible !important;
-    }
-    
+    /* 🌟 MAGIA PARA LOS BOTONES 🌟 */
     div[data-testid="stButton"] > button {
-        border-radius: 8px !important;
+        border-radius: 10px !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important;
+        transition: all 0.3s ease !important;
     }
     
     div[data-testid="stButton"] > button:hover {
-        /* En lugar de saltar hacia arriba (translateY), el botón se hace un poquito más grande desde el centro. Cero cortes. */
-        transform: scale(1.03) !important; 
-        box-shadow: 0 6px 12px rgba(76, 175, 80, 0.3) !important;
+        transform: translateY(-3px) !important;
+        box-shadow: 0 8px 15px rgba(76, 175, 80, 0.3) !important;
         border-color: #4CAF50 !important;
-        color: #4CAF50 !important; /* El texto se pone verde */
     }
 
     div[data-testid="stButton"] > button:active {
-        transform: scale(0.98) !important; /* Efecto de pulsado hacia adentro */
+        transform: translateY(1px) !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
     }
 
     /* 🌟 ESTILIZAR LOS INPUTS Y SELECTBOX 🌟 */
@@ -79,40 +76,32 @@ st.markdown("""
         box-shadow: 0 0 8px rgba(76, 175, 80, 0.2) !important;
     }
 
-    /* 🌟 MÉTRICAS: ELEGANTES Y SIN CORTES 🌟 */
+    /* 🌟 MEJORAR LAS TARJETAS DE MÉTRICAS 🌟 */
     div[data-testid="metric-container"] {
-        background: rgba(25, 25, 25, 0.4); /* Un fondo gris súper sutil y translúcido */
-        border-left: 4px solid #4CAF50; /* Solo una línea verde a la izquierda para darle clase */
-        border-radius: 4px;
-        padding: 10px 15px;
-        transition: all 0.3s ease;
+        background: linear-gradient(145deg, #1e1e1e, #121212);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 12px;
+        padding: 15px 20px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        transition: transform 0.3s ease, border-color 0.3s ease;
     }
     
     div[data-testid="metric-container"]:hover {
-        /* Se mueve un poco hacia la derecha en lugar de hacia arriba */
-        transform: translateX(5px); 
-        background: rgba(35, 35, 35, 0.6);
+        transform: translateY(-3px);
+        border-color: #4CAF50;
     }
 
-    /* 🌟 TABLAS ULTRA LIMPIAS Y MINIMALISTAS 🌟 */
-    /* Eliminamos el fondo pesado, el salto y los bordes para dejarla "desnuda" y elegante */
-    div[data-testid="stDataFrame"] {
-        background: transparent !important;
-        border: none !important; 
-        box-shadow: none !important;
-        padding: 0px !important;
-    }
-    
+    /* 🌟 ESTILIZAR LAS TABLAS (DataFrames) 🌟 */
     div[data-testid="stDataFrame"] > div {
-        border: none !important;
-        border-radius: 0px !important;
-        background: transparent !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(76, 175, 80, 0.2) !important; 
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25) !important;
+        overflow: hidden !important; 
+        transition: box-shadow 0.3s ease, border-color 0.3s ease !important;
     }
-
-    div[data-testid="stDataFrame"]:hover {
-        transform: none !important;
-        box-shadow: none !important;
-        border-color: transparent !important;
+    div[data-testid="stDataFrame"] > div:hover {
+        border-color: #4CAF50 !important;
+        box-shadow: 0 8px 20px rgba(76, 175, 80, 0.35) !important; 
     }
 </style>
 """, unsafe_allow_html=True)
@@ -181,60 +170,56 @@ df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
-st.markdown("<h1 style='text-align: center; color: #4CAF50; margin-bottom: 0px;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
-    /* 1. Contenedor general de las pestañas (MÁS ESPACIO PARA QUE NO SE CORTE) */
+    /* 1. Contenedor general de las pestañas */
     div[data-testid="stTabs"] {
-        padding: 25px 0px 20px 0px !important; 
-        margin-top: 5px !important;
+        padding: 15px 0px;
     }
 
     /* 2. Estilizar cada pestaña individualmente para simular un botón */
     div[data-testid="stTabs"] button {
-        font-size: 18px !important; 
+        font-size: 18px !important; /* Aumentar tamaño del texto */
         font-weight: 700 !important;
-        background-color: rgba(40, 40, 40, 0.6) !important; 
-        border-radius: 12px !important; 
+        background-color: rgba(40, 40, 40, 0.6) !important; /* Fondo oscuro sutil */
+        border-radius: 12px !important; /* Bordes muy redondeados */
         padding: 12px 24px !important;
         margin: 0px 8px !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        
+        /* 3. Sombreado elegante para simular profundidad */
         box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5), inset 0px 1px 1px rgba(255,255,255,0.1) !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         color: #d1d1d1 !important;
-        overflow: visible !important; /* Clave para que no se corte el sombreado */
     }
 
     /* 4. Efecto Hover: Cuando pasas el mouse */
     div[data-testid="stTabs"] button:hover {
-        transform: translateY(-5px) !important; /* Levanta el botón un poco más */
-        box-shadow: 0px 10px 20px rgba(76, 175, 80, 0.4) !important; 
+        transform: translateY(-3px) !important; /* Levanta el botón */
+        box-shadow: 0px 8px 15px rgba(76, 175, 80, 0.4) !important; /* Sombra verde */
         border-color: #4CAF50 !important;
         color: #ffffff !important;
-        z-index: 10 !important; /* Asegura que pase por encima del texto de arriba */
     }
 
     /* 5. Estilo de la pestaña seleccionada (ACTIVA) */
     div[data-testid="stTabs"] button[aria-selected="true"] {
-        background: linear-gradient(145deg, #4CAF50, #2E7D32) !important; 
+        background: linear-gradient(145deg, #4CAF50, #2E7D32) !important; /* Degradado verde */
         color: white !important;
-        box-shadow: 0px 0px 20px rgba(76, 175, 80, 0.6) !important; 
+        box-shadow: 0px 0px 20px rgba(76, 175, 80, 0.6) !important; /* Brillo de selección */
         border: none !important;
-        transform: scale(1.05) translateY(-2px) !important; 
-        z-index: 10 !important;
+        transform: scale(1.05) !important; /* Un poquito más grande cuando está activa */
     }
 
-    /* 6. Limpieza visual */
+    /* 6. Limpieza visual: Quitar líneas y bordes por defecto de Streamlit */
     div[data-testid="stTabs"] [data-baseweb="tab-highlight-point"] {
-        display: none !important; 
+        display: none !important; /* Quita la raya roja/azul de abajo */
     }
     div[data-baseweb="tab-list"] {
         gap: 12px !important;
-        border-bottom: none !important; 
-        justify-content: center !important; 
-        padding-top: 15px !important; /* Da aire para el salto */
-        padding-bottom: 15px !important; /* Da aire para la sombra */
+        border-bottom: none !important; /* Quita la línea gris de fondo */
+        justify-content: center !important; /* Centra los botones */
     }
 </style>
 """, unsafe_allow_html=True)
@@ -277,60 +262,8 @@ with tab_vista:
         df_anual["TOTAL MES"] = df_anual.sum(axis=1)
         df_anual.loc["TOTAL ANUAL"] = df_anual.sum()
         
-        # --- TABLA DE PROYECCIÓN PREMIUM (HTML CUSTOM) ---
-        # Darle formato de moneda (Actualizado para las nuevas versiones de Pandas)
-        df_anual_fmt = df_anual.map(lambda x: f"${x:,.0f}" if pd.notnull(x) else "$0")
-        
-        # Generar código HTML propio súper estilizado
-        html_tabla = f"""
-        <style>
-            .premium-table {{
-                width: 100%;
-                border-collapse: separate;
-                border-spacing: 0;
-                font-family: sans-serif;
-                font-size: 13px;
-                color: #d1d1d1;
-                border-radius: 12px;
-                overflow: hidden;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            }}
-            .premium-table thead tr {{
-                background-color: #1a1a1a;
-                color: #4CAF50;
-                text-align: left;
-            }}
-            .premium-table th, .premium-table td {{
-                padding: 12px 15px;
-                border-bottom: 1px solid rgba(255,255,255,0.05);
-            }}
-            .premium-table tbody tr {{
-                background-color: rgba(25,25,25,0.4);
-                transition: background-color 0.2s ease;
-            }}
-            .premium-table tbody tr:hover {{
-                background-color: rgba(76, 175, 80, 0.15); /* Brillo verde sutil al pasar el mouse */
-            }}
-            .premium-table tbody tr:last-of-type {{
-                border-bottom: 2px solid #4CAF50;
-                font-weight: bold;
-                background-color: #111;
-                color: #fff;
-            }}
-            /* Congelar la primera columna (los meses) para que no se pierda al hacer scroll */
-            .premium-table th:first-child {{
-                background-color: #1a1a1a;
-                position: sticky;
-                left: 0;
-                z-index: 2;
-                border-right: 1px solid rgba(255,255,255,0.05);
-            }}
-        </style>
-        <div style="overflow-x: auto; max-height: 600px;">
-            {df_anual_fmt.to_html(classes="premium-table", border=0, justify="left")}
-        </div>
-        """
-        st.markdown(html_tabla, unsafe_allow_html=True)
+        # Tabla sin fondo blanco, se adapta perfectamente a tu tema
+        st.dataframe(df_anual.style.format("{:,.0f}"), use_container_width=True, height=550)
 
 # ---------------------------------------------------------
 # 2. AJUSTES: GASTOS FIJOS 
@@ -384,33 +317,13 @@ with tab_ajustes:
         # Orden pedido: Semanal, Mensual, Anual, Fondo
         df_order = df_order[["Categoría", "Monto Semanal", "Monto_Mensual", "Monto Anual", "Fondo_Disponible"]]
         
-        # --- TABLA DE AJUSTES PREMIUM (TARJETAS HTML) ---
-        html_ajustes = "<div style='max-height: 500px; overflow-y: auto; padding-right: 10px;'>"
-        for _, row in df_order.iterrows():
-            html_ajustes += f"""
-            <div style='background-color: rgba(30,30,30,0.4); border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #4CAF50;'>
-                <div style='flex: 1;'>
-                    <h4 style='margin: 0; color: #E0E0E0; font-size: 16px;'>{row['Categoría']}</h4>
-                    <p style='margin: 0; color: #888; font-size: 12px;'>Fondo Actual: <span style='color: #A5D6A7;'>${row['Fondo_Disponible']:,.0f}</span></p>
-                </div>
-                <div style='display: flex; gap: 20px; text-align: right;'>
-                    <div>
-                        <p style='margin: 0; font-size: 10px; color: #777; text-transform: uppercase;'>Semanal</p>
-                        <p style='margin: 0; font-size: 14px; color: #FFF; font-weight: bold;'>${row['Monto Semanal']:,.0f}</p>
-                    </div>
-                    <div>
-                        <p style='margin: 0; font-size: 10px; color: #777; text-transform: uppercase;'>Mensual</p>
-                        <p style='margin: 0; font-size: 14px; color: #FFF; font-weight: bold;'>${row['Monto_Mensual']:,.0f}</p>
-                    </div>
-                    <div>
-                        <p style='margin: 0; font-size: 10px; color: #777; text-transform: uppercase;'>Anual</p>
-                        <p style='margin: 0; font-size: 14px; color: #4CAF50; font-weight: bold;'>${row['Monto Anual']:,.0f}</p>
-                    </div>
-                </div>
-            </div>
-            """
-        html_ajustes += "</div>"
-        st.markdown(html_ajustes, unsafe_allow_html=True)
+        # ERROR CORREGIDO AQUÍ:
+        st.dataframe(df_order.style.format({
+            "Monto Semanal": "${:,.0f}", 
+            "Monto_Mensual": "${:,.0f}", 
+            "Monto Anual": "${:,.0f}", 
+            "Fondo_Disponible": "${:,.0f}"
+        }), use_container_width=True, height=500, hide_index=True)
 
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Interfaz Premium y Limpia)
@@ -542,81 +455,31 @@ with tab_pagos:
 
     st.markdown("<hr>", unsafe_allow_html=True)
     
-    # --- HISTORIAL Y FONDOS (VERSIÓN APP PREMIUM) ---
-    cf1, cf2 = st.columns([1.2, 2.8])
-    
+    # --- HISTORIAL Y FONDOS ---
+    cf1, cf2 = st.columns([1, 3])
     with cf1:
-        st.markdown("<h4 style='color: #4CAF50; margin-bottom: 15px;'>💰 Tus Sobres</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #2E7D32;'>💰 Categorias Disponibles</h4>", unsafe_allow_html=True)
         if not df_fijos.empty:
             if "Fondo_Disponible" not in df_fijos.columns:
                 df_fijos["Fondo_Disponible"] = 0.0
             df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
-            
-            # --- CREAR TARJETAS EN VEZ DE TABLA ---
-            html_sobres = "<div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; max-height: 450px; overflow-y: auto; padding-right: 5px;'>"
-            for _, row in df_fijos.iterrows():
-                cat = row["Categoría"]
-                fondo = float(row["Fondo_Disponible"])
-                # Color rojo si está en negativo, verde si está positivo
-                color_borde = "#F44336" if fondo < 0 else "#4CAF50"
-                color_texto = "#ef9a9a" if fondo < 0 else "#A5D6A7"
-                
-                html_sobres += f"""
-                <div style='background-color: rgba(25,25,25,0.7); border-radius: 10px; border-top: 3px solid {color_borde}; padding: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: center; transition: transform 0.2s;'>
-                    <p style='margin: 0; font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{cat}</p>
-                    <h3 style='margin: 5px 0 0 0; font-size: 18px; color: {color_texto};'>${fondo:,.0f}</h3>
-                </div>
-                """
-            html_sobres += "</div>"
-            st.markdown(html_sobres, unsafe_allow_html=True)
+        
+        if not df_fijos.empty and "Categoría" in df_fijos.columns:
+            # Tamaño exacto: cantidad de conceptos + 1 para los títulos
+            altura_dinamica_sobres = (len(df_fijos) + 1) * 38
+            st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=altura_dinamica_sobres, hide_index=True)
         else:
             st.info("No hay categorías configuradas.")
-
+    
     with cf2:
         l_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
-        f_sel = st.selectbox("📜 Filtro de Movimientos:", l_filtros)
-        
+        f_sel = st.selectbox("📜 Selecciona un filtro para tu historial:", l_filtros)
         if not df_movs.empty:
             df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
-            
-            # --- CREAR FEED DE TRANSACCIONES TIPO BANCO EN VEZ DE TABLA ---
-            html_feed = "<div style='max-height: 380px; overflow-y: auto; padding-right: 10px; margin-top: 10px;'>"
-            
-            for _, row in df_h.iterrows():
-                fecha = row["Fecha"]
-                cta = row["Cuenta"]
-                concepto = row["Concepto"]
-                try:
-                    monto = float(row["Monto"])
-                except:
-                    monto = 0.0
-                
-                # Diseño dinámico dependiendo si es ingreso o gasto
-                es_ingreso = monto > 0
-                color_monto = "#4CAF50" if es_ingreso else "#F44336"
-                signo = "+" if es_ingreso else ""
-                icono = "📥" if es_ingreso else "💸"
-                
-                html_feed += f"""
-                <div style='background-color: rgba(30,30,30,0.5); border-radius: 8px; padding: 12px 15px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 2px solid {color_monto};'>
-                    <div style='display: flex; align-items: center; gap: 12px;'>
-                        <div style='font-size: 20px;'>{icono}</div>
-                        <div>
-                            <p style='margin: 0; font-size: 14px; font-weight: 600; color: #e0e0e0;'>{concepto}</p>
-                            <p style='margin: 0; font-size: 11px; color: #777;'>{fecha} • {cta}</p>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 style='margin: 0; font-size: 16px; font-weight: 700; color: {color_monto};'>{signo}${abs(monto):,.2f}</h4>
-                    </div>
-                </div>
-                """
-            html_feed += "</div>"
-            st.markdown(html_feed, unsafe_allow_html=True)
-            
-            st.write("") # Espaciador
-            if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO", use_container_width=True):
+            st.dataframe(df_h, use_container_width=True, height=400, hide_index=True)
+            if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
                 if not df_movs.empty:
+                    # Elimina la última fila real del dataframe original
                     df_movs = df_movs.drop(df_movs.index[-1])
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                     st.cache_data.clear()

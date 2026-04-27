@@ -329,22 +329,30 @@ with tab_ajustes:
         df_order["Monto Anual"] = pd.to_numeric(df_order["Monto_Mensual"]) * 12
         df_order["Fondo_Disponible"] = pd.to_numeric(df_order["Fondo_Disponible"])
         
-        # Orden pedido: Semanal, Mensual, Anual, Fondo
+# Orden pedido: Semanal, Mensual, Anual, Fondo
         df_order = df_order[["Categoría", "Monto Semanal", "Monto_Mensual", "Monto Anual", "Fondo_Disponible"]]
         
-        # Tabla HTML estilizada moderna para Configuración
-        html_order = df_order.style.format({
-            "Monto Semanal": "${:,.0f}", 
-            "Monto_Mensual": "${:,.0f}", 
-            "Monto Anual": "${:,.0f}", 
-            "Fondo_Disponible": "${:,.0f}"
-        }).hide(axis="index").set_table_styles([
-            {'selector': 'table', 'props': [('width', '100%'), ('border-collapse', 'collapse'), ('background-color', '#1a1a1a'), ('border-radius', '8px'), ('overflow', 'hidden'), ('font-size', '14px'), ('margin-top', '10px')]},
-            {'selector': 'th', 'props': [('background-color', '#1565C0'), ('color', 'white'), ('padding', '12px 10px'), ('text-align', 'left'), ('font-weight', 'bold')]},
-            {'selector': 'td', 'props': [('padding', '10px'), ('border-bottom', '1px solid #2a2a2a'), ('text-align', 'left'), ('color', '#d1d1d1')]},
-            {'selector': 'tr:hover', 'props': [('background-color', '#2a2a2a')]}
-        ]).to_html()
-        st.markdown(html_order, unsafe_allow_html=True)
+        # 🌟 DISEÑO DE TARJETAS INDIVIDUALES (CERO TABLAS) 🌟
+        html_gastos = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">'
+        
+        for _, row in df_order.iterrows():
+            # Limpieza segura de números
+            try: fondo = float(str(row["Fondo_Disponible"]).replace("$", "").replace(",", ""))
+            except ValueError: fondo = 0.0
+            try: semanal = float(str(row["Monto Semanal"]).replace("$", "").replace(",", ""))
+            except ValueError: semanal = 0.0
+            try: mensual = float(str(row["Monto_Mensual"]).replace("$", "").replace(",", ""))
+            except ValueError: mensual = 0.0
+            try: anual = float(str(row["Monto Anual"]).replace("$", "").replace(",", ""))
+            except ValueError: anual = 0.0
+                
+            color_fondo_txt = "#4CAF50" if fondo >= 0 else "#F44336"
+            
+            # Tarjeta tipo Widget (Todo en una línea para que Streamlit no lo rompa)
+            html_gastos += f'<div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-top: 4px solid #1565C0; padding: 15px; border-radius: 10px; flex: 1 1 calc(25% - 15px); min-width: 200px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);"><h4 style="margin: 0 0 12px 0; color: #fff; text-align: center; font-size: 18px; letter-spacing: 1px;">{row["Categoría"]}</h4><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Semanal:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${semanal:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Mensual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${mensual:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Anual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${anual:,.0f}</span></div><hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="color: #aaa; font-size: 13px; font-weight: bold;">Fondo Actual:</span><span style="color: {color_fondo_txt}; font-weight: bold; font-size: 18px;">${fondo:,.0f}</span></div></div>'
+            
+        html_gastos += '</div>'
+        st.markdown(html_gastos, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Interfaz Premium y Limpia)

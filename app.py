@@ -26,7 +26,7 @@ logo_final = ImageOps.pad(logo_recortado, (tamaño_max, tamaño_max))
 st.set_page_config(page_title="Finanzas Master Pro", page_icon=logo_final, layout="wide")
 st.logo("logo.png")
 
-# Ocultar marca de agua, ajustar espacio y ESTILIZAR UI (Botones, Inputs y Tarjetas)
+# Ocultar marca de agua, ajustar espacio y ESTILIZAR UI (Botones, Inputs, Tarjetas y TABLAS)
 st.markdown("""
 <style>
     /* Ocultar elementos por defecto de Streamlit */
@@ -34,7 +34,10 @@ st.markdown("""
     footer {visibility: hidden;} 
     header {visibility: hidden;}
     
-    /* Ajustar el contenedor principal para que fluya mejor y no quede asfixiado */
+    /* Ocultar el indicador de "Running..." arriba a la derecha para evitar parpadeos visuales */
+    [data-testid="stStatusWidget"] {visibility: hidden;}
+    
+    /* Ajustar el contenedor principal */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1rem !important;
@@ -46,23 +49,21 @@ st.markdown("""
         border-radius: 10px !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important;
-        transition: all 0.3s ease !important; /* Hace que el movimiento sea suavecito (corrido) */
+        transition: all 0.3s ease !important;
     }
     
-    /* Efecto Hover: Al pasar el mouse por encima del botón */
     div[data-testid="stButton"] > button:hover {
-        transform: translateY(-3px) !important; /* El botón se levanta un poquito */
-        box-shadow: 0 8px 15px rgba(76, 175, 80, 0.3) !important; /* Sombra verde elegante */
+        transform: translateY(-3px) !important;
+        box-shadow: 0 8px 15px rgba(76, 175, 80, 0.3) !important;
         border-color: #4CAF50 !important;
     }
 
-    /* Efecto Active: Al hacer clic en el botón */
     div[data-testid="stButton"] > button:active {
-        transform: translateY(1px) !important; /* Da la sensación de presionarlo */
+        transform: translateY(1px) !important;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
     }
 
-    /* 🌟 ESTILIZAR LOS INPUTS Y SELECTBOX (Cajas desplegables) 🌟 */
+    /* 🌟 ESTILIZAR LOS INPUTS Y SELECTBOX 🌟 */
     div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {
         border-radius: 8px !important;
         border: 1px solid rgba(255,255,255, 0.1) !important;
@@ -70,13 +71,12 @@ st.markdown("""
         transition: all 0.3s ease !important;
     }
     
-    /* Efecto Hover en los inputs */
     div[data-baseweb="select"] > div:hover, div[data-baseweb="input"] > div:hover {
         border-color: #4CAF50 !important;
         box-shadow: 0 0 8px rgba(76, 175, 80, 0.2) !important;
     }
 
-    /* 🌟 MEJORAR LAS TARJETAS DE MÉTRICAS (c1, c2, c3) 🌟 */
+    /* 🌟 MEJORAR LAS TARJETAS DE MÉTRICAS 🌟 */
     div[data-testid="metric-container"] {
         background: linear-gradient(145deg, #1e1e1e, #121212);
         border: 1px solid rgba(255,255,255,0.05);
@@ -86,10 +86,22 @@ st.markdown("""
         transition: transform 0.3s ease, border-color 0.3s ease;
     }
     
-    /* Que las métricas también floten al pasar el mouse */
     div[data-testid="metric-container"]:hover {
         transform: translateY(-3px);
         border-color: #4CAF50;
+    }
+
+    /* 🌟 ESTILIZAR LAS TABLAS (DataFrames) 🌟 */
+    div[data-testid="stDataFrame"] > div {
+        border-radius: 12px !important;
+        border: 1px solid rgba(76, 175, 80, 0.2) !important; 
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25) !important;
+        overflow: hidden !important; 
+        transition: box-shadow 0.3s ease, border-color 0.3s ease !important;
+    }
+    div[data-testid="stDataFrame"] > div:hover {
+        border-color: #4CAF50 !important;
+        box-shadow: 0 8px 20px rgba(76, 175, 80, 0.35) !important; 
     }
 </style>
 """, unsafe_allow_html=True)

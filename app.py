@@ -169,14 +169,57 @@ df_excep = st.session_state.df_excep
 df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
-# --- NAVEGACIÓN CON PESTAÑAS (INSTANTÁNEO) ---
+# --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
 st.markdown("<h1 style='text-align: center; color: #4CAF50;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+
 st.markdown("""
 <style>
-    /* Estilizar las pestañas para que resalten */
+    /* 1. Contenedor general de las pestañas */
+    div[data-testid="stTabs"] {
+        padding: 15px 0px;
+    }
+
+    /* 2. Estilizar cada pestaña individualmente para simular un botón */
     div[data-testid="stTabs"] button {
-        font-size: 16px !important;
-        font-weight: bold;
+        font-size: 18px !important; /* Aumentar tamaño del texto */
+        font-weight: 700 !important;
+        background-color: rgba(40, 40, 40, 0.6) !important; /* Fondo oscuro sutil */
+        border-radius: 12px !important; /* Bordes muy redondeados */
+        padding: 12px 24px !important;
+        margin: 0px 8px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        
+        /* 3. Sombreado elegante para simular profundidad */
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5), inset 0px 1px 1px rgba(255,255,255,0.1) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        color: #d1d1d1 !important;
+    }
+
+    /* 4. Efecto Hover: Cuando pasas el mouse */
+    div[data-testid="stTabs"] button:hover {
+        transform: translateY(-3px) !important; /* Levanta el botón */
+        box-shadow: 0px 8px 15px rgba(76, 175, 80, 0.4) !important; /* Sombra verde */
+        border-color: #4CAF50 !important;
+        color: #ffffff !important;
+    }
+
+    /* 5. Estilo de la pestaña seleccionada (ACTIVA) */
+    div[data-testid="stTabs"] button[aria-selected="true"] {
+        background: linear-gradient(145deg, #4CAF50, #2E7D32) !important; /* Degradado verde */
+        color: white !important;
+        box-shadow: 0px 0px 20px rgba(76, 175, 80, 0.6) !important; /* Brillo de selección */
+        border: none !important;
+        transform: scale(1.05) !important; /* Un poquito más grande cuando está activa */
+    }
+
+    /* 6. Limpieza visual: Quitar líneas y bordes por defecto de Streamlit */
+    div[data-testid="stTabs"] [data-baseweb="tab-highlight-point"] {
+        display: none !important; /* Quita la raya roja/azul de abajo */
+    }
+    div[data-baseweb="tab-list"] {
+        gap: 12px !important;
+        border-bottom: none !important; /* Quita la línea gris de fondo */
+        justify-content: center !important; /* Centra los botones */
     }
 </style>
 """, unsafe_allow_html=True)

@@ -277,8 +277,60 @@ with tab_vista:
         df_anual["TOTAL MES"] = df_anual.sum(axis=1)
         df_anual.loc["TOTAL ANUAL"] = df_anual.sum()
         
-        # Tabla sin fondo blanco, se adapta perfectamente a tu tema
-        st.dataframe(df_anual.style.format("{:,.0f}"), use_container_width=True, height=550)
+        # --- TABLA DE PROYECCIÓN PREMIUM (HTML CUSTOM) ---
+        # Darle formato de moneda
+        df_anual_fmt = df_anual.applymap(lambda x: f"${x:,.0f}" if pd.notnull(x) else "$0")
+        
+        # Generar código HTML propio súper estilizado
+        html_tabla = f"""
+        <style>
+            .premium-table {{
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+                font-family: sans-serif;
+                font-size: 13px;
+                color: #d1d1d1;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            }}
+            .premium-table thead tr {{
+                background-color: #1a1a1a;
+                color: #4CAF50;
+                text-align: left;
+            }}
+            .premium-table th, .premium-table td {{
+                padding: 12px 15px;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+            }}
+            .premium-table tbody tr {{
+                background-color: rgba(25,25,25,0.4);
+                transition: background-color 0.2s ease;
+            }}
+            .premium-table tbody tr:hover {{
+                background-color: rgba(76, 175, 80, 0.15); /* Brillo verde sutil al pasar el mouse */
+            }}
+            .premium-table tbody tr:last-of-type {{
+                border-bottom: 2px solid #4CAF50;
+                font-weight: bold;
+                background-color: #111;
+                color: #fff;
+            }}
+            /* Congelar la primera columna (los meses) para que no se pierda al hacer scroll */
+            .premium-table th:first-child {{
+                background-color: #1a1a1a;
+                position: sticky;
+                left: 0;
+                z-index: 2;
+                border-right: 1px solid rgba(255,255,255,0.05);
+            }}
+        </style>
+        <div style="overflow-x: auto; max-height: 600px;">
+            {df_anual_fmt.to_html(classes="premium-table", border=0, justify="left")}
+        </div>
+        """
+        st.markdown(html_tabla, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 2. AJUSTES: GASTOS FIJOS 
@@ -332,13 +384,33 @@ with tab_ajustes:
         # Orden pedido: Semanal, Mensual, Anual, Fondo
         df_order = df_order[["Categoría", "Monto Semanal", "Monto_Mensual", "Monto Anual", "Fondo_Disponible"]]
         
-        # ERROR CORREGIDO AQUÍ:
-        st.dataframe(df_order.style.format({
-            "Monto Semanal": "${:,.0f}", 
-            "Monto_Mensual": "${:,.0f}", 
-            "Monto Anual": "${:,.0f}", 
-            "Fondo_Disponible": "${:,.0f}"
-        }), use_container_width=True, height=500, hide_index=True)
+        # --- TABLA DE AJUSTES PREMIUM (TARJETAS HTML) ---
+        html_ajustes = "<div style='max-height: 500px; overflow-y: auto; padding-right: 10px;'>"
+        for _, row in df_order.iterrows():
+            html_ajustes += f"""
+            <div style='background-color: rgba(30,30,30,0.4); border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #4CAF50;'>
+                <div style='flex: 1;'>
+                    <h4 style='margin: 0; color: #E0E0E0; font-size: 16px;'>{row['Categoría']}</h4>
+                    <p style='margin: 0; color: #888; font-size: 12px;'>Fondo Actual: <span style='color: #A5D6A7;'>${row['Fondo_Disponible']:,.0f}</span></p>
+                </div>
+                <div style='display: flex; gap: 20px; text-align: right;'>
+                    <div>
+                        <p style='margin: 0; font-size: 10px; color: #777; text-transform: uppercase;'>Semanal</p>
+                        <p style='margin: 0; font-size: 14px; color: #FFF; font-weight: bold;'>${row['Monto Semanal']:,.0f}</p>
+                    </div>
+                    <div>
+                        <p style='margin: 0; font-size: 10px; color: #777; text-transform: uppercase;'>Mensual</p>
+                        <p style='margin: 0; font-size: 14px; color: #FFF; font-weight: bold;'>${row['Monto_Mensual']:,.0f}</p>
+                    </div>
+                    <div>
+                        <p style='margin: 0; font-size: 10px; color: #777; text-transform: uppercase;'>Anual</p>
+                        <p style='margin: 0; font-size: 14px; color: #4CAF50; font-weight: bold;'>${row['Monto Anual']:,.0f}</p>
+                    </div>
+                </div>
+            </div>
+            """
+        html_ajustes += "</div>"
+        st.markdown(html_ajustes, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Interfaz Premium y Limpia)

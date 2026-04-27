@@ -271,14 +271,32 @@ with tab_vista:
         df_anual["TOTAL MES"] = df_anual.sum(axis=1)
         df_anual.loc["TOTAL ANUAL"] = df_anual.sum()
         
-        # Tabla HTML estilizada moderna
-        html_table = df_anual.style.format("${:,.0f}").set_table_styles([
-            {'selector': 'table', 'props': [('width', '100%'), ('border-collapse', 'collapse'), ('background-color', '#1a1a1a'), ('border-radius', '8px'), ('overflow', 'hidden'), ('font-size', '14px')]},
-            {'selector': 'th', 'props': [('background-color', '#2E7D32'), ('color', 'white'), ('padding', '12px 10px'), ('text-align', 'center'), ('font-weight', 'bold'), ('border-bottom', '2px solid #4CAF50')]},
-            {'selector': 'td', 'props': [('padding', '10px'), ('border-bottom', '1px solid #2a2a2a'), ('text-align', 'center'), ('color', '#d1d1d1')]},
-            {'selector': 'tr:hover', 'props': [('background-color', '#2a2a2a')]}
-        ]).to_html()
-        st.markdown(html_table, unsafe_allow_html=True)
+        # 🌟 DISEÑO DE TARJETAS PARA PROYECCIÓN A 12 MESES (CERO TABLAS) 🌟
+        html_anual = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px;">'
+        
+        # Iteramos sobre los meses (excluyendo la fila de 'TOTAL ANUAL')
+        meses_solo = [m for m in df_anual.index if m != "TOTAL ANUAL"]
+        
+        for mes in meses_solo:
+            # Extraemos el total de ese mes de manera segura
+            try:
+                total_mes = float(str(df_anual.loc[mes, "TOTAL MES"]).replace("$", "").replace(",", ""))
+            except ValueError:
+                total_mes = 0.0
+                
+            # Tarjeta de cada mes (Todo en una línea para Streamlit)
+            html_anual += f'<div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-top: 4px solid #2E7D32; padding: 15px; border-radius: 10px; flex: 1 1 calc(25% - 15px); min-width: 130px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: center;"><h4 style="margin: 0 0 8px 0; color: #aaa; font-size: 14px; letter-spacing: 1px; text-transform: uppercase;">{mes}</h4><span style="color: #69F0AE; font-weight: bold; font-size: 20px;">${total_mes:,.0f}</span></div>'
+            
+        # Tarjeta ancha especial para el TOTAL ANUAL al final
+        try:
+            total_anual_val = float(str(df_anual.loc["TOTAL ANUAL", "TOTAL MES"]).replace("$", "").replace(",", ""))
+        except ValueError:
+            total_anual_val = 0.0
+            
+        html_anual += f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); border-left: 5px solid #00E5FF; padding: 20px; border-radius: 10px; flex: 1 1 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; justify-content: space-between; align-items: center; margin-top: 5px;"><span style="color: #fff; font-size: 18px; font-weight: bold; letter-spacing: 1px;">TOTAL ACUMULADO DEL AÑO</span><span style="color: #00E5FF; font-weight: bold; font-size: 28px;">${total_anual_val:,.0f}</span></div>'
+        
+        html_anual += '</div>'
+        st.markdown(html_anual, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 2. AJUSTES: GASTOS FIJOS 

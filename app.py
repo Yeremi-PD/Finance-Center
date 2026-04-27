@@ -266,8 +266,14 @@ with tab_vista:
         df_anual["TOTAL MES"] = df_anual.sum(axis=1)
         df_anual.loc["TOTAL ANUAL"] = df_anual.sum()
         
-        # Tabla sin fondo blanco, se adapta perfectamente a tu tema
-        st.dataframe(df_anual.style.format("{:,.0f}"), use_container_width=True, height=550)
+        # Tabla HTML estilizada moderna
+        html_table = df_anual.style.format("${:,.0f}").set_table_styles([
+            {'selector': 'table', 'props': [('width', '100%'), ('border-collapse', 'collapse'), ('background-color', '#1a1a1a'), ('border-radius', '8px'), ('overflow', 'hidden'), ('font-size', '14px')]},
+            {'selector': 'th', 'props': [('background-color', '#2E7D32'), ('color', 'white'), ('padding', '12px 10px'), ('text-align', 'center'), ('font-weight', 'bold'), ('border-bottom', '2px solid #4CAF50')]},
+            {'selector': 'td', 'props': [('padding', '10px'), ('border-bottom', '1px solid #2a2a2a'), ('text-align', 'center'), ('color', '#d1d1d1')]},
+            {'selector': 'tr:hover', 'props': [('background-color', '#2a2a2a')]}
+        ]).to_html()
+        st.markdown(html_table, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 2. AJUSTES: GASTOS FIJOS 
@@ -321,13 +327,19 @@ with tab_ajustes:
         # Orden pedido: Semanal, Mensual, Anual, Fondo
         df_order = df_order[["Categoría", "Monto Semanal", "Monto_Mensual", "Monto Anual", "Fondo_Disponible"]]
         
-        # ERROR CORREGIDO AQUÍ:
-        st.dataframe(df_order.style.format({
+        # Tabla HTML estilizada moderna para Configuración
+        html_order = df_order.style.format({
             "Monto Semanal": "${:,.0f}", 
             "Monto_Mensual": "${:,.0f}", 
             "Monto Anual": "${:,.0f}", 
             "Fondo_Disponible": "${:,.0f}"
-        }), use_container_width=True, height=500, hide_index=True)
+        }).hide(axis="index").set_table_styles([
+            {'selector': 'table', 'props': [('width', '100%'), ('border-collapse', 'collapse'), ('background-color', '#1a1a1a'), ('border-radius', '8px'), ('overflow', 'hidden'), ('font-size', '14px'), ('margin-top', '10px')]},
+            {'selector': 'th', 'props': [('background-color', '#1565C0'), ('color', 'white'), ('padding', '12px 10px'), ('text-align', 'left'), ('font-weight', 'bold')]},
+            {'selector': 'td', 'props': [('padding', '10px'), ('border-bottom', '1px solid #2a2a2a'), ('text-align', 'left'), ('color', '#d1d1d1')]},
+            {'selector': 'tr:hover', 'props': [('background-color', '#2a2a2a')]}
+        ]).to_html()
+        st.markdown(html_order, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Interfaz Premium y Limpia)
@@ -469,9 +481,21 @@ with tab_pagos:
             df_fijos["Fondo_Disponible"] = pd.to_numeric(df_fijos["Fondo_Disponible"]).fillna(0)
         
         if not df_fijos.empty and "Categoría" in df_fijos.columns:
-            # Tamaño exacto: cantidad de conceptos + 1 para los títulos
-            altura_dinamica_sobres = (len(df_fijos) + 1) * 38
-            st.dataframe(df_fijos[["Categoría", "Fondo_Disponible"]].style.format({"Fondo_Disponible": "${:,.0f}"}), use_container_width=True, height=altura_dinamica_sobres, hide_index=True)
+            # Tarjetas estilo App para Categorías Disponibles
+            html_sobres = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
+            for _, row in df_fijos.iterrows():
+                fondo = pd.to_numeric(row["Fondo_Disponible"]).astype(float)
+                color = "#4CAF50" if fondo >= 0 else "#F44336"
+                html_sobres += f'''
+                <div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-left: 4px solid {color}; 
+                            padding: 12px 15px; border-radius: 8px; flex: 1 1 calc(50% - 10px); 
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #ddd; font-weight: 500; font-size: 14px;">{row["Categoría"]}</span>
+                    <span style="color: {color}; font-weight: bold; font-size: 16px;">${fondo:,.0f}</span>
+                </div>
+                '''
+            html_sobres += '</div>'
+            st.markdown(html_sobres, unsafe_allow_html=True)
         else:
             st.info("No hay categorías configuradas.")
     
@@ -480,7 +504,28 @@ with tab_pagos:
         f_sel = st.selectbox("📜 Selecciona un filtro para tu historial:", l_filtros)
         if not df_movs.empty:
             df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
-            st.dataframe(df_h, use_container_width=True, height=400, hide_index=True)
+            
+            # Lista de transacciones estilo App Bancaria
+            html_historial = '<div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">'
+            for _, row in df_h.iterrows():
+                monto = float(row["Monto"])
+                color = "#4CAF50" if monto >= 0 else "#F44336"
+                signo = "+" if monto > 0 else ""
+                html_historial += f'''
+                <div style="background-color: #1e1e1e; margin-bottom: 8px; padding: 12px 15px; 
+                            border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
+                            display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="color: #fff; font-weight: 600; font-size: 14px;">{row["Concepto"]}</div>
+                        <div style="color: #888; font-size: 11px;">{row["Fecha"]} • {row["Cuenta"]}</div>
+                    </div>
+                    <div style="color: {color}; font-weight: bold; font-size: 15px;">
+                        {signo}${monto:,.2f}
+                    </div>
+                </div>
+                '''
+            html_historial += '</div>'
+            st.markdown(html_historial, unsafe_allow_html=True)
             if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
                 if not df_movs.empty:
                     # Elimina la última fila real del dataframe original

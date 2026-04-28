@@ -176,6 +176,32 @@ df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
+# --- LÓGICA DE PANTALLA COMPLETA NATIVA ---
+if 'full_journal' not in st.session_state: 
+    st.session_state.full_journal = False
+
+if st.session_state.full_journal:
+    # Inyectamos CSS para ocultar Sidebar, Header y eliminar todos los bordes/márgenes
+    st.markdown("""
+        <style>
+            [data-testid="stSidebar"], [data-testid="stHeader"] {display: none !important;}
+            .block-container {padding: 0 !important; max-width: 100% !important;}
+            iframe {border: none !important;}
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Botón flotante de salida
+    col_exit, _ = st.columns([1, 4])
+    with col_exit:
+        if st.button("⬅️ SALIR DEL JOURNAL", type="primary", use_container_width=True):
+            st.session_state.full_journal = False
+            st.rerun()
+    
+    # El Journal ocupando el 100% real
+    url_journal = "https://yeremi-pd-journal-trading.streamlit.app/?user=Yeremi+PD&device=PC&account=Backtesting&embed=true#yeremi-pro-journal"
+    st.components.v1.iframe(url_journal, height=1200, scrolling=True)
+    st.stop() # DETIENE el resto de la app para que no se cargue nada abajo
+
 st.markdown("<h1 style='text-align: center; color: #4CAF50; margin-bottom: 0px;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
@@ -822,6 +848,16 @@ with tab_cuentas:
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     st.cache_data.clear()
                     st.rerun()
+
+# ---------------------------------------------------------
+# 5. ACTIVADOR DE JOURNAL (MODO NATIVO)
+# ---------------------------------------------------------
+with tab_journal:
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("Haz clic en el botón de abajo para abrir el Journal en modo Pantalla Completa (sin bordes ni menús).")
+    if st.button("🚀 ABRIR YEREMI PRO JOURNAL", use_container_width=True, type="primary"):
+        st.session_state.full_journal = True
+        st.rerun()
 
         with col_e2:
             st.markdown("<p style='color:#666; font-size:14px; margin-bottom:5px;'><b>Eliminar Cuenta</b></p>", unsafe_allow_html=True)

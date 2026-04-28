@@ -175,27 +175,7 @@ df_excep = st.session_state.df_excep
 df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
-# --- INTERCEPTOR: MODO JOURNAL NATIVO (PANTALLA COMPLETA) ---
-if st.query_params.get("journal") == "true":
-    st.markdown("""
-        <style>
-            [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stBottom"] {display: none !important;}
-            .block-container {padding: 0 !important; max-width: 100% !important; overflow: hidden !important;}
-        </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<div style='padding: 15px; background-color: #121212;'>", unsafe_allow_html=True)
-    if st.button("⬅️ VOLVER AL FINANCIAL CENTER", type="primary"):
-        st.query_params.clear() 
-        st.session_state.menu_radio = "📊 PROYECCIÓN ANUAL" # Te devuelve a la vista principal
-        st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    url_nativa = "https://yeremi-pd-journal-trading.streamlit.app/?user=Yeremi+PD&device=PC&account=Backtesting&embed=true&embed_options=dark_theme,show_padding=false"
-    html_nativo = f'<style>div[data-testid="stHtml"] {{padding: 0 !important; margin: 0 !important;}}</style><iframe src="{url_nativa}" style="width: 100vw; height: 100vh; border: none; margin: 0; padding: 0; background: transparent;" scrolling="yes" allowfullscreen></iframe>'
-    components.html(html_nativo, height=1200)
-    st.stop()
-
+# --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
 st.markdown("<h1 style='text-align: center; color: #4CAF50; margin-bottom: 0px;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
@@ -254,31 +234,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- NUEVO MENÚ INTELIGENTE ---
-opciones_menu = ["⚙️ GASTOS FIJOS", "💸 REGISTRAR GASTOS", "📈 TRADING", "📊 PROYECCIÓN ANUAL", "💳 MIS CUENTAS", "📒 JOURNAL PRO"]
-st.markdown("""
-<style>
-    div[data-testid="stWidgetLabel"] { display: none !important; }
-    div[role="radiogroup"] { gap: 12px !important; justify-content: center !important; padding-top: 15px !important; padding-bottom: 15px !important; flex-wrap: wrap !important; flex-direction: row !important; }
-    div[role="radiogroup"] > label {
-        font-size: 18px !important; font-weight: 700 !important; background-color: rgba(40, 40, 40, 0.6) !important; 
-        border-radius: 12px !important; padding: 12px 24px !important; margin: 0px 4px !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important; color: #d1d1d1 !important; transition: all 0.3s ease !important; cursor: pointer !important;
-    }
-    div[role="radiogroup"] > label[data-checked="true"] {
-        background: linear-gradient(145deg, #4CAF50, #2E7D32) !important; color: white !important;
-        box-shadow: 0px 0px 20px rgba(76, 175, 80, 0.6) !important; border: none !important; transform: scale(1.05) translateY(-2px) !important;
-    }
-    div[role="radiogroup"] > label:hover { border-color: #4CAF50 !important; color: #ffffff !important; transform: translateY(-5px) !important; }
-    div[role="radiogroup"] > label > div:first-child { display: none !important; }
-</style>
-""", unsafe_allow_html=True)
-
-seleccion = st.radio("Menú", opciones_menu, horizontal=True, key="menu_radio")
-
-if seleccion == "📒 JOURNAL PRO":
-    st.query_params["journal"] = "true"
-    st.rerun()
+tab_ajustes, tab_pagos, tab_trading, tab_vista, tab_cuentas = st.tabs([
+    "⚙️ GASTOS FIJOS", 
+    "💸 REGISTRAR GASTOS", 
+    "📈 TRADING", 
+    "📊 PROYECCIÓN ANUAL", 
+    "💳 MIS CUENTAS"
+])
 
 # ---------------------------------------------------------
 # 1. VISTA: PROYECCIÓN ANUAL 
@@ -860,7 +822,7 @@ with tab_cuentas:
                     st.cache_data.clear()
                     st.rerun()
 
-with col_e2:
+        with col_e2:
             st.markdown("<p style='color:#666; font-size:14px; margin-bottom:5px;'><b>Eliminar Cuenta</b></p>", unsafe_allow_html=True)
             if not df_cuentas.empty:
                 c_del = st.selectbox("Borrar:", df_cuentas["Cuenta"].tolist(), label_visibility="collapsed")

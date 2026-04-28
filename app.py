@@ -175,32 +175,31 @@ df_excep = st.session_state.df_excep
 df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
-# --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
-# --- LÓGICA DE PANTALLA COMPLETA NATIVA ---
-if 'full_journal' not in st.session_state: 
-    st.session_state.full_journal = False
-
-if st.session_state.full_journal:
-    # Inyectamos CSS para ocultar Sidebar, Header y eliminar todos los bordes/márgenes
+# --- INTERCEPTOR: MODO JOURNAL NATIVO (PANTALLA COMPLETA) ---
+if st.query_params.get("journal") == "true":
+    # Ocultamos la barra lateral, cabecera, pie de página y quitamos TODOS los márgenes
     st.markdown("""
         <style>
-            [data-testid="stSidebar"], [data-testid="stHeader"] {display: none !important;}
-            .block-container {padding: 0 !important; max-width: 100% !important;}
-            iframe {border: none !important;}
+            [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stBottom"] {display: none !important;}
+            .block-container {padding: 0 !important; max-width: 100% !important; overflow: hidden !important;}
         </style>
     """, unsafe_allow_html=True)
     
-    # Botón flotante de salida
-    col_exit, _ = st.columns([1, 4])
-    with col_exit:
-        if st.button("⬅️ SALIR DEL JOURNAL", type="primary", use_container_width=True):
-            st.session_state.full_journal = False
-            st.rerun()
-    
-    # El Journal ocupando el 100% real
-    url_journal = "https://yeremi-pd-journal-trading.streamlit.app/?user=Yeremi+PD&device=PC&account=Backtesting&embed=true#yeremi-pro-journal"
-    st.components.v1.iframe(url_journal, height=1200, scrolling=True)
-    st.stop() # DETIENE el resto de la app para que no se cargue nada abajo
+    # Barra superior oscura con el botón para volver
+    st.markdown("<div style='padding: 15px; background-color: #121212;'>", unsafe_allow_html=True)
+    if st.button("⬅️ VOLVER AL FINANCIAL CENTER", type="primary"):
+        st.query_params.clear() # Limpiamos la URL para salir del modo cine
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # Iframe al 100% de la pantalla
+    url_nativa = "https://yeremi-pd-journal-trading.streamlit.app/?user=Yeremi+PD&device=PC&account=Backtesting&embed=true&embed_options=dark_theme,show_padding=false"
+    html_nativo = f'''
+    <style>div[data-testid="stHtml"] {{padding: 0 !important; margin: 0 !important;}}</style>
+    <iframe src="{url_nativa}" style="width: 100vw; height: 100vh; border: none; margin: 0; padding: 0; background: transparent;" scrolling="yes" allowfullscreen></iframe>
+    '''
+    components.html(html_nativo, height=1200)
+    st.stop() # Bloquea el resto de la app para asegurar la pantalla completa
 
 st.markdown("<h1 style='text-align: center; color: #4CAF50; margin-bottom: 0px;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
@@ -849,53 +848,32 @@ with tab_cuentas:
                     st.cache_data.clear()
                     st.rerun()
 
-# ---------------------------------------------------------
-# 5. ACTIVADOR DE JOURNAL (MODO NATIVO)
-# ---------------------------------------------------------
-with tab_journal:
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.info("Haz clic en el botón de abajo para abrir el Journal en modo Pantalla Completa (sin bordes ni menús).")
-    if st.button("🚀 ABRIR YEREMI PRO JOURNAL", use_container_width=True, type="primary"):
-        st.session_state.full_journal = True
-        st.rerun()
-
-        with col_e2:
+with col_e2:
             st.markdown("<p style='color:#666; font-size:14px; margin-bottom:5px;'><b>Eliminar Cuenta</b></p>", unsafe_allow_html=True)
             if not df_cuentas.empty:
                 c_del = st.selectbox("Borrar:", df_cuentas["Cuenta"].tolist(), label_visibility="collapsed")
                 st.write("") # Espaciador
                 st.write("") # Espaciador
-if st.button("Eliminar Permanentemente", use_container_width=True):
-                        df_cuentas = df_cuentas[df_cuentas["Cuenta"] != c_del]
-                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                        st.cache_data.clear()
-                        st.rerun()
+                if st.button("Eliminar Permanentemente", use_container_width=True):
+                    df_cuentas = df_cuentas[df_cuentas["Cuenta"] != c_del]
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    st.cache_data.clear()
+                    st.rerun()
 
 # ---------------------------------------------------------
-# 5. JOURNAL TRADING (Incrustación 100% Nativa)
+# 5. ACTIVADOR DE JOURNAL (MAGIA JS)
 # ---------------------------------------------------------
 with tab_journal:
-    # 🌟 LOS PARÁMETROS MÁGICOS DE STREAMLIT:
-    # embed=true -> Elimina el menú superior y el botón de Deploy.
-    # embed_options=dark_theme -> Obliga a la app a usar modo oscuro para que combine con el Financial Center.
-    # embed_options=show_padding=false -> Elimina los espacios blancos/negros alrededor de la app.
-    url_nativa = "https://yeremi-pd-journal-trading.streamlit.app/?user=Yeremi+PD&device=PC&account=Backtesting&embed=true&embed_options=dark_theme,show_padding=false"
-    
-    # Inyectamos el iframe con CSS puro para fusionarlo con el fondo
-    html_nativo = f"""
-    <style>
-        /* Eliminamos los márgenes residuales del bloque que envuelve el HTML en Streamlit */
-        div[data-testid="stHtml"] {{
-            padding: 0 !important;
-            margin: 0 !important;
-        }}
-    </style>
-    <iframe 
-        src="{url_nativa}" 
-        style="width: 100%; height: 1300px; border: none; margin: 0; padding: 0; background: transparent;"
-        scrolling="yes"
-        allowfullscreen>
-    </iframe>
+    # Cuando el usuario hace clic en la pestaña, este código se lee.
+    # Inyectamos un minúsculo script de JavaScript que recarga la página instantáneamente en modo Cine.
+    js_activador = """
+    <script>
+        const urlParams = new URLSearchParams(window.parent.location.search);
+        if (urlParams.get('journal') !== 'true') {
+            urlParams.set('journal', 'true');
+            window.parent.location.search = urlParams.toString();
+        }
+    </script>
     """
-    
-    components.html(html_nativo, height=1300)
+    components.html(js_activador, height=0, width=0)
+    st.markdown("<h3 style='text-align:center; color:#888; margin-top:50px;'>Cargando Journal Pro... 🚀</h3>", unsafe_allow_html=True)

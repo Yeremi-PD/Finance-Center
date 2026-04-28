@@ -863,26 +863,3 @@ with tab_journal:
     """
     
     components.html(html_nativo, height=1300)
-
-# ---------------------------------------------------------
-# 5. JOURNAL TRADING EXTERNO (Incrustado)
-# ---------------------------------------------------------
-with tab_journal:
-    url_externa = "https://yeremi-pd-journal-trading.streamlit.app/?user=Yeremi+PD&device=PC&account=Backtesting&embed=true#yeremi-pro-journal"
-    
-    # Inyectamos HTML para forzar que ocupe todo el ancho (100%) y darle una altura enorme (1200px)
-    iframe_html = f"""
-    <style>
-        /* Quitamos márgenes por defecto del iframe */
-        iframe {{
-            margin: 0;
-            padding: 0;
-            border: none;
-            overflow: hidden;
-        }}
-    </style>
-    <iframe src="{url_externa}" width="100%" height="1200px" allowfullscreen></iframe>
-    """
-    
-    # El parámetro height aquí debe coincidir con el del iframe para que Streamlit abra el espacio completo
-    components.html(iframe_html, height=1200)

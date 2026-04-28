@@ -836,6 +836,35 @@ if st.button("Eliminar Permanentemente", use_container_width=True):
                         st.rerun()
 
 # ---------------------------------------------------------
+# 5. JOURNAL TRADING (Incrustación 100% Nativa)
+# ---------------------------------------------------------
+with tab_journal:
+    # 🌟 LOS PARÁMETROS MÁGICOS DE STREAMLIT:
+    # embed=true -> Elimina el menú superior y el botón de Deploy.
+    # embed_options=dark_theme -> Obliga a la app a usar modo oscuro para que combine con el Financial Center.
+    # embed_options=show_padding=false -> Elimina los espacios blancos/negros alrededor de la app.
+    url_nativa = "https://yeremi-pd-journal-trading.streamlit.app/?user=Yeremi+PD&device=PC&account=Backtesting&embed=true&embed_options=dark_theme,show_padding=false"
+    
+    # Inyectamos el iframe con CSS puro para fusionarlo con el fondo
+    html_nativo = f"""
+    <style>
+        /* Eliminamos los márgenes residuales del bloque que envuelve el HTML en Streamlit */
+        div[data-testid="stHtml"] {{
+            padding: 0 !important;
+            margin: 0 !important;
+        }}
+    </style>
+    <iframe 
+        src="{url_nativa}" 
+        style="width: 100%; height: 1300px; border: none; margin: 0; padding: 0; background: transparent;"
+        scrolling="yes"
+        allowfullscreen>
+    </iframe>
+    """
+    
+    components.html(html_nativo, height=1300)
+
+# ---------------------------------------------------------
 # 5. JOURNAL TRADING EXTERNO (Incrustado)
 # ---------------------------------------------------------
 with tab_journal:

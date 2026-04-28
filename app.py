@@ -234,12 +234,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-tab_ajustes, tab_pagos, tab_trading, tab_vista, tab_cuentas = st.tabs([
+tab_ajustes, tab_pagos, tab_trading, tab_vista, tab_cuentas, tab_journal = st.tabs([
     "⚙️ GASTOS FIJOS", 
     "💸 REGISTRAR GASTOS", 
     "📈 TRADING", 
     "📊 PROYECCIÓN ANUAL", 
-    "💳 MIS CUENTAS"
+    "💳 MIS CUENTAS",
+    "📒 JOURNAL PRO"
 ])
 
 # ---------------------------------------------------------
@@ -828,8 +829,20 @@ with tab_cuentas:
                 c_del = st.selectbox("Borrar:", df_cuentas["Cuenta"].tolist(), label_visibility="collapsed")
                 st.write("") # Espaciador
                 st.write("") # Espaciador
-                if st.button("Eliminar Permanentemente", use_container_width=True):
-                    df_cuentas = df_cuentas[df_cuentas["Cuenta"] != c_del]
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                    st.cache_data.clear()
-                    st.rerun()
+if st.button("Eliminar Permanentemente", use_container_width=True):
+                        df_cuentas = df_cuentas[df_cuentas["Cuenta"] != c_del]
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                        st.cache_data.clear()
+                        st.rerun()
+
+# ---------------------------------------------------------
+# 5. JOURNAL TRADING EXTERNO (Incrustado)
+# ---------------------------------------------------------
+with tab_journal:
+    st.markdown("<h3 style='font-weight: 400; color: #4CAF50;'>📒 Yeremi Pro Journal</h3>", unsafe_allow_html=True)
+    
+    # Tu URL con el parámetro embed=true para que se vea integrado perfectamente
+    url_externa = "https://yeremi-pd-journal-trading.streamlit.app/?user=Yeremi+PD&device=PC&account=Backtesting&embed=true#yeremi-pro-journal"
+    
+    # Cargamos la otra app dentro de esta
+    components.iframe(url_externa, height=900, scrolling=True)

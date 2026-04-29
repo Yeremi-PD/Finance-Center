@@ -706,7 +706,7 @@ with tab_trading:
         st.markdown(html_feed_t, unsafe_allow_html=True)
 
         # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
-        with st.expander("🛠️ Editar Historial)"):
+        with st.expander("🛠️ Editar Historial"):
             df_edit_t = df_trading.copy()
             if "Fecha" in df_edit_t.columns:
                 df_edit_t["Fecha"] = pd.to_datetime(df_edit_t["Fecha"]).dt.date
@@ -722,7 +722,7 @@ with tab_trading:
                 }
             )
             
-            if st.button("💾 CONFIRMAR CAMBIOS Y RECALCULAR BALANCES", type="primary"):
+            if st.button("💾 CONFIRMAR", type="primary"):
                 # Reversión y Aplicación (Lógica de balances que ya tenías)
                 for _, fila_v in st.session_state.df_trading.iterrows():
                     cta_v, m_v, tipo_v = fila_v["Cuenta"], float(fila_v["Monto"]), fila_v["Tipo"]

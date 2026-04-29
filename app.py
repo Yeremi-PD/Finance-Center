@@ -544,7 +544,7 @@ with tab_pagos:
     
     with cf2:
         l_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
-        f_sel = st.selectbox("filtra tu historial:", l_filtros)
+        f_sel = st.selectbox("Filtra tu historial:", l_filtros)
         if not df_movs.empty:
             df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
             

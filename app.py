@@ -514,7 +514,7 @@ with tab_pagos:
     # Le damos más espacio a las tarjetas (1.5) y menos estiramiento al historial (2)
     cf1, cf2 = st.columns([1.5, 2])
     with cf1:
-        st.markdown("<h4 style='color: #2E7D32;'>💰 Categorias Disponibles</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #2E7D32;'>💰Dinero Disponible</h4>", unsafe_allow_html=True)
         if not df_fijos.empty:
             if "Fondo_Disponible" not in df_fijos.columns:
                 df_fijos["Fondo_Disponible"] = 0.0
@@ -544,7 +544,7 @@ with tab_pagos:
     
     with cf2:
         l_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
-        f_sel = st.selectbox("📜 Selecciona un filtro para tu historial:", l_filtros)
+        f_sel = st.selectbox("filtra tu historial:", l_filtros)
         if not df_movs.empty:
             df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
             
@@ -630,7 +630,7 @@ with tab_trading:
     # Creamos dos columnas: una ancha vacía a la izquierda y una pequeña a la derecha
     _, col_btn_op = st.columns([7, 1])
     with col_btn_op:
-        btn_ejecutar = st.button("🚀 EJECUTAR OPERACIÓN", use_container_width=True, type="primary")
+        btn_ejecutar = st.button("AGREGAR", use_container_width=True, type="primary")
         
     if btn_ejecutar:
         if monto_t > 0:
@@ -671,7 +671,7 @@ with tab_trading:
 
     if not df_trading.empty:
         st.markdown("---")
-        st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL DE OPERACIONES</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL DE MOVIMIENTOS</h4>", unsafe_allow_html=True)
         
         # --- SISTEMA DE FILTROS LINDOS ---
         col_f1, col_f2 = st.columns(2)
@@ -706,8 +706,7 @@ with tab_trading:
         st.markdown(html_feed_t, unsafe_allow_html=True)
 
         # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
-        with st.expander("🛠️ Modo Administrador (Editar o Borrar Historial)"):
-            st.info("Usa esta tabla solo si necesitas corregir un error o borrar una fila.")
+        with st.expander("🛠️ Editar Historial)"):
             df_edit_t = df_trading.copy()
             if "Fecha" in df_edit_t.columns:
                 df_edit_t["Fecha"] = pd.to_datetime(df_edit_t["Fecha"]).dt.date

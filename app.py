@@ -429,35 +429,7 @@ with tab_ajustes:
                 html_gastos += f'<div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-top: 4px solid #1565C0; padding: 15px; border-radius: 10px; flex: 1 1 calc(25% - 15px); min-width: 200px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);"><h4 style="margin: 0 0 12px 0; color: #fff; text-align: center; font-size: 18px; letter-spacing: 1px;">{row["Categoría"]}</h4><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Semanal:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${semanal:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Mensual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${mensual:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Anual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${anual:,.0f}</span></div><hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="color: #aaa; font-size: 13px; font-weight: bold;">Fondo Actual:</span><span style="color: {color_fondo_txt}; font-weight: bold; font-size: 18px;">${fondo:,.0f}</span></div></div>'
             
             html_gastos += '</div>'
-            
-            # 🌟 NUEVO: CÁLCULO DE TOTALES PARA LA CUENTA SELECCIONADA 🌟
-            t_semanal = df_order["Monto Semanal"].astype(float).sum()
-            t_mensual = df_order["Monto_Mensual"].astype(float).sum()
-            t_anual = df_order["Monto Anual"].astype(float).sum()
-            t_fondo = df_order["Fondo_Disponible"].astype(float).sum()
-            c_fondo = "#4CAF50" if t_fondo >= 0 else "#F44336"
-            
-            html_totales = f"""
-            <div style="background: linear-gradient(145deg, #121212, #0a0a0a); border-left: 5px solid #00E5FF; padding: 20px; border-radius: 12px; margin-top: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: flex; justify-content: space-around; flex-wrap: wrap; align-items: center;">
-                <div style="text-align: center; margin: 10px;">
-                    <p style="color: #888; font-size: 12px; letter-spacing: 1px; margin: 0; text-transform: uppercase;">Total Semanal</p>
-                    <h3 style="color: #fff; margin: 5px 0 0 0; font-size: 22px;">${t_semanal:,.0f}</h3>
-                </div>
-                <div style="text-align: center; margin: 10px;">
-                    <p style="color: #888; font-size: 12px; letter-spacing: 1px; margin: 0; text-transform: uppercase;">Total Mensual</p>
-                    <h3 style="color: #00E5FF; margin: 5px 0 0 0; font-size: 24px;">${t_mensual:,.0f}</h3>
-                </div>
-                <div style="text-align: center; margin: 10px;">
-                    <p style="color: #888; font-size: 12px; letter-spacing: 1px; margin: 0; text-transform: uppercase;">Total Anual</p>
-                    <h3 style="color: #fff; margin: 5px 0 0 0; font-size: 22px;">${t_anual:,.0f}</h3>
-                </div>
-                <div style="text-align: center; margin: 10px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 20px;">
-                    <p style="color: #888; font-size: 12px; letter-spacing: 1px; margin: 0; text-transform: uppercase;">Suma de Fondos (Sobres)</p>
-                    <h3 style="color: {c_fondo}; margin: 5px 0 0 0; font-size: 24px;">${t_fondo:,.0f}</h3>
-                </div>
-            </div>
-            """
-            st.markdown(html_gastos + html_totales, unsafe_allow_html=True)
+            st.markdown(html_gastos, unsafe_allow_html=True)
 
     # Ejecutamos el panel fragmentado
     panel_configuracion_fijos()

@@ -560,7 +560,7 @@ with tab_pagos:
                 html_historial += f'<div style="background-color: #1e1e1e; margin-bottom: 8px; padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;"><div><div style="color: #fff; font-weight: 600; font-size: 14px;">{row["Concepto"]}</div><div style="color: #888; font-size: 11px;">{row["Fecha"]} • {row["Cuenta"]}</div></div><div style="color: {color}; font-weight: bold; font-size: 15px;">{signo}${monto:,.2f}</div></div>'
                 
 html_historial += '</div>'
-       
+            
             st.markdown(html_historial, unsafe_allow_html=True)
             
             if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):

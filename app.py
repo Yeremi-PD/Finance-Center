@@ -399,33 +399,39 @@ with tab_pagos:
     nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
     
     with col_i1:
-        opciones_inyec = ["TODAS"] + nombres_cuentas
-        cuenta_inyec = st.selectbox("📥 Cuenta que recibe la inyección:", opciones_inyec)
-        
-        if cuenta_inyec != "TODAS":
-            # 🌟 FORMULARIO PARA EVITAR REDIBUJADO AL AGREGAR/QUITAR ETIQUETAS 🌟
-            with st.form("form_excepciones", border=False):
+        # 🌟 FRAGMENTO PARA QUE CAMBIAR LA CUENTA NO RECARGUE TODA LA PÁGINA 🌟
+        @st.fragment
+        def panel_excepciones():
+            opciones_inyec = ["TODAS"] + (df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
+            cuenta_inyec = st.selectbox("📥 Cuenta que recibe la inyección:", opciones_inyec)
+            
+            if cuenta_inyec != "TODAS":
+                # Extraemos SOLO los datos de la cuenta seleccionada en ese instante
                 exc_c = df_excep[df_excep["Cuenta"] == cuenta_inyec]["Categoria_Excluida"].tolist() if not df_excep.empty else []
                 
-                # 🛡️ ESCUDO: Filtramos la base de datos para ignorar categorías borradas/fantasmas
+                # Escudo para ignorar categorías que ya no existen
                 categorias_validas = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
                 exc_c_validas = [cat for cat in exc_c if cat in categorias_validas]
                 
-                nuevas_exc = st.multiselect(f"Excluir categorías en {cuenta_inyec}:", categorias_validas, default=exc_c_validas)
-                
-                btn_guardar_exc = st.form_submit_button("💾 Guardar Excepciones")
-                
-            if btn_guardar_exc:
-                df_temp = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones").dropna(how="all")
-                if not df_temp.empty:
-                    df_temp = df_temp[df_temp["Cuenta"] != cuenta_inyec]
-                nuevas_rows = pd.DataFrame([{"Cuenta": cuenta_inyec, "Categoria_Excluida": x} for x in nuevas_exc])
-                df_final_excep = pd.concat([df_temp, nuevas_rows], ignore_index=True)
-                
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_final_excep)
-                st.session_state.df_excep = df_final_excep # Refleja los cambios al instante
-                st.cache_data.clear()
-                st.rerun()
+                # Seguimos usando un formulario para que al abrir/cerrar etiquetas no parpadee
+                with st.form("form_excepciones", border=False):
+                    nuevas_exc = st.multiselect(f"Excluir categorías SOLO en {cuenta_inyec}:", categorias_validas, default=exc_c_validas)
+                    btn_guardar_exc = st.form_submit_button("💾 Guardar Excepciones")
+                    
+                if btn_guardar_exc:
+                    df_temp = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones").dropna(how="all")
+                    if not df_temp.empty:
+                        df_temp = df_temp[df_temp["Cuenta"] != cuenta_inyec]
+                    nuevas_rows = pd.DataFrame([{"Cuenta": cuenta_inyec, "Categoria_Excluida": x} for x in nuevas_exc])
+                    df_final_excep = pd.concat([df_temp, nuevas_rows], ignore_index=True)
+                    
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_final_excep)
+                    st.session_state.df_excep = df_final_excep
+                    st.cache_data.clear()
+                    st.rerun()
+
+        # Ejecutamos el fragmento
+        panel_excepciones()
 
     with col_i3:
         st.write("")

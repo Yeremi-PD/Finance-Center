@@ -398,7 +398,7 @@ with tab_pagos:
     col_i1, col_i3 = st.columns([1.5, 1])
     nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
     
-    # 🌟 TODO EL PANEL DE PAGOS UNIFICADO EN UN FRAGMENTO PARA EVITAR REFRESCADO TOTAL 🌟
+# 🌟 TODO EL PANEL DE PAGOS UNIFICADO EN UN FRAGMENTO PARA EVITAR REFRESCADO TOTAL 🌟
     @st.fragment
     def mostrar_panel_pagos_unificado():
         global df_fijos, df_movs, df_cuentas, df_excep
@@ -445,46 +445,36 @@ with tab_pagos:
                         df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_total_cta
                         nuevo_mov = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta, "Concepto": "INYECCIÓN SEMANAL", "Monto": monto_total_cta}])
                         df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
+                    
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                    
+                    # 🌟 ACTUALIZACIÓN INMEDIATA PARA QUE APAREZCA EN EL HISTORIAL 🌟
+                    st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
                     st.rerun()
+            
             with col_btn_deshacer:
                 if st.button("↩️ DESHACER", use_container_width=True):
                     if not df_movs.empty and "INYECCIÓN SEMANAL" in df_movs["Concepto"].values:
-                        # 1. Identificamos la última inyección realizada
                         ult_fecha = df_movs[df_movs["Concepto"] == "INYECCIÓN SEMANAL"]["Fecha"].iloc[-1]
                         inyec_a_revertir = df_movs[(df_movs["Concepto"] == "INYECCIÓN SEMANAL") & (df_movs["Fecha"] == ult_fecha)]
-                        
                         for _, mov in inyec_a_revertir.iterrows():
                             cta = mov["Cuenta"]
-                            monto_a_quitar = float(mov["Monto"])
-                            
-                            # RESTAR de la cuenta bancaria
+                            m_quitar = float(mov["Monto"])
                             if cta in df_cuentas["Cuenta"].values:
                                 idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
-                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - monto_a_quitar
-                            
-                            # RESTAR de los sobres individuales
-                            lista_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                            cats_revertir = df_fijos[~df_fijos["Categoría"].isin(lista_negra)]
-                            
-                            for _, row in cats_revertir.iterrows():
+                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_quitar
+                            lista_n = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                            cats_rev = df_fijos[~df_fijos["Categoría"].isin(lista_n)]
+                            for _, row in cats_rev.iterrows():
                                 idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
-                                valor_semanal = float(row["Monto_Mensual"]) / 4
-                                df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - valor_semanal
-
-                        # 2. Borramos los registros de inyección del historial
+                                df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - (float(row["Monto_Mensual"]) / 4)
                         df_movs = df_movs.drop(inyec_a_revertir.index)
-                        
-                        # 3. Guardar cambios
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                        
-                        st.session_state.df_fijos = df_fijos
-                        st.session_state.df_cuentas = df_cuentas
-                        st.session_state.df_movs = df_movs
+                        st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
                         st.rerun()
 
         st.markdown("<hr>", unsafe_allow_html=True)
@@ -509,6 +499,7 @@ with tab_pagos:
                 df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - m_gasto
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                st.session_state.df_movs, st.session_state.df_fijos = df_movs, df_fijos
                 st.rerun()
 
         # --- SECCIÓN DINERO E HISTORIAL FILTRADOS ---
@@ -516,10 +507,8 @@ with tab_pagos:
         
         with cf1:
             st.markdown(f"<h4 style='color: #2E7D32;'>💰 Disponibilidad: {cuenta_inyec}</h4>", unsafe_allow_html=True)
-            # Filtramos los sobres: Si seleccionó una cuenta, solo mostramos lo que NO es excepción
             lista_negra_v = df_excep[df_excep["Cuenta"] == cuenta_inyec]["Categoria_Excluida"].tolist() if (not df_excep.empty and cuenta_inyec != "TODAS") else []
             df_sobres = df_fijos[~df_fijos["Categoría"].isin(lista_negra_v)] if not df_fijos.empty else pd.DataFrame()
-            
             html_sobres = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
             for _, row in df_sobres.iterrows():
                 fondo = float(str(row["Fondo_Disponible"]).replace("$", "").replace(",", ""))
@@ -531,35 +520,42 @@ with tab_pagos:
         with cf2:
             st.markdown(f"<h4 style='color: #1565C0;'>📜 Historial: {cuenta_inyec}</h4>", unsafe_allow_html=True)
             df_h = df_movs.copy()
-            if cuenta_inyec != "TODAS":
-                df_h = df_h[df_h["Cuenta"] == cuenta_inyec]
-            
+            if cuenta_inyec != "TODAS": df_h = df_h[df_h["Cuenta"] == cuenta_inyec]
             f_cat = st.selectbox("Filtrar por Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist())
             if f_cat != "VER TODO": df_h = df_h[df_h["Concepto"] == f_cat]
-            
             df_h = df_h.sort_index(ascending=False)
+            
             html_hist = '<div style="max-height: 350px; overflow-y: auto;">'
             for _, row in df_h.iterrows():
                 m = float(row["Monto"])
                 c = "#4CAF50" if m >= 0 else "#F44336"
-                html_hist += f'<div style="background: #1e1e1e; margin-bottom: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between;"><div><div style="font-size: 13px; font-weight: bold;">{row["Concepto"]}</div><div style="font-size: 10px; color: #888;">{row["Fecha"]}</div></div><div style="color: {c}; font-weight: bold;">${m:,.2f}</div></div>'
+                # 🌟 AGREGADA LA CUENTA AL LADO DE LA FECHA 🌟
+                html_hist += f'<div style="background: #1e1e1e; margin-bottom: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between;"><div><div style="font-size: 13px; font-weight: bold;">{row["Concepto"]}</div><div style="font-size: 10px; color: #888;">{row["Fecha"]} • {row["Cuenta"]}</div></div><div style="color: {c}; font-weight: bold;">${m:,.2f}</div></div>'
             
-            html_hist += '</div>' # Cerramos la caja de la lista con scroll
-            
-            # 🌟 TARJETA PREMIUM PARA EL TOTAL (COMO ANTES) 🌟
+            html_hist += '</div>'
             total_h = df_h["Monto"].sum()
             color_t = "#4CAF50" if total_h >= 0 else "#F44336"
             signo_t = "+" if total_h > 0 else ""
-            
-            html_hist += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {color_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL</div><div style="color: {color_t}; font-weight: bold; font-size: 20px;">{signo_t}${total_h:,.2f}</div></div>'
-            
+            html_hist += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {color_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL FILTRADO</div><div style="color: {color_t}; font-weight: bold; font-size: 20px;">{signo_t}${total_h:,.2f}</div></div>'
             st.markdown(html_hist, unsafe_allow_html=True)
             
             if st.button("🗑️ BORRAR ÚLTIMO", use_container_width=True):
-                # (Lógica de borrar movimiento que ya tenías)
-                st.rerun()
+                if not df_movs.empty:
+                    ult = df_movs.iloc[-1]
+                    cta_m, conc_m, m_m = ult["Cuenta"], ult["Concepto"], float(ult["Monto"])
+                    if not df_fijos.empty and conc_m in df_fijos["Categoría"].values:
+                        idx_f = df_fijos.index[df_fijos["Categoría"] == conc_m].tolist()[0]
+                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - m_m
+                    if not df_cuentas.empty and cta_m in df_cuentas["Cuenta"].values:
+                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_m].tolist()[0]
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_m
+                    df_movs = df_movs.drop(df_movs.index[-1])
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                    st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
+                    st.rerun()
 
-    # Ejecutamos el panel unificado
     mostrar_panel_pagos_unificado()
 
 # ---------------------------------------------------------

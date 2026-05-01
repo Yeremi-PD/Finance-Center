@@ -369,6 +369,11 @@ with tab_ajustes:
         # 🌟 DISEÑO DE TARJETAS INDIVIDUALES (CERO TABLAS) 🌟
         html_gastos = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">'
         
+        total_semanal = 0.0
+        total_mensual = 0.0
+        total_anual = 0.0
+        total_fondo = 0.0
+        
         for _, row in df_order.iterrows():
             # Limpieza segura de números
             try: fondo = float(str(row["Fondo_Disponible"]).replace("$", "").replace(",", ""))
@@ -379,12 +384,23 @@ with tab_ajustes:
             except ValueError: mensual = 0.0
             try: anual = float(str(row["Monto Anual"]).replace("$", "").replace(",", ""))
             except ValueError: anual = 0.0
+            
+            # Acumular para los totales globales
+            total_fondo += fondo
+            total_semanal += semanal
+            total_mensual += mensual
+            total_anual += anual
                 
             color_fondo_txt = "#4CAF50" if fondo >= 0 else "#F44336"
             
             # Tarjeta tipo Widget (Todo en una línea para que Streamlit no lo rompa)
             html_gastos += f'<div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-top: 4px solid #1565C0; padding: 15px; border-radius: 10px; flex: 1 1 calc(25% - 15px); min-width: 200px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);"><h4 style="margin: 0 0 12px 0; color: #fff; text-align: center; font-size: 18px; letter-spacing: 1px;">{row["Categoría"]}</h4><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Semanal:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${semanal:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Mensual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${mensual:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Anual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${anual:,.0f}</span></div><hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="color: #aaa; font-size: 13px; font-weight: bold;">Fondo Actual:</span><span style="color: {color_fondo_txt}; font-weight: bold; font-size: 18px;">${fondo:,.0f}</span></div></div>'
             
+        color_total_fondo = "#4CAF50" if total_fondo >= 0 else "#F44336"
+        
+        # 🌟 TARJETA FINAL DE TOTALES GLOBALES 🌟
+        html_gastos += f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); border-left: 5px solid #00E5FF; padding: 20px; border-radius: 10px; flex: 1 1 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.4); margin-top: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"><div style="flex: 1 1 100%; margin-bottom: 10px;"><h3 style="margin: 0; color: #fff; text-align: center; letter-spacing: 2px; font-size: 16px;">TOTALES GLOBALES</h3></div><div style="flex: 1; text-align: center;"><span style="color: #888; font-size: 12px; text-transform: uppercase;">Semanal</span><br><span style="color: #00E5FF; font-weight: bold; font-size: 18px;">${total_semanal:,.0f}</span></div><div style="flex: 1; text-align: center;"><span style="color: #888; font-size: 12px; text-transform: uppercase;">Mensual</span><br><span style="color: #B388FF; font-weight: bold; font-size: 18px;">${total_mensual:,.0f}</span></div><div style="flex: 1; text-align: center;"><span style="color: #888; font-size: 12px; text-transform: uppercase;">Anual</span><br><span style="color: #69F0AE; font-weight: bold; font-size: 18px;">${total_anual:,.0f}</span></div><div style="flex: 1; text-align: center; border-left: 1px solid rgba(255,255,255,0.1);"><span style="color: #aaa; font-size: 12px; text-transform: uppercase; font-weight: bold;">Fondo Total</span><br><span style="color: {color_total_fondo}; font-weight: bold; font-size: 22px;">${total_fondo:,.0f}</span></div></div>'
+        
         html_gastos += '</div>'
         st.markdown(html_gastos, unsafe_allow_html=True)
 

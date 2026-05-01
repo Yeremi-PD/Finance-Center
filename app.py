@@ -421,7 +421,7 @@ with tab_pagos:
     def mostrar_panel_pagos_unificado():
         # Conectamos con la memoria global de la app
         global df_fijos, df_movs, df_cuentas, df_excep
-    
+        
         st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
         
         col_i1, col_i3 = st.columns([1.5, 1])
@@ -429,8 +429,35 @@ with tab_pagos:
         
         with col_i1:
             opciones_inyec = ["TODAS"] + nombres_cuentas
-            # FILTRO MAESTRO: Define qué cuenta estamos viendo en toda la pestaña
-            cuenta_maestra = st.selectbox("📥 Seleccionar Cuenta (Filtro Maestro):", opciones_inyec)
+            # Este es el FILTRO MAESTRO: Todo lo que veas abajo será de esta cuenta
+            cuenta_maestra = st.selectbox("Cuenta", opciones_inyec)
+            
+            if cuenta_maestra != "TODAS":
+                # Mostramos las excepciones solo de la cuenta seleccionada
+                exc_c = df_excep[df_excep["Cuenta"] == cuenta_maestra]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                categorias_v = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
+                exc_c_v = [cat for cat in exc_c if cat in categorias_v]
+                
+                with st.form("form_excepciones", border=False):
+                    nuevas_exc = st.multiselect(f"Excluir categorías en {cuenta_maestra}:", categorias_v, default=exc_c_v)
+                    btn_guardar_exc = st.form_submit_button("💾 Guardar en Excel")
+                    
+                if btn_guardar_exc:
+                    # Leemos lo que hay en el Excel actualmente
+                    df_temp = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", ttl=0).dropna(how="all")
+                    # Quitamos lo viejo de ESTA cuenta para no duplicar
+                    if not df_temp.empty:
+                        df_temp = df_temp[df_temp["Cuenta"] != cuenta_maestra]
+                    
+                    # Creamos las nuevas filas asegurando que diga la cuenta
+                    nuevas_rows = pd.DataFrame([{"Cuenta": cuenta_maestra, "Categoria_Excluida": x} for x in nuevas_exc])
+                    df_final_excep = pd.concat([df_temp, nuevas_rows], ignore_index=True)
+                    
+                    # GUARDADO TOTAL: Excel + Memoria Local
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_final_excep)
+                    st.session_state.df_excep = df_final_excep # Esto evita el reseteo
+                    st.success(f"Configuración de {cuenta_maestra} guardada en Excel.")
+                    st.rerun()
 
         with col_i3:
             st.write("")

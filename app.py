@@ -38,11 +38,11 @@ st.markdown("""
     [data-testid="stStatusWidget"] {visibility: hidden;}
     
     /* Ajustar el contenedor principal */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-        margin-top: 0rem !important;
-    }
+        .block-container {
+            padding-top: 0rem !important;
+            padding-bottom: 1rem !important;
+            margin-top: -70px !important; /* Fuerza a Streamlit a comerse el espacio blanco de arriba */
+        }
 
     /* 🌟 MAGIA PARA LOS BOTONES 🌟 */
     div[data-testid="stButton"] > button {
@@ -182,14 +182,14 @@ df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
-st.markdown("<h1 style='text-align: center; color: #4CAF50; margin-bottom: 0px;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #4CAF50; margin-top: -15px; margin-bottom: -15px;'>💰 MY FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
     /* 1. Contenedor general de las pestañas (MÁS ESPACIO PARA QUE NO SE CORTE) */
     div[data-testid="stTabs"] {
-        padding: 25px 0px 20px 0px !important; 
-        margin-top: 5px !important;
+        padding: 5px 0px 10px 0px !important; 
+        margin-top: 0px !important;
     }
 
     /* 2. Estilizar cada pestaña individualmente para simular un botón */
@@ -210,7 +210,7 @@ st.markdown("""
     /* 4. Efecto Hover: Cuando pasas el mouse */
     div[data-testid="stTabs"] button:hover {
         transform: translateY(-5px) !important; /* Levanta el botón un poco más */
-        box-shadow: 0px 10px 20px rgba(76, 175, 80, 0.4) !important; 
+        box-shadow: 0px 10px 20px rgba(76, 175, 80, 0.4) !important;
         border-color: #4CAF50 !important;
         color: #ffffff !important;
         z-index: 10 !important; /* Asegura que pase por encima del texto de arriba */
@@ -218,24 +218,24 @@ st.markdown("""
 
     /* 5. Estilo de la pestaña seleccionada (ACTIVA) */
     div[data-testid="stTabs"] button[aria-selected="true"] {
-        background: linear-gradient(145deg, #4CAF50, #2E7D32) !important; 
+        background: linear-gradient(145deg, #4CAF50, #2E7D32) !important;
         color: white !important;
         box-shadow: 0px 0px 20px rgba(76, 175, 80, 0.6) !important; 
         border: none !important;
-        transform: scale(1.05) translateY(-2px) !important; 
+        transform: scale(1.05) translateY(-2px) !important;
         z-index: 10 !important;
     }
 
     /* 6. Limpieza visual */
     div[data-testid="stTabs"] [data-baseweb="tab-highlight-point"] {
-        display: none !important; 
+        display: none !important;
     }
     div[data-baseweb="tab-list"] {
         gap: 12px !important;
-        border-bottom: none !important; 
+        border-bottom: none !important;
         justify-content: center !important; 
-        padding-top: 15px !important; /* Da aire para el salto */
-        padding-bottom: 15px !important; /* Da aire para la sombra */
+        padding-top: 0px !important; /* Cero espacio en blanco innecesario */
+        padding-bottom: 15px !important; /* Aire justo para la sombra */
     }
 </style>
 """, unsafe_allow_html=True)

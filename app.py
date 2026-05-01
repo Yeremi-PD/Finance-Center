@@ -39,9 +39,9 @@ st.markdown("""
     
     /* Ajustar el contenedor principal */
     .block-container {
-        padding-top: 0rem !important;
+        padding-top: 0.5rem !important;
         padding-bottom: 1rem !important;
-        margin-top: -70px !important; /* Sube todo el contenido al límite superior */
+        margin-top: -80px !important; /* Sube todo al límite máximo */
     }
 
     /* 🌟 MAGIA PARA LOS BOTONES 🌟 */
@@ -182,60 +182,58 @@ df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
-st.markdown("<h1 style='text-align: left; color: #4CAF50; margin-top: -20px; margin-bottom: -10px; margin-left: 10px;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+# Usamos un contenedor HTML para forzar el nombre a la izquierda y permitir que las pestañas suban
+st.markdown("<h1 style='position: absolute; top: -12px; left: 10px; color: #4CAF50; font-size: 26px; z-index: 100; font-weight: 800;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
-    /* 1. Contenedor general de las pestañas (REDUCIDO PARA SUBIR TODO) */
+    /* 1. Contenedor general de las pestañas */
     div[data-testid="stTabs"] {
-        padding: 5px 0px 10px 0px !important; 
-        margin-top: 0px !important;
+        padding: 0px !important; 
+        margin-top: -25px !important; /* Sube los botones a la altura del título */
     }
 
     /* 2. Estilizar cada pestaña individualmente para simular un botón */
     div[data-testid="stTabs"] button {
-        font-size: 18px !important; 
+        font-size: 16px !important; 
         font-weight: 700 !important;
         background-color: rgba(40, 40, 40, 0.6) !important; 
-        border-radius: 12px !important; 
-        padding: 12px 24px !important;
-        margin: 0px 8px !important;
+        border-radius: 10px !important; 
+        padding: 10px 18px !important;
+        margin: 0px 5px !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5), inset 0px 1px 1px rgba(255,255,255,0.1) !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4) !important;
+        transition: all 0.3s ease !important;
         color: #d1d1d1 !important;
-        overflow: visible !important;
     }
 
-    /* 4. Efecto Hover: Cuando pasas el mouse */
+    /* 4. Efecto Hover */
     div[data-testid="stTabs"] button:hover {
-        transform: translateY(-5px) !important;
-        box-shadow: 0px 10px 20px rgba(76, 175, 80, 0.4) !important;
+        transform: translateY(-3px) !important;
+        box-shadow: 0px 8px 15px rgba(76, 175, 80, 0.3) !important;
         border-color: #4CAF50 !important;
         color: #ffffff !important;
-        z-index: 10 !important;
     }
 
     /* 5. Estilo de la pestaña seleccionada (ACTIVA) */
     div[data-testid="stTabs"] button[aria-selected="true"] {
         background: linear-gradient(145deg, #4CAF50, #2E7D32) !important;
         color: white !important;
-        box-shadow: 0px 0px 20px rgba(76, 175, 80, 0.6) !important; 
+        box-shadow: 0px 0px 15px rgba(76, 175, 80, 0.5) !important; 
         border: none !important;
-        transform: scale(1.05) translateY(-2px) !important;
-        z-index: 10 !important;
+        transform: scale(1.02) !important;
     }
 
-    /* 6. Limpieza visual y alineación */
+    /* 6. ALINEAR OPCIONES A LA DERECHA */
     div[data-testid="stTabs"] [data-baseweb="tab-highlight-point"] {
         display: none !important;
     }
     div[data-baseweb="tab-list"] {
-        gap: 12px !important;
+        gap: 10px !important;
         border-bottom: none !important;
-        justify-content: flex-start !important; /* Alinea los botones también a la izquierda si lo deseas, o cámbialo a center */
-        padding-top: 0px !important; 
-        padding-bottom: 15px !important;
+        justify-content: flex-end !important; /* ESTO MUEVE LOS BOTONES A LA DERECHA */
+        padding-top: 15px !important; 
+        padding-bottom: 10px !important;
     }
 </style>
 """, unsafe_allow_html=True)

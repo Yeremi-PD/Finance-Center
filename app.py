@@ -712,9 +712,13 @@ with tab_trading:
             with col_f1:
                 f_tipo = st.selectbox("Filtrar por Operación:", ["TODOS", "Inversión", "Retiro"])
             with col_f2:
-                # 🌟 SOLUCIÓN AL ERROR: Limpiamos los nulos y forzamos a texto antes de ordenar alfabéticamente 🌟
-                conceptos_limpios = df_trading["Concepto"].dropna().astype(str).unique().tolist()
-                opciones_conceptos = ["TODOS"] + sorted(conceptos_limpios)
+                # 🛡️ ESCUDO ANTI-ERRORES DEFINITIVO PARA STREAMLIT CLOUD 🌟
+                if not df_trading.empty and "Concepto" in df_trading.columns:
+                    conceptos_limpios = df_trading["Concepto"].dropna().astype(str).unique().tolist()
+                    opciones_conceptos = ["TODOS"] + sorted(conceptos_limpios)
+                else:
+                    opciones_conceptos = ["TODOS"]
+                    
                 f_concepto = st.selectbox("Filtrar por Concepto:", opciones_conceptos)
             
             # Aplicar Filtros

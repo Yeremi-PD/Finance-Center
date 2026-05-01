@@ -264,10 +264,12 @@ with tab_vista:
         col_g1, col_g2 = st.columns(2)
         with col_g1:
             fig1 = px.pie(df_fijos, values='Monto_Mensual', names='Categoría', hole=0.5, title="Reparto por Categoría")
-            st.plotly_chart(fig1, use_container_width=True)
+            fig1.update_layout(title_x=0.5, margin=dict(t=60)) # Centra el título y empuja los iconos arriba
+            st.plotly_chart(fig1, use_container_width=True, config={'displaylogo': False})
         with col_g2:
             fig2 = px.bar(df_fijos, x='Categoría', y='Monto_Mensual', title="Presupuesto por Categoría", color='Categoría')
-            st.plotly_chart(fig2, use_container_width=True)
+            fig2.update_layout(title_x=0.5, margin=dict(t=60)) # Centra el título y empuja los iconos arriba
+            st.plotly_chart(fig2, use_container_width=True, config={'displaylogo': False})
 
         st.markdown("#### 🗓️ Tabla de Proyección a 12 Meses")
         df_anual = pd.DataFrame(index=MESES, columns=df_fijos["Categoría"].tolist())

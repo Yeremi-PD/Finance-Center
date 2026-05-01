@@ -323,9 +323,6 @@ with tab_ajustes:
     cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
     todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
     
-    # 🌟 LEER NOMBRES DE CUENTAS ANTES DE DIBUJAR EL SELECTOR 🌟
-    nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
-
     c0, c1, c2, c3, c4 = st.columns([2, 2, 1.5, 1.5, 1])
     with c0: cta_ajuste = st.selectbox("Cuenta Relacionada", nombres_cuentas)
     with c1: cat_sel = st.selectbox("Selecciona Categoría", todas_categorias)

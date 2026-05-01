@@ -745,9 +745,60 @@ with tab_trading:
             signo_t_t = "+" if balance_neto > 0 else "-"
             
             html_feed_t += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 10px; border-top: 2px solid {color_t_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">BALANCE FILTRADO</div><div style="color: {color_t_t}; font-weight: bold; font-size: 20px;">{signo_t_t}${abs(balance_neto):,.2f}</div></div>'
-
             html_feed_t += '</div>'
             st.markdown(html_feed_t, unsafe_allow_html=True)
+
+            # 🌟 BOTÓN DE ELIMINACIÓN CON REVERSIÓN TOTAL 🌟
+            if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO DE TRADING", use_container_width=True):
+                if not df_trading.empty:
+                    # 1. Obtener datos del último movimiento de trading
+                    ult_t = df_trading.iloc[-1]
+                    cta_t = ult_t["Cuenta"]
+                    tipo_t = ult_t["Tipo"]
+                    monto_t = float(ult_t["Monto"])
+                    concepto_t = ult_t["Concepto"]
+
+                    # 2. Revertir Saldo en Cuenta Bancaria
+                    # Si fue Inversión (monto_t > 0), en el banco se restó. Lo sumamos.
+                    # Si fue Retiro (monto_t < 0), en el banco se sumó. Lo restamos.
+                    monto_a_revertir_banco = monto_t if tipo_t == "Inversión" else -abs(monto_t)
+                    
+                    if cta_t in df_cuentas["Cuenta"].values:
+                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_a_revertir_banco
+                    
+                    # 3. Revertir sobre de "Inversion" en Gastos Fijos (Solo si fue Inversión)
+                    if tipo_t == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                        idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                        # Devolvemos el monto al sobre
+                        df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) + abs(monto_t)
+
+                    # 4. Eliminar del Historial General (df_movs)
+                    # Buscamos el registro que coincida con este movimiento de trading
+                    if not df_movs.empty:
+                        concepto_buscado = f"TRADING: {concepto_t}"
+                        mask_mov = (df_movs["Cuenta"] == cta_t) & (df_movs["Concepto"] == concepto_buscado)
+                        if mask_mov.any():
+                            # Borramos la última coincidencia encontrada
+                            idx_mov_borrar = df_movs[mask_mov].index[-1]
+                            df_movs = df_movs.drop(idx_mov_borrar)
+
+                    # 5. Eliminar del Historial de Trading
+                    df_trading = df_trading.drop(df_trading.index[-1])
+
+                    # 6. Actualización Masiva (Sheets y Sesión)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                    
+                    st.session_state.df_trading = df_trading
+                    st.session_state.df_cuentas = df_cuentas
+                    st.session_state.df_fijos = df_fijos
+                    st.session_state.df_movs = df_movs
+                    
+                    st.success("Movimiento de Trading eliminado. Dinero devuelto a la cuenta y al sobre de inversión.")
+                    st.rerun()
             
         mostrar_feed_trading()
 

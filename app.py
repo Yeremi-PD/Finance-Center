@@ -561,12 +561,34 @@ with tab_pagos:
                 
             html_historial += '</div>'
        
-            st.markdown(html_historial, unsafe_allow_html=True)
             if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
                 if not df_movs.empty:
-                    # Elimina la última fila real del dataframe original
+                    # 1. Identificar los datos del último movimiento antes de borrarlo
+                    ultimo_mov = df_movs.iloc[-1]
+                    cuenta_mov = ultimo_mov["Cuenta"]
+                    concepto_mov = ultimo_mov["Concepto"]
+                    monto_mov = float(ultimo_mov["Monto"])
+                    
+                    # 2. Revertir en Gastos_Fijos (Devolver el dinero al sobre)
+                    if not df_fijos.empty and concepto_mov in df_fijos["Categoría"].values:
+                        idx_fijo = df_fijos.index[df_fijos["Categoría"] == concepto_mov].tolist()[0]
+                        # Como el monto del gasto está en negativo, restarlo lo suma de vuelta matemáticamente
+                        df_fijos.at[idx_fijo, "Fondo_Disponible"] = float(df_fijos.at[idx_fijo, "Fondo_Disponible"]) - monto_mov
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                        st.session_state.df_fijos = df_fijos
+                    
+                    # 3. Revertir en Cuentas (Devolver el dinero a la cuenta bancaria)
+                    if not df_cuentas.empty and cuenta_mov in df_cuentas["Cuenta"].values:
+                        idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cuenta_mov].tolist()[0]
+                        df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) - monto_mov
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                        st.session_state.df_cuentas = df_cuentas
+
+                    # 4. Finalmente, eliminar el movimiento del historial
                     df_movs = df_movs.drop(df_movs.index[-1])
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                    st.session_state.df_movs = df_movs
+                    
                     st.cache_data.clear()
                     st.rerun()
 

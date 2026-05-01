@@ -806,19 +806,20 @@ with tab_trading:
                 st.rerun()
 
 # ---------------------------------------------------------
-# 4. CUENTAS (Compacto y Minimalista)
+# 4. CUENTAS (Cálculo Dinámico por Fondos y Excepciones)
 # ---------------------------------------------------------
 with tab_cuentas:
     st.write("") 
     
     if not df_cuentas.empty and not df_fijos.empty:
-        # Extraemos y sumamos los saldos reales directamente de las cuentas (Excel)
-        saldos_limpios = df_cuentas["Saldo"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
-        t_total = pd.to_numeric(saldos_limpios, errors='coerce').fillna(0).sum()
+        # 🌟 BALANCE TOTAL DINÁMICO: Suma de todos los Fondos Disponibles en los sobres
+        # Limpiamos los datos por si tienen símbolos de moneda
+        fondos_limpios = df_fijos["Fondo_Disponible"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
+        t_total = pd.to_numeric(fondos_limpios, errors='coerce').fillna(0).sum()
         
         st.markdown(f"""
             <div style="background: linear-gradient(90deg, #0F2027 0%, #2C5364 100%); padding: 15px; border-radius: 12px; text-align: center; color: white; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-                <p style="margin: 0; font-size: 11px; letter-spacing: 2px; color: #b0bec5; font-weight: 600;">BALANCE TOTAL EN CUENTAS</p>
+                <p style="margin: 0; font-size: 11px; letter-spacing: 2px; color: #b0bec5; font-weight: 600;">BALANCE TOTAL DE FONDOS</p>
                 <h1 style="margin: 0; font-size: 38px; font-weight: 700;">${t_total:,.2f}</h1>
             </div>
         """, unsafe_allow_html=True)
@@ -827,21 +828,27 @@ with tab_cuentas:
         colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
         
         for i, (index, row) in enumerate(df_cuentas.iterrows()):
-            # Extraemos el saldo REAL directamente de la base de datos (Excel)
+            # 🌟 BALANCE CALCULADO POR CUENTA: Analiza categorías que NO están excluidas
+            # 1. Obtenemos la lista de categorías que esta cuenta NO debe pagar
+            excluidas = df_excep[df_excep["Cuenta"] == row['Cuenta']]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+            
+            # 2. Filtramos la tabla de Gastos Fijos para sumar solo los fondos permitidos
+            cats_permitidas = df_fijos[~df_fijos["Categoría"].isin(excluidas)].copy()
+            
+            # 3. Sumamos el Fondo_Disponible de esas categorías para obtener el saldo real de la cuenta
             try:
-                saldo_real = float(str(row['Saldo']).replace("$", "").replace(",", ""))
-            except ValueError:
-                saldo_real = 0.0
+                saldos_v = cats_permitidas["Fondo_Disponible"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
+                saldo_calculado = pd.to_numeric(saldos_v, errors='coerce').fillna(0).sum()
+            except:
+                saldo_calculado = 0.0
             
             color_acento = colores_neon[i % len(colores_neon)]
             with cols[i % 4]:
-                # Tarjetas de cuentas con efecto Glow (Brillo Neón) y mejor contraste
+                # Tarjetas de cuentas con balance calculado en tiempo real según tus sobres
                 st.markdown(f"""
-                    <div style="background: linear-gradient(145deg, #222, #111); padding: 20px; 
-                                border-radius: 12px; border-top: 3px solid {color_acento}; 
-                                margin-bottom: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30;">
+                    <div style="background: linear-gradient(145deg, #222, #111); padding: 20px; border-radius: 12px; border-top: 3px solid {color_acento}; margin-bottom: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30;">
                         <p style="margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 1px;">{row['Cuenta']}</p>
-                        <h4 style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">${saldo_real:,.2f}</h4>
+                        <h4 style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">${saldo_calculado:,.2f}</h4>
                     </div>
                 """, unsafe_allow_html=True)
     else:

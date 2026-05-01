@@ -775,15 +775,13 @@ with tab_cuentas:
     st.write("") 
     
     if not df_cuentas.empty and not df_fijos.empty:
-        # Convertimos a número ignorando errores (lo que no sea número será 0)
-        fondos_limpios = pd.to_numeric(df_fijos["Fondo_Disponible"], errors='coerce').fillna(0)
-        t_total = fondos_limpios.sum()
+        # Extraemos y sumamos los saldos reales directamente de las cuentas (Excel)
+        saldos_limpios = df_cuentas["Saldo"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
+        t_total = pd.to_numeric(saldos_limpios, errors='coerce').fillna(0).sum()
         
         st.markdown(f"""
-            <div style="background: linear-gradient(90deg, #0F2027 0%, #2C5364 100%); 
-                        padding: 15px; border-radius: 12px; text-align: center; color: white; 
-                        margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-                <p style="margin: 0; font-size: 11px; letter-spacing: 2px; color: #b0bec5; font-weight: 600;">BALANCE TOTAL FONDOS</p>
+            <div style="background: linear-gradient(90deg, #0F2027 0%, #2C5364 100%); padding: 15px; border-radius: 12px; text-align: center; color: white; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <p style="margin: 0; font-size: 11px; letter-spacing: 2px; color: #b0bec5; font-weight: 600;">BALANCE TOTAL EN CUENTAS</p>
                 <h1 style="margin: 0; font-size: 38px; font-weight: 700;">${t_total:,.2f}</h1>
             </div>
         """, unsafe_allow_html=True)

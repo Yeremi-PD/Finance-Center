@@ -315,94 +315,51 @@ with tab_vista:
         st.markdown(html_anual, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 2. AJUSTES: GASTOS FIJOS (Sincronizado con Excel)
+# 2. AJUSTES: GASTOS FIJOS 
 # ---------------------------------------------------------
 with tab_ajustes:
     st.subheader("⚙️ Configurar Gastos Fijos")
+    
+    cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
+    todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
+    
+    # 🌟 LEER NOMBRES DE CUENTAS CON OPCIÓN "TODAS" POR DEFECTO 🌟
+    nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
+    opciones_con_todas = ["TODAS"] + nombres_cuentas
 
-    # 🌟 FRAGMENTO PARA QUE LOS CAMBIOS DE SELECTOR NO RECARGUEN TODA LA PÁGINA 🌟
-    @st.fragment
-    def panel_configuracion_fijos():
-        global df_fijos, df_excep, df_cuentas
+    c0, c1, c2, c3, c4 = st.columns([2, 2, 1.5, 1.5, 1])
+    with c0: cta_ajuste = st.selectbox("Cuenta Relacionada", opciones_con_todas, index=0)
+    with c1: cat_sel = st.selectbox("Selecciona Categoría", todas_categorias)
+    
+    m_act, f_act = 0.0, 0.0
+    if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+        m_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"].values[0])
+        f_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"].values[0])
         
-        cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
-        todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
-        nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
-        
-        # Determinamos qué cuenta paga esta categoría actualmente para ponerla por defecto
-        c0, c1, c2, c3, c4 = st.columns([2, 2, 1.5, 1.5, 1.2])
-        
-        with c1: 
-            cat_sel = st.selectbox("Selecciona Categoría", todas_categorias)
-            
-        with c0:
-            # Buscamos quién es el responsable actual en el Excel
-            cuentas_que_la_pagan = []
-            for c in nombres_cuentas:
-                if not ((df_excep["Cuenta"] == c) & (df_excep["Categoria_Excluida"] == cat_sel)).any():
-                    cuentas_que_la_pagan.append(c)
-            
-            # Si todas la pagan, es TODAS. Si no, tomamos la primera que la paga.
-            def_idx = 0
-            opciones_cta = ["TODAS"] + nombres_cuentas
-            if len(cuentas_que_la_pagan) == 1:
-                responsable_actual = cuentas_que_la_pagan[0]
-                if responsable_actual in opciones_cta: def_idx = opciones_cta.index(responsable_actual)
-            
-            cta_ajuste = st.selectbox("Cuenta Relacionada", opciones_cta, index=def_idx)
-
-        m_act, f_act = 0.0, 0.0
-        if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
-            m_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"].values[0])
-            f_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"].values[0])
-            
-        with c2: m_sel = st.number_input("Monto Mensual ($)", value=m_act)
-        with c3: f_sel = st.number_input("Ajustar Fondo ($)", value=f_act)
-        
-        with c4:
-            st.write("")
-            col_btn1, col_btn2 = st.columns(2)
-            with col_btn1:
-                if st.button("💾", help="Guardar en Excel", use_container_width=True, type="primary"):
-                    # 1. Guardar en Gastos_Fijos
-                    if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
-                        df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = m_sel
-                        df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"] = f_sel
-                    else:
-                        nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": m_sel, "Fondo_Disponible": f_sel}])
-                        df_fijos = pd.concat([df_fijos, nuevo], ignore_index=True)
-                    
+    with c2: m_sel = st.number_input("Monto Mensual ($)", value=m_act)
+    with c3: f_sel = st.number_input("Ajustar Fondo ($)", value=f_act)
+    with c4:
+        st.write("")
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("💾", help="Guardar/Actualizar", use_container_width=True, type="primary"):
+                if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+                    df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = m_sel
+                    df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"] = f_sel
+                else:
+                    nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": m_sel, "Fondo_Disponible": f_sel}])
+                    df_fijos = pd.concat([df_fijos, nuevo], ignore_index=True)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                # ACTUALIZAR MEMORIA LOCAL PARA QUE EL BALANCE CAMBIE AL INSTANTE
+                st.session_state.df_fijos = df_fijos 
+                st.rerun()
+        with col_btn2:
+            if st.button("🗑️", help="Eliminar Categoría", use_container_width=True):
+                if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+                    df_fijos = df_fijos[df_fijos["Categoría"] != cat_sel]
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                    st.session_state.df_fijos = df_fijos
-
-                    # 2. 🌟 GUARDAR ASIGNACIÓN DE CUENTA EN EXCEL (Hoja Excepciones) 🌟
-                    # Limpiamos excepciones viejas de esta categoría
-                    df_excep = df_excep[df_excep["Categoria_Excluida"] != cat_sel]
-                    
-                    if cta_ajuste != "TODAS":
-                        # Si una cuenta es la jefa, se excluye de todas las demás
-                        for cta_otra in nombres_cuentas:
-                            if cta_otra != cta_ajuste:
-                                nueva_exc = pd.DataFrame([{"Cuenta": cta_otra, "Categoria_Excluida": cat_sel}])
-                                df_excep = pd.concat([df_excep, nueva_exc], ignore_index=True)
-                    
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_excep)
-                    st.session_state.df_excep = df_excep
-                    st.success(f"Guardado: {cat_sel} asignada a {cta_ajuste}")
+                    st.cache_data.clear()
                     st.rerun()
-
-            with col_btn2:
-                if st.button("🗑️", help="Eliminar", use_container_width=True):
-                    if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
-                        df_fijos = df_fijos[df_fijos["Categoría"] != cat_sel]
-                        df_excep = df_excep[df_excep["Categoria_Excluida"] != cat_sel]
-                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_excep)
-                        st.session_state.df_fijos, st.session_state.df_excep = df_fijos, df_excep
-                        st.rerun()
-
-    # Ejecutamos el panel fragmentado
-    panel_configuracion_fijos()
 
     st.markdown("---")
     if not df_fijos.empty:

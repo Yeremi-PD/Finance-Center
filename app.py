@@ -471,17 +471,21 @@ with tab_pagos:
                 
                 st.success(f"Inyección del {ult_fecha} revertida con éxito. Fondos restados.")
                 st.rerun()
-    # --- SECCIÓN: REGISTRAR GASTO ---
+# --- SECCIÓN: REGISTRAR GASTO ---
     # Cambiamos el gran salto de línea por un margen sutil y balanceamos los anchos
     st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
     
-    col_g1, col_g2, col_g3, col_g4 = st.columns([1.5, 1.5, 1, 1.2])
-    with col_g1: c_gasto = st.selectbox("💳 Cuenta a Descontar:", nombres_cuentas)
-    with col_g2: s_gasto = st.selectbox("📂 Categoría:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
-    with col_g3: m_gasto = st.number_input("💲 Monto a Restar:", min_value=0.0)
-    with col_g4:
-        st.write("")
-        if st.button("APLICAR GASTO", use_container_width=True, type="primary"):
+    with st.form("form_registrar_gasto", border=False):
+        col_g1, col_g2, col_g3, col_g4 = st.columns([1.5, 1.5, 1, 1.2])
+        with col_g1: c_gasto = st.selectbox("💳 Cuenta a Descontar:", nombres_cuentas)
+        with col_g2: s_gasto = st.selectbox("📂 Categoría:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
+        with col_g3: m_gasto = st.number_input("💲 Monto a Restar:", min_value=0.0)
+        with col_g4:
+            st.write("")
+            # IMPORTANTE: Dentro de un form, el botón DEBE ser form_submit_button
+            btn_aplicar = st.form_submit_button("APLICAR GASTO", use_container_width=True, type="primary")
+
+        if btn_aplicar:
             if m_gasto > 0:
                 fecha_h = datetime.now().strftime("%Y-%m-%d")
                 
@@ -500,12 +504,6 @@ with tab_pagos:
                 st.session_state.df_movs = df_movs
                 st.session_state.df_fijos = df_fijos
                 st.success(f"Gasto de ${m_gasto:,.2f} aplicado y guardado.")
-                st.rerun()
-                
-                # Actualizar Memoria de Sesión (Esto hace que sea instantáneo)
-                st.session_state.df_movs = df_movs
-                st.session_state.df_fijos = df_fijos
-                
                 st.rerun()
 
     st.markdown("<hr>", unsafe_allow_html=True)

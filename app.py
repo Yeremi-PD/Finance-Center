@@ -551,70 +551,55 @@ with tab_pagos:
             st.info("No hay categorías configuradas.")
     
     with cf2:
-        l_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
-        
-        # Metemos el filtro en un formulario para evitar el parpadeo automático
-        with st.form("form_filtro_pagos", border=False):
-            col_f_1, col_f_2 = st.columns([3, 1])
-            with col_f_1:
-                f_sel = st.selectbox("Filtra tu historial:", l_filtros, label_visibility="collapsed")
-            with col_f_2:
-                btn_filt_pagos = st.form_submit_button("🔍 Filtrar", use_container_width=True)
-
-        if not df_movs.empty:
-            df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
+        @st.fragment
+        def mostrar_historial_pagos():
+            l_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
+            f_sel = st.selectbox("Filtra tu historial:", l_filtros)
             
-# Lista de transacciones estilo App Bancaria
-            html_historial = '<div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">'
-            for _, row in df_h.iterrows():
-                monto = float(row["Monto"])
-                color = "#4CAF50" if monto >= 0 else "#F44336"
-                signo = "+" if monto > 0 else ""
-               
-                # Todo en una sola línea para evitar que Streamlit lo lea como bloque de código
-                html_historial += f'<div style="background-color: #1e1e1e; margin-bottom: 8px; padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;"><div><div style="color: #fff; font-weight: 600; font-size: 14px;">{row["Concepto"]}</div><div style="color: #888; font-size: 11px;">{row["Fecha"]} • {row["Cuenta"]}</div></div><div style="color: {color}; font-weight: bold; font-size: 15px;">{signo}${monto:,.2f}</div></div>'
+            if not df_movs.empty:
+                df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
                 
-            # 🌟 CÁLCULO DEL TOTAL DINÁMICO (FILTRADO) 🌟
-            total_filtrado = df_h["Monto"].astype(float).sum()
-            color_t = "#4CAF50" if total_filtrado >= 0 else "#F44336"
-            signo_t = "+" if total_filtrado > 0 else ""
-            
-            html_historial += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {color_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL FILTRADO</div><div style="color: {color_t}; font-weight: bold; font-size: 20px;">{signo_t}${total_filtrado:,.2f}</div></div>'
-
-            html_historial += '</div>'
-       
-            st.markdown(html_historial, unsafe_allow_html=True)
-            
-            if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
-                if not df_movs.empty:
-                    # 1. Identificar los datos del último movimiento antes de borrarlo
+                html_historial = '<div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">'
+                for _, row in df_h.iterrows():
+                    monto = float(row["Monto"])
+                    color = "#4CAF50" if monto >= 0 else "#F44336"
+                    signo = "+" if monto > 0 else ""
+                    
+                    html_historial += f'<div style="background-color: #1e1e1e; margin-bottom: 8px; padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;"><div><div style="color: #fff; font-weight: 600; font-size: 14px;">{row["Concepto"]}</div><div style="color: #888; font-size: 11px;">{row["Fecha"]} • {row["Cuenta"]}</div></div><div style="color: {color}; font-weight: bold; font-size: 15px;">{signo}${monto:,.2f}</div></div>'
+                    
+                total_filtrado = df_h["Monto"].astype(float).sum()
+                color_t = "#4CAF50" if total_filtrado >= 0 else "#F44336"
+                signo_t = "+" if total_filtrado > 0 else ""
+                
+                html_historial += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {color_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL FILTRADO</div><div style="color: {color_t}; font-weight: bold; font-size: 20px;">{signo_t}${total_filtrado:,.2f}</div></div>'
+                html_historial += '</div>'
+                
+                st.markdown(html_historial, unsafe_allow_html=True)
+                
+                if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
                     ultimo_mov = df_movs.iloc[-1]
                     cuenta_mov = ultimo_mov["Cuenta"]
                     concepto_mov = ultimo_mov["Concepto"]
                     monto_mov = float(ultimo_mov["Monto"])
                     
-                    # 2. Revertir en Gastos_Fijos (Devolver el dinero al sobre)
                     if not df_fijos.empty and concepto_mov in df_fijos["Categoría"].values:
                         idx_fijo = df_fijos.index[df_fijos["Categoría"] == concepto_mov].tolist()[0]
-                        # Como el monto del gasto está en negativo, restarlo lo suma de vuelta matemáticamente
                         df_fijos.at[idx_fijo, "Fondo_Disponible"] = float(df_fijos.at[idx_fijo, "Fondo_Disponible"]) - monto_mov
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                         st.session_state.df_fijos = df_fijos
                     
-                    # 3. Revertir en Cuentas (Devolver el dinero a la cuenta bancaria)
                     if not df_cuentas.empty and cuenta_mov in df_cuentas["Cuenta"].values:
                         idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cuenta_mov].tolist()[0]
                         df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) - monto_mov
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                         st.session_state.df_cuentas = df_cuentas
 
-                    # 4. Finalmente, eliminar el movimiento del historial
-                    df_movs = df_movs.drop(df_movs.index[-1])
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                    st.session_state.df_movs = df_movs
-                    
+                    st.session_state.df_movs = df_movs.drop(df_movs.index[-1])
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=st.session_state.df_movs)
                     st.cache_data.clear()
-                    st.rerun() 
+                    st.rerun()
+
+        mostrar_historial_pagos()
 
 # ---------------------------------------------------------
 # NUEVA SECCIÓN: TRADING (Inversiones y Retiros)

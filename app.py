@@ -792,12 +792,11 @@ with tab_cuentas:
         colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
         
         for i, (index, row) in enumerate(df_cuentas.iterrows()):
-            # Filtramos categorías que NO están en la lista de excepciones de esta cuenta
-            excluidas = df_excep[df_excep["Cuenta"] == row['Cuenta']]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-            
-            # Sumamos solo los fondos de las categorías permitidas
-            mask = ~df_fijos["Categoría"].isin(excluidas)
-            saldo_calculado = pd.to_numeric(df_fijos.loc[mask, "Fondo_Disponible"], errors='coerce').fillna(0).sum()
+            # Extraemos el saldo REAL directamente de la base de datos (Excel)
+            try:
+                saldo_real = float(str(row['Saldo']).replace("$", "").replace(",", ""))
+            except ValueError:
+                saldo_real = 0.0
             
             color_acento = colores_neon[i % len(colores_neon)]
             with cols[i % 4]:
@@ -807,7 +806,7 @@ with tab_cuentas:
                                 border-radius: 12px; border-top: 3px solid {color_acento}; 
                                 margin-bottom: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30;">
                         <p style="margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 1px;">{row['Cuenta']}</p>
-                        <h4 style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">${saldo_calculado:,.2f}</h4>
+                        <h4 style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">${saldo_real:,.2f}</h4>
                     </div>
                 """, unsafe_allow_html=True)
     else:

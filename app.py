@@ -559,12 +559,13 @@ with tab_pagos:
                 # Todo en una sola línea para evitar que Streamlit lo lea como bloque de código
                 html_historial += f'<div style="background-color: #1e1e1e; margin-bottom: 8px; padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;"><div><div style="color: #fff; font-weight: 600; font-size: 14px;">{row["Concepto"]}</div><div style="color: #888; font-size: 11px;">{row["Fecha"]} • {row["Cuenta"]}</div></div><div style="color: {color}; font-weight: bold; font-size: 15px;">{signo}${monto:,.2f}</div></div>'
                 
-            html_historial += '</div>'
+html_historial += '</div>'
        
             st.markdown(html_historial, unsafe_allow_html=True)
+            
             if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
                 if not df_movs.empty:
-                    # 1. Identificar el movimiento antes de borrarlo
+                    # 1. Identificamos el movimiento antes de borrarlo
                     ultimo_mov = df_movs.iloc[-1]
                     cta_borrar = ultimo_mov["Cuenta"]
                     concepto_borrar = ultimo_mov["Concepto"]
@@ -573,31 +574,31 @@ with tab_pagos:
                     except ValueError:
                         monto_borrar = 0.0
                     
-                    # 2. Devolver el dinero a la Cuenta Bancaria
+                    # 2. Devolvemos el dinero a la Cuenta Bancaria (al restar un negativo, se suma)
                     if not df_cuentas.empty and cta_borrar in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_borrar].tolist()[0]
-                        # Al restar el monto (que en gastos es negativo), por ley de signos se suma
                         df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - monto_borrar
                         
-                    # 3. Devolver el dinero al Sobre/Categoría (si aplica)
+                    # 3. Devolvemos el dinero al sobre de Gastos Fijos (Categoría)
                     if not df_fijos.empty and concepto_borrar in df_fijos["Categoría"].values:
                         idx_f = df_fijos.index[df_fijos["Categoría"] == concepto_borrar].tolist()[0]
                         df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - monto_borrar
 
-                    # 4. Ahora sí, eliminar el registro del historial
+                    # 4. Eliminamos el registro del historial visual
                     df_movs = df_movs.drop(df_movs.index[-1])
           
-                    # 5. Guardar TODAS las bases de datos en Google Sheets al mismo tiempo
+                    # 5. Guardamos TODO en Google Sheets para que no se pierda la sincronización
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                     
-                    # 6. Actualizar Memoria de Sesión para reflejar todo en pantalla AL INSTANTE
+                    # 6. Actualizamos la memoria para que el cambio se vea al instante
                     st.session_state.df_movs = df_movs
                     st.session_state.df_cuentas = df_cuentas
                     st.session_state.df_fijos = df_fijos
                     
-                    st.success("Movimiento eliminado y fondos restaurados correctamente.")
+                    st.cache_data.clear()
+                    st.success("Movimiento eliminado y fondos restaurados en todas las cuentas.")
                     st.rerun()
 
 # ---------------------------------------------------------

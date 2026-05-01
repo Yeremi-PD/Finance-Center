@@ -315,7 +315,7 @@ with tab_vista:
         st.markdown(html_anual, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 2. AJUSTES: GASTOS FIJOS (Filtro Dinámico Completo)
+# 2. AJUSTES: GASTOS FIJOS (Asignación Real y Filtro)
 # ---------------------------------------------------------
 with tab_ajustes:
     # 🌟 METEMOS TODA LA PESTAÑA EN UN FRAGMENTO PARA CERO PARPADEOS 🌟
@@ -328,26 +328,39 @@ with tab_ajustes:
         nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
         opciones_con_todas = ["TODAS"] + nombres_cuentas
         
-        c0, c1, c2, c3, c4 = st.columns([2, 2, 1.5, 1.5, 1.2])
-        
-        with c0: 
-            # 🌟 ESTE ES EL FILTRO MAESTRO 🌟
-            cta_filtro = st.selectbox("Filtrar por Cuenta:", opciones_con_todas, index=0)
+        # 🌟 1. FILTRO MAESTRO (SOLO PARA VER, NO AFECTA EL GUARDADO) 🌟
+        cta_filtro = st.selectbox("🔍 FILTRAR VISTA POR CUENTA (Solo para organizar las tarjetas abajo):", opciones_con_todas, index=0)
+        st.markdown("<hr style='margin: 10px 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
             
         cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
         todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
         
+        # Si filtras la vista, mostramos solo las de esa cuenta
         if cta_filtro != "TODAS":
-            # Si eliges una cuenta, filtramos las categorías para mostrar solo las que esa cuenta paga
             excluidas = df_excep[df_excep["Cuenta"] == cta_filtro]["Categoria_Excluida"].tolist() if not df_excep.empty else []
             todas_categorias = [c for c in todas_categorias if c not in excluidas]
             
+        c0, c1, c2, c3, c4 = st.columns([2, 2, 1.5, 1.5, 1.2])
+        
         with c1: 
-            if todas_categorias:
-                cat_sel = st.selectbox("Selecciona Categoría", todas_categorias)
-            else:
-                cat_sel = st.selectbox("Selecciona Categoría", ["Sin categorías"])
-                
+            cat_sel = st.selectbox("📂 Categoría", todas_categorias) if todas_categorias else st.selectbox("📂 Categoría", ["Sin categorías"])
+            
+        with c0:
+            # Calculamos quién la paga actualmente para que aparezca por defecto
+            cuentas_que_la_pagan = []
+            if cat_sel != "Sin categorías":
+                for c in nombres_cuentas:
+                    if not ((df_excep["Cuenta"] == c) & (df_excep["Categoria_Excluida"] == cat_sel)).any():
+                        cuentas_que_la_pagan.append(c)
+            
+            def_idx = 0
+            if len(cuentas_que_la_pagan) == 1:
+                resp_actual = cuentas_que_la_pagan[0]
+                if resp_actual in opciones_con_todas: def_idx = opciones_con_todas.index(resp_actual)
+            
+            # 🌟 2. ESTE ES EL QUE DE VERDAD ASIGNA LA CUENTA Y GUARDA EN EL EXCEL 🌟
+            cta_ajuste = st.selectbox("🏦 Cuenta Responsable", opciones_con_todas, index=def_idx)
+
         m_act, f_act = 0.0, 0.0
         if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
             m_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"].values[0])
@@ -360,7 +373,8 @@ with tab_ajustes:
             st.write("")
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
-                if st.button("💾", help="Guardar", use_container_width=True, type="primary") and cat_sel != "Sin categorías":
+                if st.button("💾", help="Guardar en Excel", use_container_width=True, type="primary") and cat_sel != "Sin categorías":
+                    # --- GUARDAR MONTOS ---
                     if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
                         df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = m_sel
                         df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"] = f_sel
@@ -371,17 +385,24 @@ with tab_ajustes:
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                     st.session_state.df_fijos = df_fijos
                     
-                    # Si creas un gasto nuevo mientras filtras por una cuenta, se le asigna automáticamente a esa cuenta
-                    if cta_filtro != "TODAS":
-                        df_excep = df_excep[df_excep["Categoria_Excluida"] != cat_sel]
+                    # --- GUARDAR ASIGNACIÓN DE CUENTA EN EXCEL ---
+                    # Primero limpiamos el historial de esa categoría
+                    df_excep = df_excep[df_excep["Categoria_Excluida"] != cat_sel]
+                    
+                    if cta_ajuste != "TODAS":
+                        # Si elegiste NÓMINA, excluimos la categoría de todas las demás cuentas
+                        nuevas_exc = []
                         for c_otra in nombres_cuentas:
-                            if c_otra != cta_filtro:
-                                nueva_exc = pd.DataFrame([{"Cuenta": c_otra, "Categoria_Excluida": cat_sel}])
-                                df_excep = pd.concat([df_excep, nueva_exc], ignore_index=True)
-                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_excep)
-                        st.session_state.df_excep = df_excep
+                            if c_otra != cta_ajuste:
+                                nuevas_exc.append({"Cuenta": c_otra, "Categoria_Excluida": cat_sel})
+                        
+                        if nuevas_exc:
+                            df_excep = pd.concat([df_excep, pd.DataFrame(nuevas_exc)], ignore_index=True)
+                            
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_excep)
+                    st.session_state.df_excep = df_excep
 
-                    st.success("Guardado.")
+                    st.success(f"¡Guardado! {cat_sel} asignada a {cta_ajuste}.")
                     st.rerun()
                     
             with col_btn2:
@@ -398,7 +419,7 @@ with tab_ajustes:
         if not df_fijos.empty:
             df_order = df_fijos.copy()
             
-            # 🌟 FILTRAR LAS TARJETAS ABAJO SEGÚN LA CUENTA SELECCIONADA ARRIBA 🌟
+            # 🌟 FILTRAR LAS TARJETAS SEGÚN EL FILTRO VISUAL DE ARRIBA 🌟
             if cta_filtro != "TODAS":
                 excluidas_tarjetas = df_excep[df_excep["Cuenta"] == cta_filtro]["Categoria_Excluida"].tolist() if not df_excep.empty else []
                 df_order = df_order[~df_order["Categoría"].isin(excluidas_tarjetas)]
@@ -430,7 +451,6 @@ with tab_ajustes:
             
             html_gastos += '</div>'
             
-            # 🌟 NUEVO: CÁLCULO DE TOTALES PARA LA CUENTA SELECCIONADA 🌟
             t_semanal = df_order["Monto Semanal"].astype(float).sum()
             t_mensual = df_order["Monto_Mensual"].astype(float).sum()
             t_anual = df_order["Monto Anual"].astype(float).sum()
@@ -461,7 +481,6 @@ with tab_ajustes:
 
     # Ejecutamos el panel fragmentado
     panel_configuracion_fijos()
-
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)
 # ---------------------------------------------------------

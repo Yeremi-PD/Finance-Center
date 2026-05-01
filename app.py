@@ -38,11 +38,11 @@ st.markdown("""
     [data-testid="stStatusWidget"] {visibility: hidden;}
     
     /* Ajustar el contenedor principal */
-        .block-container {
-            padding-top: 0rem !important;
-            padding-bottom: 1rem !important;
-            margin-top: -70px !important; /* Fuerza a Streamlit a comerse el espacio blanco de arriba */
-        }
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 1rem !important;
+        margin-top: -70px !important; /* Sube todo el contenido al límite superior */
+    }
 
     /* 🌟 MAGIA PARA LOS BOTONES 🌟 */
     div[data-testid="stButton"] > button {

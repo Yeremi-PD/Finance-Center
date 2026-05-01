@@ -927,10 +927,7 @@ with tab_cuentas:
     with st.expander("🎯 ASIGNAR CATEGORÍAS A CUENTAS (GASTOS FIJOS)", expanded=False):
         st.markdown("<p style='color:#888; font-size:14px;'>Selecciona qué cuenta debe ser responsable de pagar cada categoría.</p>", unsafe_allow_html=True)
         
-        # 🌟 DEFINIR LA LISTA DE CUENTAS AQUÍ PARA QUE NO DE ERROR 🌟
-        nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
-        
-        if not df_fijos.empty and nombres_cuentas:
+        if not df_fijos.empty:
             # Lógica para determinar quién paga qué actualmente basado en excepciones
             mapeo_inicial = []
             for cat in df_fijos["Categoría"].tolist():

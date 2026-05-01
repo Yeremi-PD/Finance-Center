@@ -323,7 +323,8 @@ with tab_ajustes:
     cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
     todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
     
-    c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
+    c0, c1, c2, c3, c4 = st.columns([2, 2, 1.5, 1.5, 1])
+    with c0: cta_ajuste = st.selectbox("Cuenta Relacionada", nombres_cuentas)
     with c1: cat_sel = st.selectbox("Selecciona Categoría", todas_categorias)
     
     m_act, f_act = 0.0, 0.0
@@ -366,6 +367,10 @@ with tab_ajustes:
 # Orden pedido: Semanal, Mensual, Anual, Fondo
         df_order = df_order[["Categoría", "Monto Semanal", "Monto_Mensual", "Monto Anual", "Fondo_Disponible"]]
         
+        # 🌟 ORDENAR: Poner los fondos en 0 al final de la lista 🌟
+        df_order["tmp_cero"] = df_order["Fondo_Disponible"].astype(float) == 0
+        df_order = df_order.sort_values(by=["tmp_cero", "Categoría"], ascending=[True, True]).drop(columns=["tmp_cero"])
+
         # 🌟 DISEÑO DE TARJETAS INDIVIDUALES (CERO TABLAS) 🌟
         html_gastos = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">'
         

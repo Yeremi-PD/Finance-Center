@@ -316,17 +316,44 @@ with tab_vista:
 # 2. AJUSTES: GASTOS FIJOS 
 # ---------------------------------------------------------
 with tab_ajustes:
+    # 🌟 Recuperamos el Título 🌟
+    st.markdown("<h3 style='margin-top: 10px; color: #fff;'>⚙️ Panel de Gastos Fijos</h3>", unsafe_allow_html=True)
+
     if not df_fijos.empty:
         df_order = df_fijos.copy()
         df_order["Monto Semanal"] = pd.to_numeric(df_order["Monto_Mensual"]) / 4
         df_order["Monto Anual"] = pd.to_numeric(df_order["Monto_Mensual"]) * 12
         df_order["Fondo_Disponible"] = pd.to_numeric(df_order["Fondo_Disponible"])
         
-# Orden pedido: Semanal, Mensual, Anual, Fondo
+        # 🌟 MAGIA: ORDENAR LOS 0 AL FINAL 🌟
+        # Creamos una condición temporal para saber si el fondo está en 0
+        df_order["Es_Cero"] = df_order["Fondo_Disponible"] == 0
+        # Ordenamos primero asegurando que los Es_Cero=False vayan arriba, 
+        # y luego los ordenamos por la cantidad de dinero (de mayor a menor)
+        df_order = df_order.sort_values(by=["Es_Cero", "Fondo_Disponible"], ascending=[True, False])
+        
+        # Orden pedido de columnas original (y limpiamos la columna temporal)
         df_order = df_order[["Categoría", "Monto Semanal", "Monto_Mensual", "Monto Anual", "Fondo_Disponible"]]
         
+        # 🌟 TARJETAS DE TOTALES (NUEVO) 🌟
+        total_fondo = df_order["Fondo_Disponible"].sum()
+        total_mensual = df_order["Monto_Mensual"].sum()
+        
+        st.markdown(f'''
+        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+            <div style="background: linear-gradient(145deg, #1e1e1e, #121212); padding: 12px 20px; border-radius: 8px; border-left: 4px solid #4CAF50; box-shadow: 0 4px 6px rgba(0,0,0,0.3); flex: 1;">
+                <span style="color: #888; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Suma Total de Fondos</span><br>
+                <span style="color: #4CAF50; font-size: 24px; font-weight: bold;">${total_fondo:,.2f}</span>
+            </div>
+            <div style="background: linear-gradient(145deg, #1e1e1e, #121212); padding: 12px 20px; border-radius: 8px; border-left: 4px solid #1565C0; box-shadow: 0 4px 6px rgba(0,0,0,0.3); flex: 1;">
+                <span style="color: #888; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Suma de Gasto Mensual</span><br>
+                <span style="color: #1565C0; font-size: 24px; font-weight: bold;">${total_mensual:,.2f}</span>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+
         # 🌟 DISEÑO DE TARJETAS INDIVIDUALES (CERO TABLAS) 🌟
-        html_gastos = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">'
+        html_gastos = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 5px;">'
         
         for _, row in df_order.iterrows():
             # Limpieza segura de números
@@ -339,7 +366,7 @@ with tab_ajustes:
             try: anual = float(str(row["Monto Anual"]).replace("$", "").replace(",", ""))
             except ValueError: anual = 0.0
                 
-            color_fondo_txt = "#4CAF50" if fondo >= 0 else "#F44336"
+            color_fondo_txt = "#4CAF50" if fondo > 0 else ("#F44336" if fondo < 0 else "#888888")
             
             # Tarjeta tipo Widget (Todo en una línea para que Streamlit no lo rompa)
             html_gastos += f'<div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-top: 4px solid #1565C0; padding: 15px; border-radius: 10px; flex: 1 1 calc(25% - 15px); min-width: 200px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);"><h4 style="margin: 0 0 12px 0; color: #fff; text-align: center; font-size: 18px; letter-spacing: 1px;">{row["Categoría"]}</h4><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Semanal:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${semanal:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Mensual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${mensual:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Anual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${anual:,.0f}</span></div><hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="color: #aaa; font-size: 13px; font-weight: bold;">Fondo Actual:</span><span style="color: {color_fondo_txt}; font-weight: bold; font-size: 18px;">${fondo:,.0f}</span></div></div>'

@@ -726,12 +726,17 @@ with tab_trading:
                 tarjeta = f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 10px; padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"><div style="display: flex; align-items: center; gap: 15px;"><div style="font-size: 24px;">{icon}</div><div><div style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</div><div style="color: #666; font-size: 11px; text-transform: uppercase;">{row["Fecha"]} • {row["Cuenta"]}</div></div></div><div style="text-align: right;"><div style="color: {color_op}; font-weight: bold; font-size: 18px;">${abs(monto):,.2f}</div><div style="color: #444; font-size: 10px; font-weight: bold; text-transform: uppercase;">{row["Tipo"]}</div></div></div>'
                 html_feed_t += tarjeta
                 
-            # Cálculo del total
-            total_filtrado_t = df_filtrado_t["Monto"].astype(float).sum()
-            color_t_t = "#4CAF50" if total_filtrado_t >= 0 else "#F44336"
-            signo_t_t = "+" if total_filtrado_t > 0 else ""
+            # 🌟 NUEVO CÁLCULO DEL TOTAL TRADING (INVERSIÓN = NEGATIVO, RETIRO = POSITIVO) 🌟
+            total_inversiones = df_filtrado_t[df_filtrado_t["Tipo"] == "Inversión"]["Monto"].astype(float).sum()
+            total_retiros = df_filtrado_t[df_filtrado_t["Tipo"] == "Retiro"]["Monto"].astype(float).abs().sum() # Forzamos a positivo por si acaso
             
-            html_feed_t += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 10px; border-top: 2px solid {color_t_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">BALANCE FILTRADO</div><div style="color: {color_t_t}; font-weight: bold; font-size: 20px;">{signo_t_t}${abs(total_filtrado_t):,.2f}</div></div>'
+            # La matemática del Trader: Lo que saqué menos lo que metí
+            balance_neto = total_retiros - total_inversiones
+            
+            color_t_t = "#4CAF50" if balance_neto >= 0 else "#F44336"
+            signo_t_t = "+" if balance_neto > 0 else "-"
+            
+            html_feed_t += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 10px; border-top: 2px solid {color_t_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">BALANCE FILTRADO</div><div style="color: {color_t_t}; font-weight: bold; font-size: 20px;">{signo_t_t}${abs(balance_neto):,.2f}</div></div>'
 
             html_feed_t += '</div>'
             st.markdown(html_feed_t, unsafe_allow_html=True)

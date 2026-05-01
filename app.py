@@ -548,26 +548,18 @@ with tab_pagos:
         if not df_movs.empty:
             df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
             
-            # Lista de transacciones estilo App Bancaria
+# Lista de transacciones estilo App Bancaria
             html_historial = '<div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">'
             for _, row in df_h.iterrows():
                 monto = float(row["Monto"])
                 color = "#4CAF50" if monto >= 0 else "#F44336"
                 signo = "+" if monto > 0 else ""
-                html_historial += f'''
-                <div style="background-color: #1e1e1e; margin-bottom: 8px; padding: 12px 15px; 
-                            border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
-                            display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="color: #fff; font-weight: 600; font-size: 14px;">{row["Concepto"]}</div>
-                        <div style="color: #888; font-size: 11px;">{row["Fecha"]} • {row["Cuenta"]}</div>
-                    </div>
-                    <div style="color: {color}; font-weight: bold; font-size: 15px;">
-                        {signo}${monto:,.2f}
-                    </div>
-                </div>
-                '''
+               
+                # Todo en una sola línea para evitar que Streamlit lo lea como bloque de código
+                html_historial += f'<div style="background-color: #1e1e1e; margin-bottom: 8px; padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;"><div><div style="color: #fff; font-weight: 600; font-size: 14px;">{row["Concepto"]}</div><div style="color: #888; font-size: 11px;">{row["Fecha"]} • {row["Cuenta"]}</div></div><div style="color: {color}; font-weight: bold; font-size: 15px;">{signo}${monto:,.2f}</div></div>'
+                
             html_historial += '</div>'
+       
             st.markdown(html_historial, unsafe_allow_html=True)
             if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
                 if not df_movs.empty:

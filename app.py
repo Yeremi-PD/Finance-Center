@@ -265,11 +265,13 @@ with tab_vista:
         with col_g1:
             fig1 = px.pie(df_fijos, values='Monto_Mensual', names='Categoría', hole=0.5, title="Reparto por Categoría")
             fig1.update_layout(title_x=0.5, margin=dict(t=60)) # Centra el título y empuja los iconos arriba
-            st.plotly_chart(fig1, use_container_width=True, config={'displaylogo': False})
+            # Se oculta la barra de herramientas (iconos + y -) por completo
+            st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
         with col_g2:
             fig2 = px.bar(df_fijos, x='Categoría', y='Monto_Mensual', title="Presupuesto por Categoría", color='Categoría')
             fig2.update_layout(title_x=0.5, margin=dict(t=60)) # Centra el título y empuja los iconos arriba
-            st.plotly_chart(fig2, use_container_width=True, config={'displaylogo': False})
+            # Se oculta la barra de herramientas (iconos + y -) por completo
+            st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
 
         st.markdown("#### 🗓️ Tabla de Proyección a 12 Meses")
         df_anual = pd.DataFrame(index=MESES, columns=df_fijos["Categoría"].tolist())
@@ -641,8 +643,8 @@ with tab_trading:
             <h3 style="margin:0; color: #F57C00;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
     st.write("")
 
-    # Formulario de Movimiento con Conceptos Fijos
-    col_t1, col_t2, col_t3, col_t4 = st.columns([2, 2, 2, 1])
+    # Formulario de Movimiento con Conceptos Fijos - Botón alineado al lado del monto
+    col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
     with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
     with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro"])
     with col_t3: 
@@ -650,10 +652,8 @@ with tab_trading:
         c_sel_t = st.selectbox("Concepto:", lista_c)
         concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
     with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
-    
-    # Creamos dos columnas: una ancha vacía a la izquierda y una pequeña a la derecha
-    _, col_btn_op = st.columns([7, 1])
-    with col_btn_op:
+    with col_t5:
+        st.write("") # Espaciador para alinear el botón con el input de monto
         btn_ejecutar = st.button("AGREGAR", use_container_width=True, type="primary")
         
     if btn_ejecutar:

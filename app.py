@@ -376,7 +376,7 @@ with tab_ajustes:
         st.markdown("<br>", unsafe_allow_html=True) # Espacio antes del desplegable
 
     # DESPLEGABLE MOVIDO AL FINAL
-    with st.expander("⚙️ Configurar Gastos Fijos (Añadir/Editar)", expanded=False):
+    with st.expander("⚙️ Configurar Gastos Fijos", expanded=False):
         cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
         todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
         

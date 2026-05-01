@@ -880,60 +880,6 @@ with tab_cuentas:
 
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    # 🎯 NUEVA SECCIÓN: ASIGNACIÓN DE CATEGORÍAS A CUENTAS 🎯
-    with st.expander("🎯 ASIGNAR CATEGORÍAS A CUENTAS (GASTOS FIJOS)", expanded=False):
-        st.markdown("<p style='color:#888; font-size:14px;'>Selecciona qué cuenta debe ser responsable de pagar cada categoría.</p>", unsafe_allow_html=True)
-        
-        if not df_fijos.empty:
-            # Lógica para determinar quién paga qué actualmente basado en excepciones
-            mapeo_inicial = []
-            for cat in df_fijos["Categoría"].tolist():
-                # Buscamos cuentas donde esta categoría NO esté excluida
-                cuentas_libres = []
-                for cta in nombres_cuentas:
-                    if not ((df_excep["Cuenta"] == cta) & (df_excep["Categoria_Excluida"] == cat)).any():
-                        cuentas_libres.append(cta)
-                
-                # Si todas la pagan o ninguna, es "TODAS"
-                responsable = "TODAS" if len(cuentas_libres) == len(nombres_cuentas) or not cuentas_libres else cuentas_libres[0]
-                mapeo_inicial.append({"Categoría": cat, "Cuenta Responsable": responsable})
-
-            df_mapping = pd.DataFrame(mapeo_inicial)
-            
-            # Editor de tabla premium
-            edicion_mapeo = st.data_editor(
-                df_mapping,
-                column_config={
-                    "Categoría": st.column_config.TextColumn("Categoría", disabled=True),
-                    "Cuenta Responsable": st.column_config.SelectboxColumn("Cuenta Responsable", options=["TODAS"] + nombres_cuentas, required=True)
-                },
-                hide_index=True,
-                use_container_width=True
-            )
-
-            if st.button("💾 Guardar Asignaciones de Gastos", type="primary", use_container_width=True):
-                # Reconstruimos la tabla de excepciones desde cero según el nuevo mapa
-                nuevas_excepciones = []
-                for _, fila in edicion_mapeo.iterrows():
-                    cat = fila["Categoría"]
-                    resp = fila["Cuenta Responsable"]
-                    
-                    if resp != "TODAS":
-                        # Si una cuenta es responsable, se excluye de TODAS las demás
-                        for cta_otra in nombres_cuentas:
-                            if cta_otra != resp:
-                                nuevas_excepciones.append({"Cuenta": cta_otra, "Categoria_Excluida": cat})
-                
-                df_final_excep = pd.DataFrame(nuevas_excepciones)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_final_excep)
-                st.session_state.df_excep = df_final_excep
-                st.success("¡Asignaciones actualizadas! Los balances de tus cuentas han cambiado.")
-                st.rerun()
-        else:
-            st.info("No hay categorías creadas aún.")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
     # Menú oculto en un expander para no ensuciar la pantalla
     with st.expander("⚙️ Administrar Cuentas", expanded=False):
         col_e1, col_e2 = st.columns(2)

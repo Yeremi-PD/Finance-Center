@@ -564,10 +564,40 @@ with tab_pagos:
             st.markdown(html_historial, unsafe_allow_html=True)
             if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
                 if not df_movs.empty:
-                    # Elimina la última fila real del dataframe original
+                    # 1. Identificar el movimiento antes de borrarlo
+                    ultimo_mov = df_movs.iloc[-1]
+                    cta_borrar = ultimo_mov["Cuenta"]
+                    concepto_borrar = ultimo_mov["Concepto"]
+                    try:
+                        monto_borrar = float(ultimo_mov["Monto"])
+                    except ValueError:
+                        monto_borrar = 0.0
+                    
+                    # 2. Devolver el dinero a la Cuenta Bancaria
+                    if not df_cuentas.empty and cta_borrar in df_cuentas["Cuenta"].values:
+                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_borrar].tolist()[0]
+                        # Al restar el monto (que en gastos es negativo), por ley de signos se suma
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - monto_borrar
+                        
+                    # 3. Devolver el dinero al Sobre/Categoría (si aplica)
+                    if not df_fijos.empty and concepto_borrar in df_fijos["Categoría"].values:
+                        idx_f = df_fijos.index[df_fijos["Categoría"] == concepto_borrar].tolist()[0]
+                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - monto_borrar
+
+                    # 4. Ahora sí, eliminar el registro del historial
                     df_movs = df_movs.drop(df_movs.index[-1])
+          
+                    # 5. Guardar TODAS las bases de datos en Google Sheets al mismo tiempo
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                    st.cache_data.clear()
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    
+                    # 6. Actualizar Memoria de Sesión para reflejar todo en pantalla AL INSTANTE
+                    st.session_state.df_movs = df_movs
+                    st.session_state.df_cuentas = df_cuentas
+                    st.session_state.df_fijos = df_fijos
+                    
+                    st.success("Movimiento eliminado y fondos restaurados correctamente.")
                     st.rerun()
 
 # ---------------------------------------------------------

@@ -412,7 +412,12 @@ with tab_ajustes:
                         st.cache_data.clear()
                         st.rerun()
 
-@st.fragment
+# ---------------------------------------------------------
+# 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)
+# ---------------------------------------------------------
+with tab_pagos:
+    # 🌟 TODO EL PANEL UNIFICADO EN UN FRAGMENTO PARA EVITAR PARPADEOS 🌟
+    @st.fragment
     def mostrar_panel_pagos_unificado():
         # Conectamos con la memoria global de la app
         global df_fijos, df_movs, df_cuentas, df_excep

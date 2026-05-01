@@ -806,14 +806,13 @@ with tab_trading:
                 st.rerun()
 
 # ---------------------------------------------------------
-# 4. CUENTAS (Cálculo Dinámico por Fondos y Excepciones)
+# 4. CUENTAS (Cálculo Dinámico y Sobreescritura Forzada en Excel)
 # ---------------------------------------------------------
 with tab_cuentas:
     st.write("") 
     
     if not df_cuentas.empty and not df_fijos.empty:
-        # 🌟 BALANCE TOTAL DINÁMICO: Suma de todos los Fondos Disponibles en los sobres
-        # Limpiamos los datos por si tienen símbolos de moneda
+        # 🌟 BALANCE TOTAL DINÁMICO
         fondos_limpios = df_fijos["Fondo_Disponible"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
         t_total = pd.to_numeric(fondos_limpios, errors='coerce').fillna(0).sum()
         
@@ -827,30 +826,46 @@ with tab_cuentas:
         cols = st.columns(4)
         colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
         
+        hubo_cambios_en_excel = False # 🛡️ Control para no saturar la conexión a Google Sheets
+        
         for i, (index, row) in enumerate(df_cuentas.iterrows()):
-            # 🌟 BALANCE CALCULADO POR CUENTA: Analiza categorías que NO están excluidas
-            # 1. Obtenemos la lista de categorías que esta cuenta NO debe pagar
+            # 1. Extraer categorías excluidas de esta cuenta
             excluidas = df_excep[df_excep["Cuenta"] == row['Cuenta']]["Categoria_Excluida"].tolist() if not df_excep.empty else []
             
-            # 2. Filtramos la tabla de Gastos Fijos para sumar solo los fondos permitidos
+            # 2. Filtrar y sumar sobres permitidos (El saldo real que la cuenta debería tener)
             cats_permitidas = df_fijos[~df_fijos["Categoría"].isin(excluidas)].copy()
-            
-            # 3. Sumamos el Fondo_Disponible de esas categorías para obtener el saldo real de la cuenta
             try:
                 saldos_v = cats_permitidas["Fondo_Disponible"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
                 saldo_calculado = pd.to_numeric(saldos_v, errors='coerce').fillna(0).sum()
             except:
                 saldo_calculado = 0.0
-            
+                
+            # 3. Leer el saldo fijo y congelado que está actualmente en la base de datos
+            try:
+                saldo_viejo_excel = float(str(row['Saldo']).replace("$", "").replace(",", ""))
+            except ValueError:
+                saldo_viejo_excel = 0.0
+                
+            # 4. 🌟 LA MAGIA: Si el cálculo nuevo es diferente al Excel, modificamos los datos
+            if round(saldo_viejo_excel, 2) != round(saldo_calculado, 2):
+                df_cuentas.at[index, "Saldo"] = saldo_calculado
+                hubo_cambios_en_excel = True
+
+            # Dibujamos la tarjeta con el saldo correcto
             color_acento = colores_neon[i % len(colores_neon)]
             with cols[i % 4]:
-                # Tarjetas de cuentas con balance calculado en tiempo real según tus sobres
                 st.markdown(f"""
                     <div style="background: linear-gradient(145deg, #222, #111); padding: 20px; border-radius: 12px; border-top: 3px solid {color_acento}; margin-bottom: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30;">
                         <p style="margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 1px;">{row['Cuenta']}</p>
                         <h4 style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">${saldo_calculado:,.2f}</h4>
                     </div>
                 """, unsafe_allow_html=True)
+                
+        # 5. 🌟 SOBREESCRIBIR EXCEL FORZOSAMENTE 🌟
+        # Si la app detectó que los valores fijos no cuadran con el cálculo, reescribe toda la hoja
+        if hubo_cambios_en_excel:
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+            st.session_state.df_cuentas = df_cuentas
     else:
         st.info("Aún no tienes cuentas registradas.")
 

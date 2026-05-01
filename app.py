@@ -552,7 +552,15 @@ with tab_pagos:
     
     with cf2:
         l_filtros = ["VER TODO"] + (df_fijos["Categoría"].tolist() if not df_fijos.empty else [])
-        f_sel = st.selectbox("Filtra tu historial:", l_filtros)
+        
+        # Metemos el filtro en un formulario para evitar el parpadeo automático
+        with st.form("form_filtro_pagos", border=False):
+            col_f_1, col_f_2 = st.columns([3, 1])
+            with col_f_1:
+                f_sel = st.selectbox("Filtra tu historial:", l_filtros, label_visibility="collapsed")
+            with col_f_2:
+                btn_filt_pagos = st.form_submit_button("🔍 Filtrar", use_container_width=True)
+
         if not df_movs.empty:
             df_h = df_movs.sort_index(ascending=False) if f_sel == "VER TODO" else df_movs[df_movs["Concepto"] == f_sel].sort_index(ascending=False)
             
@@ -704,13 +712,16 @@ with tab_trading:
         st.markdown("---")
         st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL DE MOVIMIENTOS</h4>", unsafe_allow_html=True)
         
-        # --- SISTEMA DE FILTROS LINDOS ---
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            f_tipo = st.selectbox("Filtrar por Operación:", ["TODOS", "Inversión", "Retiro"])
-        with col_f2:
-            opciones_conceptos = ["TODOS"] + sorted(df_trading["Concepto"].unique().tolist())
-            f_concepto = st.selectbox("Filtrar por Concepto:", opciones_conceptos)
+# --- SISTEMA DE FILTROS LINDOS (SIN PARPADEO) ---
+        with st.form("form_filtros_trading", border=False):
+            col_f1, col_f2, col_f3 = st.columns([2, 2, 1])
+            with col_f1:
+                f_tipo = st.selectbox("Filtrar por Operación:", ["TODOS", "Inversión", "Retiro"])
+            with col_f2:
+                opciones_conceptos = ["TODOS"] + sorted(df_trading["Concepto"].unique().tolist())
+                f_concepto = st.selectbox("Filtrar por Concepto:", opciones_conceptos)
+            with col_f3:
+                btn_filt_trad = st.form_submit_button("🔍 Filtrar", use_container_width=True)
         
         # Aplicar Filtros
         df_filtrado_t = df_trading.copy()

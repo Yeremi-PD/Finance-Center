@@ -316,45 +316,6 @@ with tab_vista:
 # 2. AJUSTES: GASTOS FIJOS 
 # ---------------------------------------------------------
 with tab_ajustes:
-    st.subheader("⚙️ Configurar Gastos Fijos")
-    
-    cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
-    todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
-    
-    c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
-    with c1: cat_sel = st.selectbox("Selecciona Categoría", todas_categorias)
-    
-    m_act, f_act = 0.0, 0.0
-    if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
-        m_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"].values[0])
-        f_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"].values[0])
-        
-    with c2: m_sel = st.number_input("Monto Mensual ($)", value=m_act)
-    with c3: f_sel = st.number_input("Ajustar Fondo ($)", value=f_act)
-    with c4:
-        st.write("")
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("💾", help="Guardar/Actualizar", use_container_width=True, type="primary"):
-                if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
-                    df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = m_sel
-                    df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"] = f_sel
-                else:
-                    nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": m_sel, "Fondo_Disponible": f_sel}])
-                    df_fijos = pd.concat([df_fijos, nuevo], ignore_index=True)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                # ACTUALIZAR MEMORIA LOCAL PARA QUE EL BALANCE CAMBIE AL INSTANTE
-                st.session_state.df_fijos = df_fijos 
-                st.rerun()
-        with col_btn2:
-            if st.button("🗑️", help="Eliminar Categoría", use_container_width=True):
-                if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
-                    df_fijos = df_fijos[df_fijos["Categoría"] != cat_sel]
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                    st.cache_data.clear()
-                    st.rerun()
-
-    st.markdown("---")
     if not df_fijos.empty:
         df_order = df_fijos.copy()
         df_order["Monto Semanal"] = pd.to_numeric(df_order["Monto_Mensual"]) / 4
@@ -367,11 +328,6 @@ with tab_ajustes:
         # 🌟 DISEÑO DE TARJETAS INDIVIDUALES (CERO TABLAS) 🌟
         html_gastos = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">'
         
-        total_semanal = 0.0
-        total_mensual = 0.0
-        total_anual = 0.0
-        total_fondo = 0.0
-        
         for _, row in df_order.iterrows():
             # Limpieza segura de números
             try: fondo = float(str(row["Fondo_Disponible"]).replace("$", "").replace(",", ""))
@@ -382,25 +338,52 @@ with tab_ajustes:
             except ValueError: mensual = 0.0
             try: anual = float(str(row["Monto Anual"]).replace("$", "").replace(",", ""))
             except ValueError: anual = 0.0
-            
-            # Acumular para los totales globales
-            total_fondo += fondo
-            total_semanal += semanal
-            total_mensual += mensual
-            total_anual += anual
                 
             color_fondo_txt = "#4CAF50" if fondo >= 0 else "#F44336"
             
             # Tarjeta tipo Widget (Todo en una línea para que Streamlit no lo rompa)
             html_gastos += f'<div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-top: 4px solid #1565C0; padding: 15px; border-radius: 10px; flex: 1 1 calc(25% - 15px); min-width: 200px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);"><h4 style="margin: 0 0 12px 0; color: #fff; text-align: center; font-size: 18px; letter-spacing: 1px;">{row["Categoría"]}</h4><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Semanal:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${semanal:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Mensual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${mensual:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Anual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${anual:,.0f}</span></div><hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="color: #aaa; font-size: 13px; font-weight: bold;">Fondo Actual:</span><span style="color: {color_fondo_txt}; font-weight: bold; font-size: 18px;">${fondo:,.0f}</span></div></div>'
             
-        color_total_fondo = "#4CAF50" if total_fondo >= 0 else "#F44336"
-        
-        # 🌟 TARJETA FINAL DE TOTALES GLOBALES 🌟
-        html_gastos += f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); border-left: 5px solid #00E5FF; padding: 20px; border-radius: 10px; flex: 1 1 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.4); margin-top: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"><div style="flex: 1 1 100%; margin-bottom: 10px;"><h3 style="margin: 0; color: #fff; text-align: center; letter-spacing: 2px; font-size: 16px;">TOTALES GLOBALES</h3></div><div style="flex: 1; text-align: center;"><span style="color: #888; font-size: 12px; text-transform: uppercase;">Semanal</span><br><span style="color: #00E5FF; font-weight: bold; font-size: 18px;">${total_semanal:,.0f}</span></div><div style="flex: 1; text-align: center;"><span style="color: #888; font-size: 12px; text-transform: uppercase;">Mensual</span><br><span style="color: #B388FF; font-weight: bold; font-size: 18px;">${total_mensual:,.0f}</span></div><div style="flex: 1; text-align: center;"><span style="color: #888; font-size: 12px; text-transform: uppercase;">Anual</span><br><span style="color: #69F0AE; font-weight: bold; font-size: 18px;">${total_anual:,.0f}</span></div><div style="flex: 1; text-align: center; border-left: 1px solid rgba(255,255,255,0.1);"><span style="color: #aaa; font-size: 12px; text-transform: uppercase; font-weight: bold;">Fondo Total</span><br><span style="color: {color_total_fondo}; font-weight: bold; font-size: 22px;">${total_fondo:,.0f}</span></div></div>'
-        
         html_gastos += '</div>'
         st.markdown(html_gastos, unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True) # Espacio antes del desplegable
+
+    # DESPLEGABLE MOVIDO AL FINAL
+    with st.expander("⚙️ Configurar Gastos Fijos (Añadir/Editar)", expanded=False):
+        cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
+        todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
+        
+        c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
+        with c1: cat_sel = st.selectbox("Selecciona Categoría", todas_categorias)
+        
+        m_act, f_act = 0.0, 0.0
+        if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+            m_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"].values[0])
+            f_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"].values[0])
+            
+        with c2: m_sel = st.number_input("Monto Mensual ($)", value=m_act)
+        with c3: f_sel = st.number_input("Ajustar Fondo ($)", value=f_act)
+        with c4:
+            st.write("")
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                if st.button("💾", help="Guardar/Actualizar", use_container_width=True, type="primary"):
+                    if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+                        df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = m_sel
+                        df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"] = f_sel
+                    else:
+                        nuevo = pd.DataFrame([{"Categoría": cat_sel, "Monto_Mensual": m_sel, "Fondo_Disponible": f_sel}])
+                        df_fijos = pd.concat([df_fijos, nuevo], ignore_index=True)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    st.session_state.df_fijos = df_fijos 
+                    st.rerun()
+            with col_btn2:
+                if st.button("🗑️", help="Eliminar Categoría", use_container_width=True):
+                    if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
+                        df_fijos = df_fijos[df_fijos["Categoría"] != cat_sel]
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                        st.cache_data.clear()
+                        st.rerun()
 
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)

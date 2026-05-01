@@ -183,14 +183,14 @@ df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
 # Usamos un contenedor HTML para forzar el nombre a la izquierda y permitir que las pestañas suban
-st.markdown("<h1 style='position: absolute; top: -12px; left: 10px; color: #4CAF50; font-size: 26px; z-index: 100; font-weight: 800;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='position: absolute; top: 8px; left: 10px; color: #4CAF50; font-size: 26px; z-index: 100; font-weight: 800;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
     /* 1. Contenedor general de las pestañas */
     div[data-testid="stTabs"] {
         padding: 0px !important; 
-        margin-top: -25px !important; /* Sube los botones a la altura del título */
+        margin-top: -5px !important; /* Bajamos los botones 20px para alinearlos con el título */
     }
 
     /* 2. Estilizar cada pestaña individualmente para simular un botón */

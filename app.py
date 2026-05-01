@@ -403,16 +403,27 @@ with tab_pagos:
         cuenta_inyec = st.selectbox("📥 Cuenta que recibe la inyección:", opciones_inyec)
         
         if cuenta_inyec != "TODAS":
-            exc_c = df_excep[df_excep["Cuenta"] == cuenta_inyec]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-            nuevas_exc = st.multiselect(f"Excluir categorías en {cuenta_inyec}:", df_fijos["Categoría"].tolist(), default=exc_c)
-            
-            if st.button("💾 Guardar Excepciones"):
+            # 🌟 FORMULARIO PARA EVITAR REDIBUJADO AL AGREGAR/QUITAR ETIQUETAS 🌟
+            with st.form("form_excepciones", border=False):
+                exc_c = df_excep[df_excep["Cuenta"] == cuenta_inyec]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                
+                # 🛡️ ESCUDO: Filtramos la base de datos para ignorar categorías borradas/fantasmas
+                categorias_validas = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
+                exc_c_validas = [cat for cat in exc_c if cat in categorias_validas]
+                
+                nuevas_exc = st.multiselect(f"Excluir categorías en {cuenta_inyec}:", categorias_validas, default=exc_c_validas)
+                
+                btn_guardar_exc = st.form_submit_button("💾 Guardar Excepciones")
+                
+            if btn_guardar_exc:
                 df_temp = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones").dropna(how="all")
                 if not df_temp.empty:
                     df_temp = df_temp[df_temp["Cuenta"] != cuenta_inyec]
                 nuevas_rows = pd.DataFrame([{"Cuenta": cuenta_inyec, "Categoria_Excluida": x} for x in nuevas_exc])
                 df_final_excep = pd.concat([df_temp, nuevas_rows], ignore_index=True)
+                
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_final_excep)
+                st.session_state.df_excep = df_final_excep # Refleja los cambios al instante
                 st.cache_data.clear()
                 st.rerun()
 

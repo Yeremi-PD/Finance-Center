@@ -511,8 +511,15 @@ with tab_pagos:
                 c = "#4CAF50" if m >= 0 else "#F44336"
                 html_hist += f'<div style="background: #1e1e1e; margin-bottom: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between;"><div><div style="font-size: 13px; font-weight: bold;">{row["Concepto"]}</div><div style="font-size: 10px; color: #888;">{row["Fecha"]}</div></div><div style="color: {c}; font-weight: bold;">${m:,.2f}</div></div>'
             
+            html_hist += '</div>' # Cerramos la caja de la lista con scroll
+            
+            # 🌟 TARJETA PREMIUM PARA EL TOTAL (COMO ANTES) 🌟
             total_h = df_h["Monto"].sum()
-            html_hist += f'<div style="border-top: 2px solid #fff; padding: 10px; display: flex; justify-content: space-between; font-weight: bold;"><span>TOTAL</span><span>${total_h:,.2f}</span></div></div>'
+            color_t = "#4CAF50" if total_h >= 0 else "#F44336"
+            signo_t = "+" if total_h > 0 else ""
+            
+            html_hist += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {color_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL FILTRADO</div><div style="color: {color_t}; font-weight: bold; font-size: 20px;">{signo_t}${total_h:,.2f}</div></div>'
+            
             st.markdown(html_hist, unsafe_allow_html=True)
             
             if st.button("🗑️ BORRAR ÚLTIMO", use_container_width=True):

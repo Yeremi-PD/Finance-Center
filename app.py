@@ -76,6 +76,12 @@ st.markdown("""
         box-shadow: 0 0 8px rgba(76, 175, 80, 0.2) !important;
     }
 
+    /* 🌟 OCULTAR BOTONES + Y - DE LOS CAMPOS DE NÚMERO 🌟 */
+    [data-testid="stNumberInputStepUp"], 
+    [data-testid="stNumberInputStepDown"] {
+        display: none !important;
+    }
+
     /* 🌟 MEJORAR LAS TARJETAS DE MÉTRICAS 🌟 */
     div[data-testid="metric-container"] {
         background: linear-gradient(145deg, #1e1e1e, #121212);

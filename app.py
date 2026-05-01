@@ -566,6 +566,13 @@ with tab_pagos:
                 # Todo en una sola línea para evitar que Streamlit lo lea como bloque de código
                 html_historial += f'<div style="background-color: #1e1e1e; margin-bottom: 8px; padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;"><div><div style="color: #fff; font-weight: 600; font-size: 14px;">{row["Concepto"]}</div><div style="color: #888; font-size: 11px;">{row["Fecha"]} • {row["Cuenta"]}</div></div><div style="color: {color}; font-weight: bold; font-size: 15px;">{signo}${monto:,.2f}</div></div>'
                 
+            # 🌟 CÁLCULO DEL TOTAL DINÁMICO (FILTRADO) 🌟
+            total_filtrado = df_h["Monto"].astype(float).sum()
+            color_t = "#4CAF50" if total_filtrado >= 0 else "#F44336"
+            signo_t = "+" if total_filtrado > 0 else ""
+            
+            html_historial += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {color_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL FILTRADO</div><div style="color: {color_t}; font-weight: bold; font-size: 20px;">{signo_t}${total_filtrado:,.2f}</div></div>'
+
             html_historial += '</div>'
        
             st.markdown(html_historial, unsafe_allow_html=True)
@@ -726,6 +733,13 @@ with tab_trading:
             tarjeta = f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 10px; padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"><div style="display: flex; align-items: center; gap: 15px;"><div style="font-size: 24px;">{icon}</div><div><div style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</div><div style="color: #666; font-size: 11px; text-transform: uppercase;">{row["Fecha"]} • {row["Cuenta"]}</div></div></div><div style="text-align: right;"><div style="color: {color_op}; font-weight: bold; font-size: 18px;">${abs(monto):,.2f}</div><div style="color: #444; font-size: 10px; font-weight: bold; text-transform: uppercase;">{row["Tipo"]}</div></div></div>'
             html_feed_t += tarjeta
             
+        # 🌟 CÁLCULO DEL TOTAL DINÁMICO TRADING (FILTRADO) 🌟
+        total_filtrado_t = df_filtrado_t["Monto"].astype(float).sum()
+        color_t_t = "#4CAF50" if total_filtrado_t >= 0 else "#F44336"
+        signo_t_t = "+" if total_filtrado_t > 0 else ""
+        
+        html_feed_t += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 10px; border-top: 2px solid {color_t_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">BALANCE FILTRADO</div><div style="color: {color_t_t}; font-weight: bold; font-size: 20px;">{signo_t_t}${abs(total_filtrado_t):,.2f}</div></div>'
+
         html_feed_t += '</div>'
         st.markdown(html_feed_t, unsafe_allow_html=True)
 

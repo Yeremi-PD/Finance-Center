@@ -183,7 +183,7 @@ df_trading = st.session_state.df_trading # Nueva hoja cargada
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
 # Usamos un contenedor HTML para forzar el nombre a la izquierda y permitir que las pestañas suban
-st.markdown("<h1 style='position: absolute; top: 15px; left: 10px; color: #4CAF50; font-size: 31px; z-index: 100; font-weight: 800; display: flex; align-items: center;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='position: absolute; top: 35px; left: 10px; color: #4CAF50; font-size: 37px; z-index: 100; font-weight: 800; display: flex; align-items: center;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>

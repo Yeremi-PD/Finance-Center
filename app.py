@@ -317,7 +317,7 @@ with tab_vista:
 # ---------------------------------------------------------
 with tab_ajustes:
     # 🌟 Recuperamos el Título 🌟
-    st.markdown("<h3 style='margin-top: 10px; color: #fff;'>⚙️ Panel de Gastos Fijos</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top: 10px; color: #fff;'>Panel de Gastos Fijos</h3>", unsafe_allow_html=True)
 
     if not df_fijos.empty:
         df_order = df_fijos.copy()
@@ -376,7 +376,7 @@ with tab_ajustes:
         st.markdown("<br>", unsafe_allow_html=True) # Espacio antes del desplegable
 
     # DESPLEGABLE MOVIDO AL FINAL
-    with st.expander("⚙️ Configurar Gastos Fijos", expanded=False):
+    with st.expander("Configurar Gastos Fijos", expanded=False):
         cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
         todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
         
@@ -896,7 +896,7 @@ with tab_cuentas:
     st.markdown("<br><br>", unsafe_allow_html=True)
     
     # Menú oculto en un expander para no ensuciar la pantalla
-    with st.expander("⚙️ Administrar Cuentas", expanded=False):
+    with st.expander("Administrar Cuentas", expanded=False):
         col_e1, col_e2 = st.columns(2)
         
         with col_e1:

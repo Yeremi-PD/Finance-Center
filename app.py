@@ -463,7 +463,7 @@ with tab_pagos:
             st.write("")
             col_b1, col_b2 = st.columns(2)
             with col_b1:
-                if st.button("➕ SEMANA", use_container_width=True, type="primary"):
+                if st.button("AGREGAR SEMANA", use_container_width=True, type="primary"):
                     ctas_a_procesar = nombres_cuentas if cuenta_maestra == "TODAS" else [cuenta_maestra]
                     for cta in ctas_a_procesar:
                         l_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
@@ -477,7 +477,7 @@ with tab_pagos:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
                         df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_inyec
                         
-                        nuevo_m = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta, "Concepto": "INYECCIÓN SEMANAL", "Monto": monto_inyec}])
+                        nuevo_m = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta, "Concepto": "NÓMINA SEMANAL", "Monto": monto_inyec}])
                         df_movs = pd.concat([df_movs, nuevo_m], ignore_index=True)
 
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
@@ -487,7 +487,7 @@ with tab_pagos:
                     st.rerun()
             
             with col_b2:
-                if st.button("↩️ DESHACER", use_container_width=True):
+                if st.button("DESHACER", use_container_width=True):
                     if not df_movs.empty and "INYECCIÓN SEMANAL" in df_movs["Concepto"].values:
                         ult_f = df_movs[df_movs["Concepto"] == "INYECCIÓN SEMANAL"]["Fecha"].iloc[-1]
                         a_revertir = df_movs[(df_movs["Concepto"] == "INYECCIÓN SEMANAL") & (df_movs["Fecha"] == ult_f)]
@@ -512,11 +512,11 @@ with tab_pagos:
         # --- FORMULARIO DE GASTO ---
         with st.form("form_gasto_unificado", border=False):
             cg1, cg2, cg3, cg4 = st.columns([1.5, 1.5, 1, 1.2])
-            with cg1: c_gasto = st.selectbox("💳 Cuenta:", nombres_cuentas, index=nombres_cuentas.index(cuenta_maestra) if cuenta_maestra in nombres_cuentas else 0)
+            with cg1: c_gasto = st.selectbox("Cuenta:", nombres_cuentas, index=nombres_cuentas.index(cuenta_maestra) if cuenta_maestra in nombres_cuentas else 0)
             with cg2: 
                 l_n_g = df_excep[df_excep["Cuenta"] == c_gasto]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                s_gasto = st.selectbox("📂 Categoría:", df_fijos[~df_fijos["Categoría"].isin(l_n_g)]["Categoría"].tolist() if not df_fijos.empty else [])
-            with cg3: m_gasto = st.number_input("💲 Monto:", min_value=0.0)
+                s_gasto = st.selectbox("Categoría:", df_fijos[~df_fijos["Categoría"].isin(l_n_g)]["Categoría"].tolist() if not df_fijos.empty else [])
+            with cg3: m_gasto = st.number_input("Monto:", min_value=0.0)
             with cg4: 
                 st.write("")
                 if st.form_submit_button("APLICAR GASTO", use_container_width=True, type="primary"):
@@ -533,7 +533,7 @@ with tab_pagos:
         # --- DINERO Y HISTORIAL (SOLO DE LA CUENTA SELECCIONADA) ---
         cf1, cf2 = st.columns([1.5, 2])
         with cf1:
-            st.markdown(f"<h4 style='color: #2E7D32;'>💰 Disponible: {cuenta_maestra}</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='color: #2E7D32;'>Disponible: {cuenta_maestra}</h4>", unsafe_allow_html=True)
             l_n_v = df_excep[df_excep["Cuenta"] == cuenta_maestra]["Categoria_Excluida"].tolist() if (not df_excep.empty and cuenta_maestra != "TODAS") else []
             df_sobres = df_fijos[~df_fijos["Categoría"].isin(l_n_v)]
             html_s = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
@@ -544,7 +544,7 @@ with tab_pagos:
             st.markdown(html_s + '</div>', unsafe_allow_html=True)
 
         with cf2:
-            st.markdown(f"<h4 style='color: #1565C0;'>📜 Historial: {cuenta_maestra}</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='color: #1565C0;'>Historial: {cuenta_maestra}</h4>", unsafe_allow_html=True)
             df_h = df_movs.copy()
             if cuenta_maestra != "TODAS": df_h = df_h[df_h["Cuenta"] == cuenta_maestra]
             f_cat = st.selectbox("Filtrar por Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist())
@@ -559,7 +559,7 @@ with tab_pagos:
             
             t_h = df_h["Monto"].sum()
             c_t = "#4CAF50" if t_h >= 0 else "#F44336"
-            html_hist += f'</div><div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {c_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL FILTRADO</div><div style="color: {c_t}; font-weight: bold; font-size: 20px;">${t_h:,.2f}</div></div>'
+            html_hist += f'</div><div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {c_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL</div><div style="color: {c_t}; font-weight: bold; font-size: 20px;">${t_h:,.2f}</div></div>'
             st.markdown(html_hist, unsafe_allow_html=True)
             
             if st.button("🗑️ BORRAR ÚLTIMO", use_container_width=True):

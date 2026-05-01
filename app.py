@@ -708,6 +708,9 @@ with tab_trading:
 # --- SISTEMA DE FILTROS LINDOS (FRAGMENTADO PARA NO PARPADEAR) ---
         @st.fragment
         def mostrar_feed_trading():
+            # 🛡️ SOLUCIÓN AL ERROR DE MEMORIA (UnboundLocalError) 🛡️
+            global df_trading, df_movs, df_cuentas, df_fijos
+            
             col_f1, col_f2 = st.columns(2)
             with col_f1:
                 f_tipo = st.selectbox("Filtrar por Operación:", ["TODOS", "Inversión", "Retiro"])

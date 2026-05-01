@@ -694,7 +694,7 @@ with tab_trading:
                 else:
                     opciones_conceptos = ["TODOS"]
                     
-                f_concepto = st.selectbox("Filtrar por Concepto:", opciones_conceptos)
+                f_concepto = st.selectbox("Filtrar", opciones_conceptos)
             
             # Aplicar Filtros
             df_filtrado_t = df_trading.copy()

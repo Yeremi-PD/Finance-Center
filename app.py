@@ -592,7 +592,7 @@ with tab_pagos:
                     st.session_state.df_movs = df_movs
                     
                     st.cache_data.clear()
-                    st.rerun()
+                    st.rerun() 
 
 # ---------------------------------------------------------
 # NUEVA SECCIÓN: TRADING (Inversiones y Retiros)

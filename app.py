@@ -697,47 +697,46 @@ with tab_trading:
         st.markdown("---")
         st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL DE MOVIMIENTOS</h4>", unsafe_allow_html=True)
         
-# --- SISTEMA DE FILTROS LINDOS (SIN PARPADEO) ---
-        with st.form("form_filtros_trading", border=False):
-            col_f1, col_f2, col_f3 = st.columns([2, 2, 1])
+# --- SISTEMA DE FILTROS LINDOS (FRAGMENTADO PARA NO PARPADEAR) ---
+        @st.fragment
+        def mostrar_feed_trading():
+            col_f1, col_f2 = st.columns(2)
             with col_f1:
                 f_tipo = st.selectbox("Filtrar por Operación:", ["TODOS", "Inversión", "Retiro"])
             with col_f2:
                 opciones_conceptos = ["TODOS"] + sorted(df_trading["Concepto"].unique().tolist())
                 f_concepto = st.selectbox("Filtrar por Concepto:", opciones_conceptos)
-            with col_f3:
-                btn_filt_trad = st.form_submit_button("🔍 Filtrar", use_container_width=True)
-        
-        # Aplicar Filtros
-        df_filtrado_t = df_trading.copy()
-        if f_tipo != "TODOS":
-            df_filtrado_t = df_filtrado_t[df_filtrado_t["Tipo"] == f_tipo]
-        if f_concepto != "TODOS":
-            df_filtrado_t = df_filtrado_t[df_filtrado_t["Concepto"] == f_concepto]
-        
-        df_filtrado_t = df_filtrado_t.sort_index(ascending=False)
-
-        # --- FEED DE TARJETAS DE TRADING ---
-        html_feed_t = '<div style="max-height: 500px; overflow-y: auto; padding-right: 10px; margin-top: 10px;">'
-        for _, row in df_filtrado_t.iterrows():
-            monto = float(row["Monto"])
-            color_op = "#F44336" if row["Tipo"] == "Inversión" else "#4CAF50"
-            # Asigna emoji según el concepto; si no está en el mapa, usa el de por defecto
-            icon = MAPA_EMOJIS.get(row["Concepto"], "🚀" if row["Tipo"] == "Inversión" else "💰")
             
-            # Construimos la tarjeta en una sola línea para evitar que Streamlit la interprete como código
-            tarjeta = f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 10px; padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"><div style="display: flex; align-items: center; gap: 15px;"><div style="font-size: 24px;">{icon}</div><div><div style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</div><div style="color: #666; font-size: 11px; text-transform: uppercase;">{row["Fecha"]} • {row["Cuenta"]}</div></div></div><div style="text-align: right;"><div style="color: {color_op}; font-weight: bold; font-size: 18px;">${abs(monto):,.2f}</div><div style="color: #444; font-size: 10px; font-weight: bold; text-transform: uppercase;">{row["Tipo"]}</div></div></div>'
-            html_feed_t += tarjeta
+            # Aplicar Filtros
+            df_filtrado_t = df_trading.copy()
+            if f_tipo != "TODOS":
+                df_filtrado_t = df_filtrado_t[df_filtrado_t["Tipo"] == f_tipo]
+            if f_concepto != "TODOS":
+                df_filtrado_t = df_filtrado_t[df_filtrado_t["Concepto"] == f_concepto]
             
-        # 🌟 CÁLCULO DEL TOTAL DINÁMICO TRADING (FILTRADO) 🌟
-        total_filtrado_t = df_filtrado_t["Monto"].astype(float).sum()
-        color_t_t = "#4CAF50" if total_filtrado_t >= 0 else "#F44336"
-        signo_t_t = "+" if total_filtrado_t > 0 else ""
-        
-        html_feed_t += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 10px; border-top: 2px solid {color_t_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">BALANCE FILTRADO</div><div style="color: {color_t_t}; font-weight: bold; font-size: 20px;">{signo_t_t}${abs(total_filtrado_t):,.2f}</div></div>'
+            df_filtrado_t = df_filtrado_t.sort_index(ascending=False)
 
-        html_feed_t += '</div>'
-        st.markdown(html_feed_t, unsafe_allow_html=True)
+            # Feed de tarjetas
+            html_feed_t = '<div style="max-height: 500px; overflow-y: auto; padding-right: 10px; margin-top: 10px;">'
+            for _, row in df_filtrado_t.iterrows():
+                monto = float(row["Monto"])
+                color_op = "#F44336" if row["Tipo"] == "Inversión" else "#4CAF50"
+                icon = MAPA_EMOJIS.get(row["Concepto"], "🚀" if row["Tipo"] == "Inversión" else "💰")
+                
+                tarjeta = f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 10px; padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"><div style="display: flex; align-items: center; gap: 15px;"><div style="font-size: 24px;">{icon}</div><div><div style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</div><div style="color: #666; font-size: 11px; text-transform: uppercase;">{row["Fecha"]} • {row["Cuenta"]}</div></div></div><div style="text-align: right;"><div style="color: {color_op}; font-weight: bold; font-size: 18px;">${abs(monto):,.2f}</div><div style="color: #444; font-size: 10px; font-weight: bold; text-transform: uppercase;">{row["Tipo"]}</div></div></div>'
+                html_feed_t += tarjeta
+                
+            # Cálculo del total
+            total_filtrado_t = df_filtrado_t["Monto"].astype(float).sum()
+            color_t_t = "#4CAF50" if total_filtrado_t >= 0 else "#F44336"
+            signo_t_t = "+" if total_filtrado_t > 0 else ""
+            
+            html_feed_t += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 10px; border-top: 2px solid {color_t_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">BALANCE FILTRADO</div><div style="color: {color_t_t}; font-weight: bold; font-size: 20px;">{signo_t_t}${abs(total_filtrado_t):,.2f}</div></div>'
+
+            html_feed_t += '</div>'
+            st.markdown(html_feed_t, unsafe_allow_html=True)
+            
+        mostrar_feed_trading()
 
         # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Editar Historial"):

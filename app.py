@@ -585,7 +585,7 @@ with tab_pagos:
 # NUEVA SECCIÓN: TRADING (Inversiones y Retiros)
 # ---------------------------------------------------------
 with tab_trading:
-    st.markdown("<h3 style='font-weight: 400; color: #FFFFFF;'>📈 Gestión de Trading</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-weight: 400; color: #FFFFFF;'>Gestión de Trading</h3>", unsafe_allow_html=True)
     
     # --- CÁLCULO SINCRONIZADO DE TRADING ---
     # 1. El dinero disponible SIEMPRE viene del sobre 'Inversion' de Gastos Fijos

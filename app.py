@@ -482,7 +482,6 @@ with tab_pagos:
         with col_g3: m_gasto = st.number_input("💲 Monto a Restar:", min_value=0.0)
         with col_g4:
             st.write("")
-            # IMPORTANTE: Dentro de un form, el botón DEBE ser form_submit_button
             btn_aplicar = st.form_submit_button("APLICAR GASTO", use_container_width=True, type="primary")
 
         if btn_aplicar:

@@ -561,6 +561,10 @@ with tab_pagos:
                 
             html_historial += '</div>'
        
+            html_historial += '</div>'
+       
+            st.markdown(html_historial, unsafe_allow_html=True)
+            
             if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO"):
                 if not df_movs.empty:
                     # 1. Identificar los datos del último movimiento antes de borrarlo

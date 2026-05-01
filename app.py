@@ -389,88 +389,94 @@ with tab_ajustes:
         st.markdown(html_gastos, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 3. PAGOS Y EXCEPCIONES (Interfaz Premium y Limpia)
+# 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)
 # ---------------------------------------------------------
 with tab_pagos:
-    st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
-    
-    # Quitamos la columna "fantasma" del medio y acercamos los botones
-    col_i1, col_i3 = st.columns([1.5, 1])
-    nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
-    
-# 🌟 TODO EL PANEL DE PAGOS UNIFICADO EN UN FRAGMENTO PARA EVITAR REFRESCADO TOTAL 🌟
+    # 🌟 TODO EL PANEL UNIFICADO EN UN FRAGMENTO PARA EVITAR PARPADEOS 🌟
     @st.fragment
     def mostrar_panel_pagos_unificado():
+        # Conectamos con la memoria global de la app
         global df_fijos, df_movs, df_cuentas, df_excep
+        
+        st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
         
         col_i1, col_i3 = st.columns([1.5, 1])
         nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
         
         with col_i1:
             opciones_inyec = ["TODAS"] + nombres_cuentas
-            cuenta_inyec = st.selectbox("📥 Seleccionar Cuenta (Filtro Maestro):", opciones_inyec)
+            # Este es el FILTRO MAESTRO: Todo lo que veas abajo será de esta cuenta
+            cuenta_maestra = st.selectbox("📥 Seleccionar Cuenta (Filtro Maestro):", opciones_inyec)
             
-            if cuenta_inyec != "TODAS":
-                exc_c = df_excep[df_excep["Cuenta"] == cuenta_inyec]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                categorias_validas = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
-                exc_c_validas = [cat for cat in exc_c if cat in categorias_validas]
+            if cuenta_maestra != "TODAS":
+                # Mostramos las excepciones solo de la cuenta seleccionada
+                exc_c = df_excep[df_excep["Cuenta"] == cuenta_maestra]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                categorias_v = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
+                exc_c_v = [cat for cat in exc_c if cat in categorias_v]
                 
                 with st.form("form_excepciones", border=False):
-                    nuevas_exc = st.multiselect(f"Excluir categorías en {cuenta_inyec}:", categorias_validas, default=exc_c_validas)
-                    btn_guardar_exc = st.form_submit_button("💾 Guardar Excepciones")
+                    nuevas_exc = st.multiselect(f"Excluir categorías en {cuenta_maestra}:", categorias_v, default=exc_c_v)
+                    btn_guardar_exc = st.form_submit_button("💾 Guardar en Excel")
                     
                 if btn_guardar_exc:
-                    df_temp = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones").dropna(how="all")
-                    if not df_temp.empty: df_temp = df_temp[df_temp["Cuenta"] != cuenta_inyec]
-                    nuevas_rows = pd.DataFrame([{"Cuenta": cuenta_inyec, "Categoria_Excluida": x} for x in nuevas_exc])
+                    # Leemos lo que hay en el Excel actualmente
+                    df_temp = conn.read(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", ttl=0).dropna(how="all")
+                    # Quitamos lo viejo de ESTA cuenta para no duplicar
+                    if not df_temp.empty:
+                        df_temp = df_temp[df_temp["Cuenta"] != cuenta_maestra]
+                    
+                    # Creamos las nuevas filas asegurando que diga la cuenta
+                    nuevas_rows = pd.DataFrame([{"Cuenta": cuenta_maestra, "Categoria_Excluida": x} for x in nuevas_exc])
                     df_final_excep = pd.concat([df_temp, nuevas_rows], ignore_index=True)
+                    
+                    # GUARDADO TOTAL: Excel + Memoria Local
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_final_excep)
-                    st.session_state.df_excep = df_final_excep
+                    st.session_state.df_excep = df_final_excep # Esto evita el reseteo
+                    st.success(f"Configuración de {cuenta_maestra} guardada en Excel.")
                     st.rerun()
 
         with col_i3:
             st.write("")
-            col_btn_agregar, col_btn_deshacer = st.columns(2)
-            with col_btn_agregar:
-                if st.button("➕ AGREGAR SEMANA", use_container_width=True, type="primary"):
-                    ctas_a_procesar = nombres_cuentas if cuenta_inyec == "TODAS" else [cuenta_inyec]
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                if st.button("➕ SEMANA", use_container_width=True, type="primary"):
+                    ctas_a_procesar = nombres_cuentas if cuenta_maestra == "TODAS" else [cuenta_maestra]
                     for cta in ctas_a_procesar:
-                        lista_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                        cats_validas = df_fijos[~df_fijos["Categoría"].isin(lista_negra)].copy()
-                        monto_total_cta = (pd.to_numeric(cats_validas["Monto_Mensual"]) / 4).sum()
-                        for idx, row in cats_validas.iterrows():
+                        l_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                        cats_v = df_fijos[~df_fijos["Categoría"].isin(l_negra)].copy()
+                        monto_inyec = (pd.to_numeric(cats_v["Monto_Mensual"]) / 4).sum()
+                        
+                        for idx, row in cats_v.iterrows():
                             idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
                             df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) + (float(row["Monto_Mensual"]) / 4)
+                        
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
-                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_total_cta
-                        nuevo_mov = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta, "Concepto": "INYECCIÓN SEMANAL", "Monto": monto_total_cta}])
-                        df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
-                    
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_inyec
+                        
+                        nuevo_m = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta, "Concepto": "INYECCIÓN SEMANAL", "Monto": monto_inyec}])
+                        df_movs = pd.concat([df_movs, nuevo_m], ignore_index=True)
+
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                    
-                    # 🌟 ACTUALIZACIÓN INMEDIATA PARA QUE APAREZCA EN EL HISTORIAL 🌟
                     st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
                     st.rerun()
             
-            with col_btn_deshacer:
+            with col_b2:
                 if st.button("↩️ DESHACER", use_container_width=True):
                     if not df_movs.empty and "INYECCIÓN SEMANAL" in df_movs["Concepto"].values:
-                        ult_fecha = df_movs[df_movs["Concepto"] == "INYECCIÓN SEMANAL"]["Fecha"].iloc[-1]
-                        inyec_a_revertir = df_movs[(df_movs["Concepto"] == "INYECCIÓN SEMANAL") & (df_movs["Fecha"] == ult_fecha)]
-                        for _, mov in inyec_a_revertir.iterrows():
-                            cta = mov["Cuenta"]
-                            m_quitar = float(mov["Monto"])
-                            if cta in df_cuentas["Cuenta"].values:
-                                idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta].tolist()[0]
-                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_quitar
-                            lista_n = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                            cats_rev = df_fijos[~df_fijos["Categoría"].isin(lista_n)]
-                            for _, row in cats_rev.iterrows():
-                                idx_f = df_fijos.index[df_fijos["Categoría"] == row["Categoría"]].tolist()[0]
-                                df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - (float(row["Monto_Mensual"]) / 4)
-                        df_movs = df_movs.drop(inyec_a_revertir.index)
+                        ult_f = df_movs[df_movs["Concepto"] == "INYECCIÓN SEMANAL"]["Fecha"].iloc[-1]
+                        a_revertir = df_movs[(df_movs["Concepto"] == "INYECCIÓN SEMANAL") & (df_movs["Fecha"] == ult_f)]
+                        for _, mov in a_revertir.iterrows():
+                            c_r, m_r = mov["Cuenta"], float(mov["Monto"])
+                            if c_r in df_cuentas["Cuenta"].values:
+                                idx_c = df_cuentas.index[df_cuentas["Cuenta"] == c_r].tolist()[0]
+                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_r
+                            l_n = df_excep[df_excep["Cuenta"] == c_r]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                            for _, r in df_fijos[~df_fijos["Categoría"].isin(l_n)].iterrows():
+                                idx_f = df_fijos.index[df_fijos["Categoría"] == r["Categoría"]].tolist()[0]
+                                df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - (float(r["Monto_Mensual"]) / 4)
+                        df_movs = df_movs.drop(a_revertir.index)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
@@ -479,74 +485,67 @@ with tab_pagos:
 
         st.markdown("<hr>", unsafe_allow_html=True)
         
-        # --- APLICAR GASTO ---
+        # --- FORMULARIO DE GASTO ---
         with st.form("form_gasto_unificado", border=False):
             cg1, cg2, cg3, cg4 = st.columns([1.5, 1.5, 1, 1.2])
-            with cg1: c_gasto = st.selectbox("💳 Cuenta:", nombres_cuentas, index=nombres_cuentas.index(cuenta_inyec) if cuenta_inyec in nombres_cuentas else 0)
+            with cg1: c_gasto = st.selectbox("💳 Cuenta:", nombres_cuentas, index=nombres_cuentas.index(cuenta_maestra) if cuenta_maestra in nombres_cuentas else 0)
             with cg2: 
-                lista_negra_g = df_excep[df_excep["Cuenta"] == c_gasto]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                categorias_gasto = df_fijos[~df_fijos["Categoría"].isin(lista_negra_g)]["Categoría"].tolist() if not df_fijos.empty else []
-                s_gasto = st.selectbox("📂 Categoría:", categorias_gasto)
+                l_n_g = df_excep[df_excep["Cuenta"] == c_gasto]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                s_gasto = st.selectbox("📂 Categoría:", df_fijos[~df_fijos["Categoría"].isin(l_n_g)]["Categoría"].tolist() if not df_fijos.empty else [])
             with cg3: m_gasto = st.number_input("💲 Monto:", min_value=0.0)
             with cg4: 
                 st.write("")
-                btn_aplicar = st.form_submit_button("APLICAR GASTO", use_container_width=True, type="primary")
-            
-            if btn_aplicar and m_gasto > 0:
-                nuevo_mov = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": c_gasto, "Concepto": s_gasto, "Monto": -m_gasto}])
-                df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
-                idx_f = df_fijos.index[df_fijos["Categoría"] == s_gasto].tolist()[0]
-                df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - m_gasto
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                st.session_state.df_movs, st.session_state.df_fijos = df_movs, df_fijos
-                st.rerun()
+                if st.form_submit_button("APLICAR GASTO", use_container_width=True, type="primary"):
+                    if m_gasto > 0:
+                        nuevo_m = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": c_gasto, "Concepto": s_gasto, "Monto": -m_gasto}])
+                        df_movs = pd.concat([df_movs, nuevo_m], ignore_index=True)
+                        idx_f = df_fijos.index[df_fijos["Categoría"] == s_gasto].tolist()[0]
+                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - m_gasto
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                        st.session_state.df_movs, st.session_state.df_fijos = df_movs, df_fijos
+                        st.rerun()
 
-        # --- SECCIÓN DINERO E HISTORIAL FILTRADOS ---
+        # --- DINERO Y HISTORIAL (SOLO DE LA CUENTA SELECCIONADA) ---
         cf1, cf2 = st.columns([1.5, 2])
-        
         with cf1:
-            st.markdown(f"<h4 style='color: #2E7D32;'>💰 Disponibilidad: {cuenta_inyec}</h4>", unsafe_allow_html=True)
-            lista_negra_v = df_excep[df_excep["Cuenta"] == cuenta_inyec]["Categoria_Excluida"].tolist() if (not df_excep.empty and cuenta_inyec != "TODAS") else []
-            df_sobres = df_fijos[~df_fijos["Categoría"].isin(lista_negra_v)] if not df_fijos.empty else pd.DataFrame()
-            html_sobres = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
-            for _, row in df_sobres.iterrows():
-                fondo = float(str(row["Fondo_Disponible"]).replace("$", "").replace(",", ""))
-                color = "#4CAF50" if fondo >= 0 else "#F44336"
-                html_sobres += f'<div style="background: #1a1a1a; border-left: 4px solid {color}; padding: 10px; border-radius: 8px; flex: 1 1 calc(50% - 10px); display: flex; justify-content: space-between;"><span style="font-size: 13px;">{row["Categoría"]}</span><span style="color: {color}; font-weight: bold;">${fondo:,.0f}</span></div>'
-            html_sobres += '</div>'
-            st.markdown(html_sobres, unsafe_allow_html=True)
+            st.markdown(f"<h4 style='color: #2E7D32;'>💰 Disponible: {cuenta_maestra}</h4>", unsafe_allow_html=True)
+            l_n_v = df_excep[df_excep["Cuenta"] == cuenta_maestra]["Categoria_Excluida"].tolist() if (not df_excep.empty and cuenta_maestra != "TODAS") else []
+            df_sobres = df_fijos[~df_fijos["Categoría"].isin(l_n_v)]
+            html_s = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
+            for _, r in df_sobres.iterrows():
+                f = float(str(r["Fondo_Disponible"]).replace("$", "").replace(",", ""))
+                c = "#4CAF50" if f >= 0 else "#F44336"
+                html_s += f'<div style="background: #1a1a1a; border-left: 4px solid {c}; padding: 10px; border-radius: 8px; flex: 1 1 calc(50% - 10px); display: flex; justify-content: space-between;"><span style="font-size: 13px;">{r["Categoría"]}</span><span style="color: {c}; font-weight: bold;">${f:,.0f}</span></div>'
+            st.markdown(html_s + '</div>', unsafe_allow_html=True)
 
         with cf2:
-            st.markdown(f"<h4 style='color: #1565C0;'>📜 Historial: {cuenta_inyec}</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='color: #1565C0;'>📜 Historial: {cuenta_maestra}</h4>", unsafe_allow_html=True)
             df_h = df_movs.copy()
-            if cuenta_inyec != "TODAS": df_h = df_h[df_h["Cuenta"] == cuenta_inyec]
+            if cuenta_maestra != "TODAS": df_h = df_h[df_h["Cuenta"] == cuenta_maestra]
             f_cat = st.selectbox("Filtrar por Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist())
             if f_cat != "VER TODO": df_h = df_h[df_h["Concepto"] == f_cat]
             df_h = df_h.sort_index(ascending=False)
             
             html_hist = '<div style="max-height: 350px; overflow-y: auto;">'
-            for _, row in df_h.iterrows():
-                m = float(row["Monto"])
-                c = "#4CAF50" if m >= 0 else "#F44336"
-                # 🌟 AGREGADA LA CUENTA AL LADO DE LA FECHA 🌟
-                html_hist += f'<div style="background: #1e1e1e; margin-bottom: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between;"><div><div style="font-size: 13px; font-weight: bold;">{row["Concepto"]}</div><div style="font-size: 10px; color: #888;">{row["Fecha"]} • {row["Cuenta"]}</div></div><div style="color: {c}; font-weight: bold;">${m:,.2f}</div></div>'
+            for _, r in df_h.iterrows():
+                m = float(r["Monto"])
+                color = "#4CAF50" if m >= 0 else "#F44336"
+                html_hist += f'<div style="background: #1e1e1e; margin-bottom: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between;"><div><div style="font-size: 13px; font-weight: bold;">{r["Concepto"]}</div><div style="font-size: 10px; color: #888;">{r["Fecha"]} • {r["Cuenta"]}</div></div><div style="color: {color}; font-weight: bold;">${m:,.2f}</div></div>'
             
-            html_hist += '</div>'
-            total_h = df_h["Monto"].sum()
-            color_t = "#4CAF50" if total_h >= 0 else "#F44336"
-            signo_t = "+" if total_h > 0 else ""
-            html_hist += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {color_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL FILTRADO</div><div style="color: {color_t}; font-weight: bold; font-size: 20px;">{signo_t}${total_h:,.2f}</div></div>'
+            t_h = df_h["Monto"].sum()
+            c_t = "#4CAF50" if t_h >= 0 else "#F44336"
+            html_hist += f'</div><div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {c_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL FILTRADO</div><div style="color: {c_t}; font-weight: bold; font-size: 20px;">${t_h:,.2f}</div></div>'
             st.markdown(html_hist, unsafe_allow_html=True)
             
             if st.button("🗑️ BORRAR ÚLTIMO", use_container_width=True):
                 if not df_movs.empty:
                     ult = df_movs.iloc[-1]
                     cta_m, conc_m, m_m = ult["Cuenta"], ult["Concepto"], float(ult["Monto"])
-                    if not df_fijos.empty and conc_m in df_fijos["Categoría"].values:
+                    if conc_m in df_fijos["Categoría"].values:
                         idx_f = df_fijos.index[df_fijos["Categoría"] == conc_m].tolist()[0]
                         df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - m_m
-                    if not df_cuentas.empty and cta_m in df_cuentas["Cuenta"].values:
+                    if cta_m in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_m].tolist()[0]
                         df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_m
                     df_movs = df_movs.drop(df_movs.index[-1])

@@ -315,42 +315,39 @@ with tab_vista:
         st.markdown(html_anual, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 2. AJUSTES: GASTOS FIJOS (Sincronizado con Excel)
+# 2. AJUSTES: GASTOS FIJOS (Filtro Dinámico Completo)
 # ---------------------------------------------------------
 with tab_ajustes:
-    st.subheader("⚙️ Configurar Gastos Fijos")
-
-    # 🌟 FRAGMENTO PARA QUE LOS CAMBIOS DE SELECTOR NO RECARGUEN TODA LA PÁGINA 🌟
+    # 🌟 METEMOS TODA LA PESTAÑA EN UN FRAGMENTO PARA CERO PARPADEOS 🌟
     @st.fragment
     def panel_configuracion_fijos():
         global df_fijos, df_excep, df_cuentas
         
-        cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
-        todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
-        nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
+        st.subheader("⚙️ Configurar Gastos Fijos")
         
-        # Determinamos qué cuenta paga esta categoría actualmente para ponerla por defecto
+        nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
+        opciones_con_todas = ["TODAS"] + nombres_cuentas
+        
         c0, c1, c2, c3, c4 = st.columns([2, 2, 1.5, 1.5, 1.2])
         
+        with c0: 
+            # 🌟 ESTE ES EL FILTRO MAESTRO 🌟
+            cta_filtro = st.selectbox("Filtrar por Cuenta:", opciones_con_todas, index=0)
+            
+        cat_existentes = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
+        todas_categorias = sorted(list(set(CATEGORIAS_BASE + cat_existentes)))
+        
+        if cta_filtro != "TODAS":
+            # Si eliges una cuenta, filtramos las categorías para mostrar solo las que esa cuenta paga
+            excluidas = df_excep[df_excep["Cuenta"] == cta_filtro]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+            todas_categorias = [c for c in todas_categorias if c not in excluidas]
+            
         with c1: 
-            cat_sel = st.selectbox("Selecciona Categoría", todas_categorias)
-            
-        with c0:
-            # Buscamos quién es el responsable actual en el Excel
-            cuentas_que_la_pagan = []
-            for c in nombres_cuentas:
-                if not ((df_excep["Cuenta"] == c) & (df_excep["Categoria_Excluida"] == cat_sel)).any():
-                    cuentas_que_la_pagan.append(c)
-            
-            # Si todas la pagan, es TODAS. Si no, tomamos la primera que la paga.
-            def_idx = 0
-            opciones_cta = ["TODAS"] + nombres_cuentas
-            if len(cuentas_que_la_pagan) == 1:
-                responsable_actual = cuentas_que_la_pagan[0]
-                if responsable_actual in opciones_cta: def_idx = opciones_cta.index(responsable_actual)
-            
-            cta_ajuste = st.selectbox("Cuenta Relacionada", opciones_cta, index=def_idx)
-
+            if todas_categorias:
+                cat_sel = st.selectbox("Selecciona Categoría", todas_categorias)
+            else:
+                cat_sel = st.selectbox("Selecciona Categoría", ["Sin categorías"])
+                
         m_act, f_act = 0.0, 0.0
         if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
             m_act = float(df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"].values[0])
@@ -363,8 +360,7 @@ with tab_ajustes:
             st.write("")
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
-                if st.button("💾", help="Guardar en Excel", use_container_width=True, type="primary"):
-                    # 1. Guardar en Gastos_Fijos
+                if st.button("💾", help="Guardar", use_container_width=True, type="primary") and cat_sel != "Sin categorías":
                     if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
                         df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Monto_Mensual"] = m_sel
                         df_fijos.loc[df_fijos["Categoría"] == cat_sel, "Fondo_Disponible"] = f_sel
@@ -374,71 +370,69 @@ with tab_ajustes:
                     
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                     st.session_state.df_fijos = df_fijos
-
-                    # 2. 🌟 GUARDAR ASIGNACIÓN DE CUENTA EN EXCEL (Hoja Excepciones) 🌟
-                    # Limpiamos excepciones viejas de esta categoría
-                    df_excep = df_excep[df_excep["Categoria_Excluida"] != cat_sel]
                     
-                    if cta_ajuste != "TODAS":
-                        # Si una cuenta es la jefa, se excluye de todas las demás
-                        for cta_otra in nombres_cuentas:
-                            if cta_otra != cta_ajuste:
-                                nueva_exc = pd.DataFrame([{"Cuenta": cta_otra, "Categoria_Excluida": cat_sel}])
+                    # Si creas un gasto nuevo mientras filtras por una cuenta, se le asigna automáticamente a esa cuenta
+                    if cta_filtro != "TODAS":
+                        df_excep = df_excep[df_excep["Categoria_Excluida"] != cat_sel]
+                        for c_otra in nombres_cuentas:
+                            if c_otra != cta_filtro:
+                                nueva_exc = pd.DataFrame([{"Cuenta": c_otra, "Categoria_Excluida": cat_sel}])
                                 df_excep = pd.concat([df_excep, nueva_exc], ignore_index=True)
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_excep)
+                        st.session_state.df_excep = df_excep
+
+                    st.success("Guardado.")
+                    st.rerun()
                     
+            with col_btn2:
+                if st.button("🗑️", help="Eliminar", use_container_width=True) and cat_sel != "Sin categorías":
+                    df_fijos = df_fijos[df_fijos["Categoría"] != cat_sel]
+                    df_excep = df_excep[df_excep["Categoria_Excluida"] != cat_sel]
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_excep)
-                    st.session_state.df_excep = df_excep
-                    st.success(f"Guardado: {cat_sel} asignada a {cta_ajuste}")
+                    st.session_state.df_fijos, st.session_state.df_excep = df_fijos, df_excep
                     st.rerun()
 
-            with col_btn2:
-                if st.button("🗑️", help="Eliminar", use_container_width=True):
-                    if not df_fijos.empty and cat_sel in df_fijos["Categoría"].values:
-                        df_fijos = df_fijos[df_fijos["Categoría"] != cat_sel]
-                        df_excep = df_excep[df_excep["Categoria_Excluida"] != cat_sel]
-                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Excepciones", data=df_excep)
-                        st.session_state.df_fijos, st.session_state.df_excep = df_fijos, df_excep
-                        st.rerun()
+        st.markdown("---")
+        
+        if not df_fijos.empty:
+            df_order = df_fijos.copy()
+            
+            # 🌟 FILTRAR LAS TARJETAS ABAJO SEGÚN LA CUENTA SELECCIONADA ARRIBA 🌟
+            if cta_filtro != "TODAS":
+                excluidas_tarjetas = df_excep[df_excep["Cuenta"] == cta_filtro]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                df_order = df_order[~df_order["Categoría"].isin(excluidas_tarjetas)]
+                
+            df_order["Monto Semanal"] = pd.to_numeric(df_order["Monto_Mensual"]) / 4
+            df_order["Monto Anual"] = pd.to_numeric(df_order["Monto_Mensual"]) * 12
+            df_order["Fondo_Disponible"] = pd.to_numeric(df_order["Fondo_Disponible"])
+            
+            df_order = df_order[["Categoría", "Monto Semanal", "Monto_Mensual", "Monto Anual", "Fondo_Disponible"]]
+            
+            # 🌟 ORDENAR: Fondos en 0 al final 🌟
+            df_order["tmp_cero"] = df_order["Fondo_Disponible"].astype(float) == 0
+            df_order = df_order.sort_values(by=["tmp_cero", "Categoría"], ascending=[True, True]).drop(columns=["tmp_cero"])
+
+            html_gastos = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">'
+            for _, row in df_order.iterrows():
+                try: fondo = float(str(row["Fondo_Disponible"]).replace("$", "").replace(",", ""))
+                except ValueError: fondo = 0.0
+                try: semanal = float(str(row["Monto Semanal"]).replace("$", "").replace(",", ""))
+                except ValueError: semanal = 0.0
+                try: mensual = float(str(row["Monto_Mensual"]).replace("$", "").replace(",", ""))
+                except ValueError: mensual = 0.0
+                try: anual = float(str(row["Monto Anual"]).replace("$", "").replace(",", ""))
+                except ValueError: anual = 0.0
+                
+                color_fondo_txt = "#4CAF50" if fondo >= 0 else "#F44336"
+                
+                html_gastos += f'<div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-top: 4px solid #1565C0; padding: 15px; border-radius: 10px; flex: 1 1 calc(25% - 15px); min-width: 200px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);"><h4 style="margin: 0 0 12px 0; color: #fff; text-align: center; font-size: 18px; letter-spacing: 1px;">{row["Categoría"]}</h4><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Semanal:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${semanal:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Mensual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${mensual:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Anual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${anual:,.0f}</span></div><hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="color: #aaa; font-size: 13px; font-weight: bold;">Fondo Actual:</span><span style="color: {color_fondo_txt}; font-weight: bold; font-size: 18px;">${fondo:,.0f}</span></div></div>'
+            
+            html_gastos += '</div>'
+            st.markdown(html_gastos, unsafe_allow_html=True)
 
     # Ejecutamos el panel fragmentado
     panel_configuracion_fijos()
-
-    st.markdown("---")
-    if not df_fijos.empty:
-        df_order = df_fijos.copy()
-        df_order["Monto Semanal"] = pd.to_numeric(df_order["Monto_Mensual"]) / 4
-        df_order["Monto Anual"] = pd.to_numeric(df_order["Monto_Mensual"]) * 12
-        df_order["Fondo_Disponible"] = pd.to_numeric(df_order["Fondo_Disponible"])
-        
-# Orden pedido: Semanal, Mensual, Anual, Fondo
-        df_order = df_order[["Categoría", "Monto Semanal", "Monto_Mensual", "Monto Anual", "Fondo_Disponible"]]
-        
-        # 🌟 ORDENAR: Poner los fondos en 0 al final de la lista 🌟
-        df_order["tmp_cero"] = df_order["Fondo_Disponible"].astype(float) == 0
-        df_order = df_order.sort_values(by=["tmp_cero", "Categoría"], ascending=[True, True]).drop(columns=["tmp_cero"])
-
-        # 🌟 DISEÑO DE TARJETAS INDIVIDUALES (CERO TABLAS) 🌟
-        html_gastos = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">'
-        
-        for _, row in df_order.iterrows():
-            # Limpieza segura de números
-            try: fondo = float(str(row["Fondo_Disponible"]).replace("$", "").replace(",", ""))
-            except ValueError: fondo = 0.0
-            try: semanal = float(str(row["Monto Semanal"]).replace("$", "").replace(",", ""))
-            except ValueError: semanal = 0.0
-            try: mensual = float(str(row["Monto_Mensual"]).replace("$", "").replace(",", ""))
-            except ValueError: mensual = 0.0
-            try: anual = float(str(row["Monto Anual"]).replace("$", "").replace(",", ""))
-            except ValueError: anual = 0.0
-                
-            color_fondo_txt = "#4CAF50" if fondo >= 0 else "#F44336"
-            
-            # Tarjeta tipo Widget (Todo en una línea para que Streamlit no lo rompa)
-            html_gastos += f'<div style="background: linear-gradient(145deg, #2a2a2a, #1a1a1a); border-top: 4px solid #1565C0; padding: 15px; border-radius: 10px; flex: 1 1 calc(25% - 15px); min-width: 200px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);"><h4 style="margin: 0 0 12px 0; color: #fff; text-align: center; font-size: 18px; letter-spacing: 1px;">{row["Categoría"]}</h4><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Semanal:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${semanal:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Mensual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${mensual:,.0f}</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span style="color: #888; font-size: 13px;">Anual:</span><span style="color: #ddd; font-weight: bold; font-size: 14px;">${anual:,.0f}</span></div><hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="color: #aaa; font-size: 13px; font-weight: bold;">Fondo Actual:</span><span style="color: {color_fondo_txt}; font-weight: bold; font-size: 18px;">${fondo:,.0f}</span></div></div>'
-            
-        html_gastos += '</div>'
-        st.markdown(html_gastos, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)

@@ -367,10 +367,6 @@ with tab_ajustes:
 # Orden pedido: Semanal, Mensual, Anual, Fondo
         df_order = df_order[["Categoría", "Monto Semanal", "Monto_Mensual", "Monto Anual", "Fondo_Disponible"]]
         
-        # 🌟 ORDENAR: Poner los fondos en 0 al final de la lista 🌟
-        df_order["tmp_cero"] = df_order["Fondo_Disponible"].astype(float) == 0
-        df_order = df_order.sort_values(by=["tmp_cero", "Categoría"], ascending=[True, True]).drop(columns=["tmp_cero"])
-
         # 🌟 DISEÑO DE TARJETAS INDIVIDUALES (CERO TABLAS) 🌟
         html_gastos = '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">'
         

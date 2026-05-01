@@ -675,7 +675,7 @@ with tab_trading:
 
     if not df_trading.empty:
         st.markdown("---")
-        st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL DE MOVIMIENTOS</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL</h4>", unsafe_allow_html=True)
         
 # --- SISTEMA DE FILTROS LINDOS (FRAGMENTADO PARA NO PARPADEAR) ---
         @st.fragment
@@ -685,7 +685,7 @@ with tab_trading:
             
             col_f1, col_f2 = st.columns(2)
             with col_f1:
-                f_tipo = st.selectbox("Filtrar por Operación:", ["TODOS", "Inversión", "Retiro"])
+                f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro"])
             with col_f2:
                 # 🛡️ ESCUDO ANTI-ERRORES DEFINITIVO PARA STREAMLIT CLOUD 🌟
                 if not df_trading.empty and "Concepto" in df_trading.columns:

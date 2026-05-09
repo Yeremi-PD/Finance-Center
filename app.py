@@ -592,22 +592,26 @@ with tab_pagos:
             
             with col_b2:
                 if st.button("DESHACER", use_container_width=True):
-                    if not df_movs.empty and "INYECCIÓN SEMANAL" in df_movs["Concepto"].values:
-                        ult_f = df_movs[df_movs["Concepto"] == "INYECCIÓN SEMANAL"]["Fecha"].iloc[-1]
-                        a_revertir = df_movs[(df_movs["Concepto"] == "INYECCIÓN SEMANAL") & (df_movs["Fecha"] == ult_f)]
+                    # Ahora busca el nombre correcto: "NÓMINA SEMANAL"
+                    if not df_movs.empty and "NÓMINA SEMANAL" in df_movs["Concepto"].values:
+                        ult_f = df_movs[df_movs["Concepto"] == "NÓMINA SEMANAL"]["Fecha"].iloc[-1]
+                        a_revertir = df_movs[(df_movs["Concepto"] == "NÓMINA SEMANAL") & (df_movs["Fecha"] == ult_f)]
+                        
                         for _, mov in a_revertir.iterrows():
                             c_r, m_r = mov["Cuenta"], float(mov["Monto"])
                             if c_r in df_cuentas["Cuenta"].values:
                                 idx_c = df_cuentas.index[df_cuentas["Cuenta"] == c_r].tolist()[0]
                                 df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_r
+                            
                             l_n = df_excep[df_excep["Cuenta"] == c_r]["Categoria_Excluida"].tolist() if not df_excep.empty else []
                             for _, r in df_fijos[~df_fijos["Categoría"].isin(l_n)].iterrows():
                                 idx_f = df_fijos.index[df_fijos["Categoría"] == r["Categoría"]].tolist()[0]
                                 df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - (float(r["Monto_Mensual"]) / 4)
+                        
                         df_movs = df_movs.drop(a_revertir.index)
                         
-                        # Revertir también en Trading si existe la inyección de hoy
-                        if not df_trading.empty:
+                        # Revertir también en Trading de forma segura
+                        if not df_trading.empty and "Inyección Semanal" in df_trading["Concepto"].values:
                             mask_t = (df_trading["Concepto"] == "Inyección Semanal") & (df_trading["Fecha"] == ult_f)
                             df_trading = df_trading[~mask_t]
             
@@ -615,7 +619,16 @@ with tab_pagos:
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
-                        st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs, st.session_state.df_trading = df_fijos, df_cuentas, df_movs, df_trading
+                        
+                        st.session_state.df_fijos = df_fijos
+                        st.session_state.df_cuentas = df_cuentas
+                        st.session_state.df_movs = df_movs
+                        st.session_state.df_trading = df_trading
+                        
+                        st.success("✅ Semana deshecha correctamente.")
+                        st.rerun()
+                    else:
+                        st.warning("No se encontró ninguna inyección semanal reciente para deshacer.")
                         st.rerun()
 
         st.markdown("<hr>", unsafe_allow_html=True)

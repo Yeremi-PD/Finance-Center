@@ -907,8 +907,10 @@ with tab_trading:
             global df_trading, df_movs, df_cuentas, df_fijos
             
             col_f1, col_f2 = st.columns(2)
+            
             with col_f1:
                 f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Inyección Semanal"])
+                
             with col_f2:
                 # 🛡️ ESCUDO ANTI-ERRORES DEFINITIVO PARA STREAMLIT CLOUD 🌟
                 if not df_trading.empty and "Concepto" in df_trading.columns:
@@ -917,7 +919,7 @@ with tab_trading:
                 else:
                     opciones_conceptos = ["TODOS"]
                     
-                f_concepto = st.selectbox("Filtrar", opciones_conceptos)
+                f_concepto = st.selectbox("Filtrar concepto", opciones_conceptos)
             
             # Aplicar Filtros
             df_filtrado_t = df_trading.copy()

@@ -708,6 +708,10 @@ with tab_pagos:
             if not df_cargos_auto.empty:
                 st.markdown("<br><h4 style='color: #4CAF50;'>Cargos Activos</h4>", unsafe_allow_html=True)
                 for i, row in df_cargos_auto.iterrows():
+                    # Inicializar estado de edición para cada fila si no existe
+                    if f"edit_auto_{i}" not in st.session_state:
+                        st.session_state[f"edit_auto_{i}"] = False
+
                     # Tarjeta visual para los cargos
                     html_cargo = f'''
                     <div style="background: #1a1a1a; padding: 10px 15px; border-radius: 8px; border-left: 3px solid #1565C0; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
@@ -719,16 +723,48 @@ with tab_pagos:
                     </div>
                     '''
                     
-                    ca_col1, ca_col2 = st.columns([5, 1])
+                    ca_col1, ca_col2, ca_col3 = st.columns([5, 0.6, 0.6])
                     with ca_col1:
                         st.markdown(html_cargo, unsafe_allow_html=True)
                     with ca_col2:
-                        st.write("") # Alinear el botón de borrar
-                        if st.button("🗑️", key=f"del_auto_{i}", help="Eliminar Cargo", use_container_width=True):
+                        st.write("") 
+                        if st.button("✏️", key=f"btn_edit_{i}", help="Editar Cargo"):
+                            st.session_state[f"edit_auto_{i}"] = not st.session_state[f"edit_auto_{i}"]
+                            st.rerun()
+                    with ca_col3:
+                        st.write("") 
+                        if st.button("🗑️", key=f"del_auto_{i}", help="Eliminar Cargo"):
                             df_cargos_auto = df_cargos_auto.drop(i)
                             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
                             st.session_state.df_cargos_auto = df_cargos_auto
                             st.rerun()
+                    
+                    # --- FORMULARIO DE EDICIÓN (Se muestra si se activó el botón ✏️) ---
+                    if st.session_state[f"edit_auto_{i}"]:
+                        with st.container():
+                            st.markdown("<div style='background: #262730; padding: 15px; border-radius: 10px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+                            ce1, ce2, ce3 = st.columns([2, 1, 1])
+                            new_concepto = ce1.text_input("Concepto:", value=row["Concepto"], key=f"inp_con_{i}")
+                            new_monto = ce2.number_input("Monto:", value=float(row["Monto"]), key=f"inp_mon_{i}")
+                            new_dia = ce3.number_input("Día:", value=int(row["Dia_Cobro"]), min_value=1, max_value=31, key=f"inp_dia_{i}")
+                            
+                            ce4, ce5 = st.columns(2)
+                            new_cta = ce4.selectbox("Cuenta:", nombres_cuentas, index=nombres_cuentas.index(row["Cuenta"]) if row["Cuenta"] in nombres_cuentas else 0, key=f"inp_cta_{i}")
+                            new_cat = ce5.selectbox("Categoría:", df_fijos["Categoría"].tolist(), index=df_fijos["Categoría"].tolist().index(row["Categoria"]) if row["Categoria"] in df_fijos["Categoría"].tolist() else 0, key=f"inp_cat_{i}")
+                            
+                            if st.button("💾 GUARDAR CAMBIOS", key=f"save_edit_{i}", use_container_width=True, type="primary"):
+                                df_cargos_auto.at[i, "Concepto"] = new_concepto
+                                df_cargos_auto.at[i, "Monto"] = new_monto
+                                df_cargos_auto.at[i, "Dia_Cobro"] = new_dia
+                                df_cargos_auto.at[i, "Cuenta"] = new_cta
+                                df_cargos_auto.at[i, "Categoria"] = new_cat
+                                
+                                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
+                                st.session_state.df_cargos_auto = df_cargos_auto
+                                st.session_state[f"edit_auto_{i}"] = False
+                                st.success("Cambios guardados.")
+                                st.rerun()
+                            st.markdown("</div>", unsafe_allow_html=True)
 
     mostrar_panel_pagos_unificado()
 

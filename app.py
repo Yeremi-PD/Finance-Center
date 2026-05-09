@@ -156,7 +156,8 @@ def cargar_base_datos(nombre):
                 "Movimientos": ["Fecha", "Cuenta", "Concepto", "Monto"],
                 "Cuentas": ["Cuenta", "Saldo"],
                 "Excepciones": ["Cuenta", "Categoria_Excluida"],
-                "Trading": ["Fecha", "Cuenta", "Tipo", "Concepto", "Monto"]
+                "Trading": ["Fecha", "Cuenta", "Tipo", "Concepto", "Monto"],
+                "Cargos_Auto": ["Concepto", "Categoria", "Cuenta", "Monto", "Dia_Cobro", "Ultimo_Mes_Cobrado"]
             }
             return pd.DataFrame(columns=columnas.get(nombre, []))
         if nombre == "Gastos_Fijos" and "Fondo_Disponible" not in df.columns:
@@ -172,6 +173,7 @@ if 'df_fijos' not in st.session_state:
     st.session_state.df_cuentas = cargar_base_datos("Cuentas")
     st.session_state.df_excep = cargar_base_datos("Excepciones")
     st.session_state.df_trading = cargar_base_datos("Trading")
+    st.session_state.df_cargos_auto = cargar_base_datos("Cargos_Auto")
 
 # Usamos las variables de la sesión para que todo sea instantáneo
 df_fijos = st.session_state.df_fijos
@@ -179,6 +181,51 @@ df_movs = st.session_state.df_movs
 df_cuentas = st.session_state.df_cuentas
 df_excep = st.session_state.df_excep
 df_trading = st.session_state.df_trading # Nueva hoja cargada
+df_cargos_auto = st.session_state.df_cargos_auto
+
+# --- LÓGICA DE PROCESAMIENTO DE CARGOS AUTOMÁTICOS ---
+mes_actual = datetime.now().strftime("%Y-%m")
+dia_actual = datetime.now().day
+cambios_auto = False
+
+if not df_cargos_auto.empty:
+    for idx, cargo in df_cargos_auto.iterrows():
+        try:
+            dia_cobro = int(cargo["Dia_Cobro"])
+        except ValueError:
+            continue
+            
+        ultimo_mes = str(cargo["Ultimo_Mes_Cobrado"])
+        
+        # Si el día actual superó o es igual al día de cobro, y no se ha cobrado este mes
+        if dia_actual >= dia_cobro and ultimo_mes != mes_actual:
+            cta_auto = cargo["Cuenta"]
+            cat_auto = cargo["Categoria"]
+            monto_auto = float(cargo["Monto"])
+            concepto_auto = cargo["Concepto"]
+            
+            # 1. Descontar de Gastos Fijos (El fondo de ese sobre)
+            if cat_auto in df_fijos["Categoría"].values:
+                idx_f = df_fijos.index[df_fijos["Categoría"] == cat_auto].tolist()[0]
+                df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - monto_auto
+            
+            # 2. Guardar en Movimientos (Para que se refleje en el historial con la etiqueta AUTO)
+            nuevo_mov = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta_auto, "Concepto": cat_auto, "Monto": -monto_auto}])
+            df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
+            
+            # 3. Marcar como cobrado en la base de datos de cargos
+            df_cargos_auto.at[idx, "Ultimo_Mes_Cobrado"] = mes_actual
+            cambios_auto = True
+
+# Si hubo un cobro, guardamos la base de datos sin que tú tengas que tocar nada
+if cambios_auto:
+    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
+    st.session_state.df_fijos = df_fijos
+    st.session_state.df_movs = df_movs
+    st.session_state.df_cargos_auto = df_cargos_auto
+# -----------------------------------------------------
 
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
@@ -420,7 +467,7 @@ with tab_pagos:
     @st.fragment
     def mostrar_panel_pagos_unificado():
         # Conectamos con la memoria global de la app
-        global df_fijos, df_movs, df_cuentas, df_excep
+        global df_fijos, df_movs, df_cuentas, df_excep, df_cargos_auto
         
         st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
         
@@ -577,7 +624,70 @@ with tab_pagos:
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                     st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
+                
                     st.rerun()
+
+        st.markdown("<hr>", unsafe_allow_html=True)
+        
+        # --- CARGOS AUTOMÁTICOS ---
+        with st.expander("🤖 Configurar Cargos Automáticos", expanded=False):
+            st.markdown("<p style='color: #888; font-size: 14px;'>Configura cobros mensuales que se debitarán solos (Ej: Netflix, Préstamos, Internet).</p>", unsafe_allow_html=True)
+            
+            with st.form("form_nuevo_cargo_auto", border=False):
+                ca1, ca2, ca3 = st.columns([1.5, 1.5, 1])
+                with ca1:
+                    c_auto_cta = st.selectbox("Cuenta Bancaria:", nombres_cuentas, key="auto_cta")
+                with ca2:
+                    c_auto_cat = st.selectbox("Categoría afectada:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="auto_cat")
+                with ca3:
+                    c_auto_dia = st.number_input("Día del cobro (1-31):", min_value=1, max_value=31, value=15)
+                
+                col_c1, col_c2 = st.columns([2, 1])
+                with col_c1:
+                    c_auto_concepto = st.text_input("Concepto del Recibo (Ej: Spotify):")
+                with col_c2:
+                    c_auto_monto = st.number_input("Monto a descontar ($):", min_value=0.0, step=100.0)
+                
+                if st.form_submit_button("Crear Cargo Automático", type="primary", use_container_width=True):
+                    if c_auto_monto > 0 and c_auto_concepto:
+                        nuevo_cargo = pd.DataFrame([{
+                            "Concepto": c_auto_concepto, 
+                            "Categoria": c_auto_cat, 
+                            "Cuenta": c_auto_cta, 
+                            "Monto": c_auto_monto, 
+                            "Dia_Cobro": c_auto_dia, 
+                            "Ultimo_Mes_Cobrado": "" # Vacío para que cobre inmediatamente la primera vez que toque la fecha
+                        }])
+                        df_cargos_auto = pd.concat([df_cargos_auto, nuevo_cargo], ignore_index=True)
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
+                        st.session_state.df_cargos_auto = df_cargos_auto
+                        st.success("✅ Cargo automático registrado.")
+                        st.rerun()
+
+            if not df_cargos_auto.empty:
+                st.markdown("<br><h4 style='color: #4CAF50;'>Cargos Activos</h4>", unsafe_allow_html=True)
+                for i, row in df_cargos_auto.iterrows():
+                    # Tarjeta visual para los cargos
+                    html_cargo = f'''
+                    <div style="background: #1a1a1a; padding: 10px 15px; border-radius: 8px; border-left: 3px solid #1565C0; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</span> <span style="color: #888; font-size: 12px;">({row["Categoria"]} - {row["Cuenta"]})</span><br>
+                            <span style="color: #00E5FF; font-size: 12px; font-weight: bold;">Se cobra los días {row["Dia_Cobro"]}</span>
+                        </div>
+                        <span style="color: #F44336; font-weight: bold; font-size: 18px;">${float(row["Monto"]):,.2f}</span>
+                    </div>
+                    '''
+                    
+                    ca_col1, ca_col2 = st.columns([5, 1])
+                    with ca_col1:
+                        st.markdown(html_cargo, unsafe_allow_html=True)
+                    with ca_col2:
+                        st.write("") # Alinear el botón de borrar
+                        if st.button("🗑️", key=f"del_auto_{i}", help="Eliminar Cargo", use_container_width=True):
+                            df_cargos_auto = df_cargos_auto.drop(i)
+                            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
+                            st.session_state.df_cargos_auto = df_cargos_auto
+                            st.rerun()
 
     mostrar_panel_pagos_unificado()
 

@@ -112,6 +112,22 @@ st.markdown("""
         border-color: #4CAF50 !important;
         box-shadow: 0 8px 20px rgba(76, 175, 80, 0.35) !important; 
     }
+
+    /* 📱 MAGIA PARA DETECTAR CELULAR EN VERTICAL (PORTRAIT) 📱 */
+    @media screen and (max-width: 768px) and (orientation: portrait) {
+        h1 {
+            font-size: 24px !important;
+            top: 15px !important;
+        }
+        div[data-baseweb="tab-list"] {
+            justify-content: center !important;
+            flex-wrap: wrap !important;
+        }
+        .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 

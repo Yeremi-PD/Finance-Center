@@ -320,8 +320,13 @@ st.markdown("""
         gap: 10px !important;
         border-bottom: none !important;
         justify-content: flex-end !important; /* ESTO MUEVE LOS BOTONES A LA DERECHA */
-        padding-top: 15px !important; 
+        padding-top: 15px !important;
         padding-bottom: 10px !important;
+    }
+
+    /* 🚫 ELIMINAR FLECHAS DE DESPLAZAMIENTO DE LAS PESTAÑAS 🚫 */
+    div[data-testid="stTabs"] button:not([role="tab"]) {
+        display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)

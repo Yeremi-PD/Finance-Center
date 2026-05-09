@@ -577,9 +577,9 @@ with tab_pagos:
                             nueva_op_t = pd.DataFrame([{
                                 "Fecha": datetime.now().strftime("%Y-%m-%d"), 
                                 "Cuenta": cta_inv, 
-                                "Tipo": "Retiro", # Se registra como 'Retiro' (Positivo en Balance) porque está entrando dinero al fondo
-                                "Concepto": "Inyección Semanal", 
-                                "Monto": -monto_inv_sem # En tu lógica de Trading, los montos negativos en la hoja son entradas al balance neto
+                                "Tipo": "Inyección Semanal", 
+                                "Concepto": "Fondo Semanal", 
+                                "Monto": -monto_inv_sem 
                             }])
                             df_trading = pd.concat([df_trading, nueva_op_t], ignore_index=True)
 
@@ -610,9 +610,9 @@ with tab_pagos:
                         
                         df_movs = df_movs.drop(a_revertir.index)
                         
-                        # Revertir también en Trading de forma segura
-                        if not df_trading.empty and "Inyección Semanal" in df_trading["Concepto"].values:
-                            mask_t = (df_trading["Concepto"] == "Inyección Semanal") & (df_trading["Fecha"] == ult_f)
+                        # Revertir también en Trading buscando el nuevo Tipo
+                        if not df_trading.empty:
+                            mask_t = (df_trading["Tipo"] == "Inyección Semanal") & (df_trading["Fecha"] == ult_f)
                             df_trading = df_trading[~mask_t]
             
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
@@ -908,7 +908,7 @@ with tab_trading:
             
             col_f1, col_f2 = st.columns(2)
             with col_f1:
-                f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro"])
+                f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Inyección Semanal"])
             with col_f2:
                 # 🛡️ ESCUDO ANTI-ERRORES DEFINITIVO PARA STREAMLIT CLOUD 🌟
                 if not df_trading.empty and "Concepto" in df_trading.columns:
@@ -931,19 +931,20 @@ with tab_trading:
             # Feed de tarjetas
             html_feed_t = '<div style="max-height: 500px; overflow-y: auto; padding-right: 10px; margin-top: 10px;">'
             for _, row in df_filtrado_t.iterrows():
-                monto = float(row["Monto"])
-                color_op = "#F44336" if row["Tipo"] == "Inversión" else "#4CAF50"
-                icon = MAPA_EMOJIS.get(row["Concepto"], "🚀" if row["Tipo"] == "Inversión" else "💰")
+                with col_f1:
+                f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Inyección Semanal"])
+            with col_f2:
                 
                 tarjeta = f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 10px; padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"><div style="display: flex; align-items: center; gap: 15px;"><div style="font-size: 24px;">{icon}</div><div><div style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</div><div style="color: #666; font-size: 11px; text-transform: uppercase;">{row["Fecha"]} • {row["Cuenta"]}</div></div></div><div style="text-align: right;"><div style="color: {color_op}; font-weight: bold; font-size: 18px;">${abs(monto):,.2f}</div><div style="color: #444; font-size: 10px; font-weight: bold; text-transform: uppercase;">{row["Tipo"]}</div></div></div>'
                 html_feed_t += tarjeta
                 
-            # 🌟 NUEVO CÁLCULO DEL TOTAL TRADING (INVERSIÓN = NEGATIVO, RETIRO = POSITIVO) 🌟
+            # 🌟 NUEVO CÁLCULO DEL TOTAL TRADING (INVERSIÓN = NEGATIVO, RETIRO/INYECCIÓN = POSITIVO) 🌟
             total_inversiones = df_filtrado_t[df_filtrado_t["Tipo"] == "Inversión"]["Monto"].astype(float).sum()
-            total_retiros = df_filtrado_t[df_filtrado_t["Tipo"] == "Retiro"]["Monto"].astype(float).abs().sum() # Forzamos a positivo por si acaso
+            # Sumamos Retiros e Inyecciones Semanales como entradas de capital
+            total_entradas = df_filtrado_t[df_filtrado_t["Tipo"].isin(["Retiro", "Inyección Semanal"])]["Monto"].astype(float).abs().sum()
             
-            # La matemática del Trader: Lo que saqué menos lo que metí
-            balance_neto = total_retiros - total_inversiones
+            # La matemática del Trader: Lo que entró menos lo que invirtió
+            balance_neto = total_entradas - total_inversiones
             
             color_t_t = "#4CAF50" if balance_neto >= 0 else "#F44336"
             signo_t_t = "+" if balance_neto > 0 else "-"

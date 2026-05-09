@@ -271,7 +271,7 @@ if cambios_auto:
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
 # Usamos un contenedor HTML para forzar el nombre a la izquierda y permitir que las pestañas suban
-st.markdown("<h1 style='position: absolute; top: 35px; left: 10px; color: #4CAF50; font-size: 45px; z-index: 100; font-weight: 800; display: flex; align-items: center;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='position: absolute; top: 35px; left: 10px; color: #4CAF50; font-size: clamp(24px, 5vw, 45px); z-index: 100; font-weight: 800; display: flex; align-items: center; pointer-events: none;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>

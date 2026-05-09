@@ -730,6 +730,31 @@ with tab_pagos:
                             st.session_state.df_cargos_auto = df_cargos_auto
                             st.rerun()
 
+            # --- BOTÓN DE PRUEBA DE CORREO ---
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("📧 Probar conexión de correo", use_container_width=True):
+                try:
+                    remitente = st.secrets["email"]["user"]
+                    password = st.secrets["email"]["password"]
+                    
+                    msg = MIMEMultipart()
+                    msg['From'] = remitente
+                    msg['To'] = remitente
+                    msg['Subject'] = "🧪 Prueba Exitosa - Financial Center"
+                    
+                    cuerpo = "¡Hola!\n\nSi estás leyendo esto, significa que la configuración de tu correo en Streamlit Secrets está funcionando a la perfección. 🚀\n\nA partir de ahora, cuando un cargo automático se descuente, te avisaré por aquí.\n\n¡Saludos!"
+                    msg.attach(MIMEText(cuerpo, 'plain'))
+                    
+                    server = smtplib.SMTP('smtp.gmail.com', 587)
+                    server.starttls()
+                    server.login(remitente, password)
+                    server.sendmail(remitente, remitente, msg.as_string())
+                    server.quit()
+                    
+                    st.success("✅ ¡Correo enviado! Revisa tu bandeja de entrada (y la carpeta de Spam por si acaso).")
+                except Exception as e:
+                    st.error(f"❌ Falló el envío. Error: {e}")
+
     mostrar_panel_pagos_unificado()
 
 # ---------------------------------------------------------

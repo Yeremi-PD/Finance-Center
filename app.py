@@ -825,7 +825,8 @@ with tab_trading:
     if not df_trading.empty:
         df_trading["Monto"] = pd.to_numeric(df_trading["Monto"]).fillna(0)
         cap_invertido = df_trading[df_trading["Monto"] > 0]["Monto"].sum()
-        cap_retirado = abs(df_trading[df_trading["Monto"] < 0]["Monto"].sum())
+        # Ahora solo suma los registros que tú marcaste como 'Retiro' manualmente
+        cap_retirado = abs(df_trading[df_trading["Tipo"] == "Retiro"]["Monto"].sum())
 
     # 3. Mostrar Métricas (Colores Rotados)
     col_k1, col_k2, col_k3 = st.columns(3)

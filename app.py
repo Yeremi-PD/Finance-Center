@@ -116,8 +116,7 @@ st.markdown("""
     /* 📱 MAGIA PARA DETECTAR CELULAR EN VERTICAL (PORTRAIT) 📱 */
     @media screen and (max-width: 768px) and (orientation: portrait) {
         h1 {
-            font-size: 24px !important;
-            top: 15px !important;
+            display: none !important; /* ESTO OCULTA LAS LETRAS POR COMPLETO */
         }
         div[data-baseweb="tab-list"] {
             justify-content: center !important;

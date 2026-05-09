@@ -612,7 +612,9 @@ with tab_pagos:
                         
                         # Revertir también en Trading buscando el nuevo Tipo
                         if not df_trading.empty:
-                            mask_t = (df_trading["Tipo"] == "Inyección Semanal") & (df_trading["Fecha"] == ult_f)
+                            # Forzamos la fecha a texto puro para evitar errores de formato con Google Sheets
+                            fecha_str = str(ult_f).strip()
+                            mask_t = (df_trading["Tipo"] == "Inyección Semanal") & (df_trading["Fecha"].astype(str).str.strip() == fecha_str)
                             df_trading = df_trading[~mask_t]
             
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)

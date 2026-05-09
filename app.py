@@ -508,7 +508,7 @@ with tab_pagos:
     @st.fragment
     def mostrar_panel_pagos_unificado():
         # Conectamos con la memoria global de la app
-        global df_fijos, df_movs, df_cuentas, df_excep, df_cargos_auto
+        global df_fijos, df_movs, df_cuentas, df_excep, df_trading, df_cargos_auto
         
         st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
         
@@ -568,10 +568,26 @@ with tab_pagos:
                         nuevo_m = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta, "Concepto": "NÓMINA SEMANAL", "Monto": monto_inyec}])
                         df_movs = pd.concat([df_movs, nuevo_m], ignore_index=True)
 
+                    # --- Lógica para registrar inyección en Trading ---
+                    for cta_inv in (nombres_cuentas if cuenta_maestra == "TODAS" else [cuenta_maestra]):
+                        l_negra_inv = df_excep[df_excep["Cuenta"] == cta_inv]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+                        # Si "Inversion" no está excluida en esta cuenta, registramos el movimiento en Trading
+                        if "Inversion" not in l_negra_inv and "Inversion" in df_fijos["Categoría"].values:
+                            monto_inv_sem = float(df_fijos.loc[df_fijos["Categoría"] == "Inversion", "Monto_Mensual"].values[0]) / 4
+                            nueva_op_t = pd.DataFrame([{
+                                "Fecha": datetime.now().strftime("%Y-%m-%d"), 
+                                "Cuenta": cta_inv, 
+                                "Tipo": "Retiro", # Se registra como 'Retiro' (Positivo en Balance) porque está entrando dinero al fondo
+                                "Concepto": "Inyección Semanal", 
+                                "Monto": -monto_inv_sem # En tu lógica de Trading, los montos negativos en la hoja son entradas al balance neto
+                            }])
+                            df_trading = pd.concat([df_trading, nueva_op_t], ignore_index=True)
+
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                    st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+                    st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs, st.session_state.df_trading = df_fijos, df_cuentas, df_movs, df_trading
                     st.rerun()
             
             with col_b2:
@@ -589,10 +605,17 @@ with tab_pagos:
                                 idx_f = df_fijos.index[df_fijos["Categoría"] == r["Categoría"]].tolist()[0]
                                 df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - (float(r["Monto_Mensual"]) / 4)
                         df_movs = df_movs.drop(a_revertir.index)
+                        
+                        # Revertir también en Trading si existe la inyección de hoy
+                        if not df_trading.empty:
+                            mask_t = (df_trading["Concepto"] == "Inyección Semanal") & (df_trading["Fecha"] == ult_f)
+                            df_trading = df_trading[~mask_t]
+            
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                        st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+                        st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs, st.session_state.df_trading = df_fijos, df_cuentas, df_movs, df_trading
                         st.rerun()
 
         st.markdown("<hr>", unsafe_allow_html=True)

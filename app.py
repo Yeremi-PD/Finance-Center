@@ -173,6 +173,9 @@ if 'df_fijos' not in st.session_state:
     st.session_state.df_cuentas = cargar_base_datos("Cuentas")
     st.session_state.df_excep = cargar_base_datos("Excepciones")
     st.session_state.df_trading = cargar_base_datos("Trading")
+
+# 🛡️ ESCUDO: Asegurarnos de que esta nueva tabla se cargue de forma independiente
+if 'df_cargos_auto' not in st.session_state:
     st.session_state.df_cargos_auto = cargar_base_datos("Cargos_Auto")
 
 # Usamos las variables de la sesión para que todo sea instantáneo

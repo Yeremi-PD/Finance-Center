@@ -5,6 +5,9 @@ from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import base64
 import streamlit.components.v1 as components
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # --- CONFIGURACIÓN ---
 from PIL import Image, ImageOps
@@ -219,6 +222,41 @@ if not df_cargos_auto.empty:
             # 3. Marcar como cobrado en la base de datos de cargos
             df_cargos_auto.at[idx, "Ultimo_Mes_Cobrado"] = mes_actual
             cambios_auto = True
+            
+            # 4. 📧 ENVIAR CORREO DE NOTIFICACIÓN
+            try:
+                # Sacamos los datos desde los secretos de Streamlit por seguridad
+                remitente = st.secrets["email"]["user"]
+                password = st.secrets["email"]["password"]
+                
+                msg = MIMEMultipart()
+                msg['From'] = remitente
+                msg['To'] = remitente # Te lo envías a ti mismo
+                msg['Subject'] = f"✅ Cargo Automático Procesado: {concepto_auto}"
+                
+                cuerpo = f"""
+                ¡Hola!
+                
+                Tu Financial Center acaba de procesar un cargo automático exitosamente:
+                
+                - Concepto: {concepto_auto}
+                - Monto: ${monto_auto:,.2f}
+                - Categoría Afectada: {cat_auto}
+                - Cuenta Bancaria: {cta_auto}
+                - Fecha de ejecución: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                
+                Este movimiento ya fue registrado en tu historial de Google Sheets y tus saldos han sido actualizados.
+                """
+                msg.attach(MIMEText(cuerpo, 'plain'))
+                
+                # Conexión al servidor de Gmail
+                server = smtplib.SMTP('smtp.gmail.com', 587)
+                server.starttls()
+                server.login(remitente, password)
+                server.sendmail(remitente, remitente, msg.as_string())
+                server.quit()
+            except Exception as e:
+                st.error(f"El cargo se hizo, pero hubo un error al enviar el correo: {e}")
 
 # Si hubo un cobro, guardamos la base de datos sin que tú tengas que tocar nada
 if cambios_auto:

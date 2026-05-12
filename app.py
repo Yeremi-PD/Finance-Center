@@ -26,7 +26,7 @@ else:
 tamaño_max = max(logo_recortado.size)
 logo_final = ImageOps.pad(logo_recortado, (tamaño_max, tamaño_max))
 
-st.set_page_config(page_title="FINANCIAL CENTER", page_icon=logo_final, layout="wide")
+st.set_page_config(page_title="Financial Center", page_icon=logo_final, layout="wide")
 st.logo("logo.png")
 
 # Ocultar marca de agua, ajustar espacio y ESTILIZAR UI (Botones, Inputs, Tarjetas y TABLAS)

@@ -856,12 +856,14 @@ with tab_trading:
     with st.form("formulario_ejecutar_trading", border=False):
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
         with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
-        with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro"])
+ 
+        with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro", "Mover dinero"])
         with col_t3: 
-            lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "OTRO"]
+            lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "Mover dinero", "OTRO"]
             c_sel_t = st.selectbox("Concepto:", lista_c)
             concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
         with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
+   
         with col_t5:
             st.write("") # Espaciador para alinear el botón
             # El botón de formulario detiene las recargas hasta que haces clic
@@ -875,18 +877,21 @@ with tab_trading:
             
             # 1. Preparar datos de Trading e Historial General
             nueva_op = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
+    
             df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
             
             nuevo_mov_gen = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Concepto": f"TRADING: {concepto_t}", "Monto": monto_banco}])
             df_movs = pd.concat([df_movs, nuevo_mov_gen], ignore_index=True)
             
             # 2. Actualizar Saldo de la Cuenta Bancaria
+       
             idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
             df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco
             
-            # 3. Si es Inversión, descontar del sobre "Inversion"
-            if tipo_t == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+            # 3. Si es Inversión o Mover dinero, descontar del sobre "Inversion"
+            if tipo_t in ["Inversión", "Mover dinero"] and "Inversion" in df_fijos["Categoría"].values:
                 idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+  
                 df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
 
             # 4. GUARDADO MASIVO INMEDIATO EN GOOGLE SHEETS
@@ -894,13 +899,15 @@ with tab_trading:
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-            
+     
+        
             # 5. Actualizar la memoria de la sesión local para reflejar al instante
             st.session_state.df_trading = df_trading
             st.session_state.df_movs = df_movs
             st.session_state.df_cuentas = df_cuentas
             st.session_state.df_fijos = df_fijos
             
+ 
             st.success("Operación ejecutada y guardada al instante en todas las bases de datos.")
             st.rerun()
 

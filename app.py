@@ -1010,12 +1010,12 @@ with tab_trading:
 
 # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Administrar Historial"):
-            st.markdown("<p style='color: #888; font-size: 14px;'>Visualiza tus datos puros o selecciona un movimiento antiguo para eliminarlo y restaurar los saldos.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #888; font-size: 14px;'>Visualiza tus datos puros. Si seleccionas un movimiento antiguo en la lista de abajo, se <b>eliminará automáticamente</b> y se restaurarán los saldos.</p>", unsafe_allow_html=True)
             
-            # 1. Mostrar tabla estática y simple (no editable, no se bugea)
+            # 1. Mostrar tabla estática y simple
             st.dataframe(df_trading, use_container_width=True, hide_index=False)
             
-            # 2. Selector simple para eliminar
+            # 2. Selector de eliminación instantánea
             st.markdown("<hr style='margin: 15px 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
             if not df_trading.empty:
                 opciones_borrar = []
@@ -1023,59 +1023,53 @@ with tab_trading:
                     # Crear un texto entendible para el menú desplegable
                     opciones_borrar.append(f"[{idx}] {row['Fecha']} | {row['Tipo']} | {row['Concepto']} | ${float(row['Monto']):.2f}")
                 
-                col_sel1, col_sel2 = st.columns([3, 1])
-                with col_sel1:
-                    registro_a_borrar = st.selectbox("Selecciona un movimiento para ELIMINAR:", ["Ninguno"] + opciones_borrar)
+                registro_a_borrar = st.selectbox("⚠️ Selecciona un movimiento para ELIMINAR al instante:", ["Ninguno"] + opciones_borrar)
                 
-                with col_sel2:
-                    st.write("") # Alinear con el selectbox
-                    if st.button("🗑️ BORRAR SELECCIÓN", type="primary", use_container_width=True):
-                        if registro_a_borrar != "Ninguno":
-                            # Extraer el ID real de la fila (lo que está entre los corchetes)
-                            idx_real = int(registro_a_borrar.split("]")[0].replace("[", ""))
-                            
-                            # Obtener los datos antes de borrarlos para devolver el dinero
-                            fila_a_borrar = df_trading.loc[idx_real]
-                            cta_v = fila_a_borrar["Cuenta"]
-                            m_v = float(fila_a_borrar["Monto"])
-                            tipo_v = fila_a_borrar["Tipo"]
-                            concepto_v = fila_a_borrar["Concepto"]
-                            
-                            # 1. Revertir en Banco
-                            if cta_v in df_cuentas["Cuenta"].values:
-                                idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
-                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v if tipo_v in ["Retiro", "Mover Dinero"] else -abs(m_v))
-                            
-                            # 2. Revertir en Gastos Fijos (Fondo Inversión)
-                            if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
-                                idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                                df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
+                # LA ACCIÓN SE DISPARA SOLA AL CAMBIAR EL DESPLEGABLE
+                if registro_a_borrar != "Ninguno":
+                    # Extraer el ID real de la fila (lo que está entre los corchetes)
+                    idx_real = int(registro_a_borrar.split("]")[0].replace("[", ""))
+                    
+                    # Obtener los datos antes de borrarlos para devolver el dinero
+                    fila_a_borrar = df_trading.loc[idx_real]
+                    cta_v = fila_a_borrar["Cuenta"]
+                    m_v = float(fila_a_borrar["Monto"])
+                    tipo_v = fila_a_borrar["Tipo"]
+                    concepto_v = fila_a_borrar["Concepto"]
+                    
+                    # 1. Revertir en Banco
+                    if cta_v in df_cuentas["Cuenta"].values:
+                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v if tipo_v in ["Retiro", "Mover Dinero"] else -abs(m_v))
+                    
+                    # 2. Revertir en Gastos Fijos (Fondo Inversión)
+                    if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                        idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                        df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
 
-                            # 3. Eliminar del historial general de movimientos (df_movs)
-                            if not df_movs.empty:
-                                mask_mov = (df_movs["Cuenta"] == cta_v) & (df_movs["Concepto"] == f"TRADING: {concepto_v}")
-                                if mask_mov.any():
-                                    idx_mov_borrar = df_movs[mask_mov].index[-1]
-                                    df_movs = df_movs.drop(idx_mov_borrar)
+                    # 3. Eliminar del historial general de movimientos (df_movs)
+                    if not df_movs.empty:
+                        mask_mov = (df_movs["Cuenta"] == cta_v) & (df_movs["Concepto"] == f"TRADING: {concepto_v}")
+                        if mask_mov.any():
+                            idx_mov_borrar = df_movs[mask_mov].index[-1]
+                            df_movs = df_movs.drop(idx_mov_borrar)
 
-                            # 4. Eliminar de la base de Trading
-                            df_trading = df_trading.drop(idx_real)
-                            
-                            # Guardar todo masivamente
-                            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
-                            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                            
-                            st.session_state.df_trading = df_trading
-                            st.session_state.df_cuentas = df_cuentas
-                            st.session_state.df_fijos = df_fijos
-                            st.session_state.df_movs = df_movs
-                            
-                            st.success(f"Movimiento {idx_real} eliminado y balances restaurados con éxito.")
-                            st.rerun()
-                        else:
-                            st.warning("Selecciona un registro válido primero.")
+                    # 4. Eliminar de la base de Trading
+                    df_trading = df_trading.drop(idx_real)
+                    
+                    # Guardar todo masivamente
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                    
+                    st.session_state.df_trading = df_trading
+                    st.session_state.df_cuentas = df_cuentas
+                    st.session_state.df_fijos = df_fijos
+                    st.session_state.df_movs = df_movs
+                    
+                    st.success(f"✅ Movimiento {idx_real} eliminado y balances restaurados con éxito.")
+                    st.rerun()
 
 # ---------------------------------------------------------
 # 4. CUENTAS (Cálculo Dinámico y Sobreescritura Forzada en Excel)

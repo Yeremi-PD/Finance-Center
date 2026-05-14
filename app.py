@@ -1016,7 +1016,7 @@ with tab_trading:
                     st.success("Movimiento de Trading eliminado. Dinero devuelto a la cuenta y al sobre de inversión.")
                     st.rerun()
             
-mostrar_feed_trading()
+        mostrar_feed_trading()
 
         # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Editar Historial"):
@@ -1027,7 +1027,6 @@ mostrar_feed_trading()
             df_edit_t["Monto"] = pd.to_numeric(df_edit_t["Monto"], errors='coerce').fillna(0.0)
             df_edit_t["🗑️"] = False
             
-            # 1. AQUÍ SE DIBUJA LA TABLA
             edited_df_t = st.data_editor(
                 df_edit_t, use_container_width=True, hide_index=True,
                 column_config={
@@ -1037,9 +1036,8 @@ mostrar_feed_trading()
                 }
             )
             
-            st.write("") # Un pequeño espacio visual entre la tabla y el botón
+            st.write("")
             
-            # 2. AQUÍ SE DIBUJA EL BOTÓN (Justo debajo de la tabla)
             if st.button("💾 GUARDAR CAMBIOS SOLAMENTE", type="primary", use_container_width=True):
                 # Filtramos las filas eliminadas y limpiamos la columna de la basura
                 df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])

@@ -1018,9 +1018,10 @@ with tab_trading:
             
         mostrar_feed_trading()
 
-        # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
+# --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Editar Historial"):
             df_edit_t = df_trading.copy()
+            
             if "Fecha" in df_edit_t.columns:
                 df_edit_t["Fecha"] = pd.to_datetime(df_edit_t["Fecha"]).dt.date
             df_edit_t["Monto"] = pd.to_numeric(df_edit_t["Monto"], errors='coerce').fillna(0.0)
@@ -1036,14 +1037,14 @@ with tab_trading:
             )
             
             if st.button("💾 GUARDAR CAMBIOS SOLAMENTE", type="primary", use_container_width=True):
-                # Filtramos las filas eliminadas y quitamos la columna de la papelera
+                # Filtramos las filas eliminadas y limpiamos la columna de la basura
                 df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
                 
-                # Aseguramos que la fecha sea texto para que Google Sheets no de error
+                # Aseguramos que la fecha se guarde correctamente
                 if "Fecha" in df_final_t.columns: 
                     df_final_t["Fecha"] = df_final_t["Fecha"].astype(str)
                 
-                # Solo guardamos en la hoja de Trading (sin tocar balances ni otros fondos)
+                # Solo guardamos y actualizamos la hoja de Trading
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
                 st.session_state.df_trading = df_final_t
                 

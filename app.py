@@ -830,25 +830,22 @@ with tab_trading:
     if not df_trading.empty:
         df_trading["Monto"] = pd.to_numeric(df_trading["Monto"]).fillna(0)
         cap_invertido = df_trading[df_trading["Monto"] > 0]["Monto"].sum()
-        # Ahora solo suma los registros que tú marcaste como 'Retiro' manualmente
-        cap_retirado = abs(df_trading[df_trading["Tipo"] == "Retiro"]["Monto"].sum())
+        # Ahora suma tanto los Retiros puros como cuando mueves dinero de vuelta al banco
+        cap_retirado = abs(df_trading[df_trading["Tipo"].isin(["Retiro", "Mover Dinero"])]["Monto"].sum())
 
     # 3. Mostrar Métricas (Colores Rotados)
     col_k1, col_k2, col_k3 = st.columns(3)
     with col_k1:
-        # Ahora es VERDE (Traído de "Enviado")
         st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50;">
             <p style="margin:0; color: #888; font-size: 11px;">FONDO DISPONIBLE</p>
             <h3 style="margin:0; color: #4CAF50;">${cap_disponible:,.2f}</h3></div>""", unsafe_allow_html=True)
     with col_k2:
-        # Ahora es ROJO (Traído de "Retirado")
         st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F44336;">
             <p style="margin:0; color: #888; font-size: 11px;">TOTAL INVERTIDO</p>
             <h3 style="margin:0; color: #F44336;">${cap_invertido:,.2f}</h3></div>""", unsafe_allow_html=True)
     with col_k3:
-        # Ahora es NARANJA (Traído de "Fondo")
         st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F57C00;">
-            <p style="margin:0; color: #888; font-size: 11px;">TOTAL RETIRADO</p>
+            <p style="margin:0; color: #888; font-size: 11px;">TOTAL RETIRADO / MOVIDO</p>
             <h3 style="margin:0; color: #F57C00;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
     st.write("")
 
@@ -856,25 +853,34 @@ with tab_trading:
     with st.form("formulario_ejecutar_trading", border=False):
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
         with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
-        with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro"])
+ 
+        with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro", "Mover Dinero"])
         with col_t3: 
-            lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "OTRO"]
+            lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "Mover Dinero", "OTRO"]
             c_sel_t = st.selectbox("Concepto:", lista_c)
             concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
         with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
+   
         with col_t5:
             st.write("") # Espaciador para alinear el botón
-            # El botón de formulario detiene las recargas hasta que haces clic
             btn_ejecutar = st.form_submit_button("AGREGAR", use_container_width=True, type="primary")
         
     if btn_ejecutar:
         if monto_t > 0:
+            # MAGIA: Sincronizar automáticamente Operación y Concepto si usas "Mover Dinero"
+            if tipo_t == "Mover Dinero":
+                concepto_t = "Mover Dinero"
+            elif c_sel_t == "Mover Dinero":
+                tipo_t = "Mover Dinero"
+
+            # Matemáticas: Mover Dinero saca de trading (negativo en el excel de trading) y mete en tu banco, tal cual lo pediste.
             monto_trading = monto_t if tipo_t == "Inversión" else -monto_t
             monto_banco = -monto_t if tipo_t == "Inversión" else monto_t
             fecha_actual = datetime.now().strftime("%Y-%m-%d")
             
             # 1. Preparar datos de Trading e Historial General
             nueva_op = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
+    
             df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
             
             nuevo_mov_gen = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Concepto": f"TRADING: {concepto_t}", "Monto": monto_banco}])
@@ -894,7 +900,7 @@ with tab_trading:
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-            
+     
             # 5. Actualizar la memoria de la sesión local para reflejar al instante
             st.session_state.df_trading = df_trading
             st.session_state.df_movs = df_movs
@@ -908,19 +914,17 @@ with tab_trading:
         st.markdown("---")
         st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL</h4>", unsafe_allow_html=True)
         
-# --- SISTEMA DE FILTROS LINDOS (FRAGMENTADO PARA NO PARPADEAR) ---
+        # --- SISTEMA DE FILTROS LINDOS (FRAGMENTADO PARA NO PARPADEAR) ---
         @st.fragment
         def mostrar_feed_trading():
-            # 🛡️ SOLUCIÓN AL ERROR DE MEMORIA (UnboundLocalError) 🛡️
             global df_trading, df_movs, df_cuentas, df_fijos
             
             col_f1, col_f2 = st.columns(2)
             
             with col_f1:
-                f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Inyección Semanal"])
+                f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Mover Dinero", "Inyección Semanal"])
                 
             with col_f2:
-                # 🛡️ ESCUDO ANTI-ERRORES DEFINITIVO PARA STREAMLIT CLOUD 🌟
                 if not df_trading.empty and "Concepto" in df_trading.columns:
                     conceptos_limpios = df_trading["Concepto"].dropna().astype(str).unique().tolist()
                     opciones_conceptos = ["TODOS"] + sorted(conceptos_limpios)
@@ -931,6 +935,7 @@ with tab_trading:
             
             # Aplicar Filtros
             df_filtrado_t = df_trading.copy()
+            
             if f_tipo != "TODOS":
                 df_filtrado_t = df_filtrado_t[df_filtrado_t["Tipo"] == f_tipo]
             if f_concepto != "TODOS":
@@ -942,19 +947,16 @@ with tab_trading:
             html_feed_t = '<div style="max-height: 500px; overflow-y: auto; padding-right: 10px; margin-top: 10px;">'
             for _, row in df_filtrado_t.iterrows():
                 monto = float(row["Monto"])
-                # Inversiones en rojo (salida de capital), retiros/inyecciones en verde (entrada)
                 color_op = "#F44336" if row["Tipo"] == "Inversión" else "#4CAF50"
                 icon = "💸" if row["Tipo"] == "Inversión" else "💰"
                 
                 tarjeta = f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 10px; padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"><div style="display: flex; align-items: center; gap: 15px;"><div style="font-size: 24px;">{icon}</div><div><div style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</div><div style="color: #666; font-size: 11px; text-transform: uppercase;">{row["Fecha"]} • {row["Cuenta"]}</div></div></div><div style="text-align: right;"><div style="color: {color_op}; font-weight: bold; font-size: 18px;">${abs(monto):,.2f}</div><div style="color: #444; font-size: 10px; font-weight: bold; text-transform: uppercase;">{row["Tipo"]}</div></div></div>'
                 html_feed_t += tarjeta
                 
-            # 🌟 NUEVO CÁLCULO DEL TOTAL TRADING (INVERSIÓN = NEGATIVO, RETIRO/INYECCIÓN = POSITIVO) 🌟
             total_inversiones = df_filtrado_t[df_filtrado_t["Tipo"] == "Inversión"]["Monto"].astype(float).sum()
-            # Sumamos Retiros e Inyecciones Semanales como entradas de capital
-            total_entradas = df_filtrado_t[df_filtrado_t["Tipo"].isin(["Retiro", "Inyección Semanal"])]["Monto"].astype(float).abs().sum()
+            # Mover Dinero y Retiros cuentan como entradas de capital sumadas
+            total_entradas = df_filtrado_t[df_filtrado_t["Tipo"].isin(["Retiro", "Mover Dinero", "Inyección Semanal"])]["Monto"].astype(float).abs().sum()
             
-            # La matemática del Trader: Lo que entró menos lo que invirtió
             balance_neto = total_entradas - total_inversiones
             
             color_t_t = "#4CAF50" if balance_neto >= 0 else "#F44336"
@@ -964,45 +966,33 @@ with tab_trading:
             html_feed_t += '</div>'
             st.markdown(html_feed_t, unsafe_allow_html=True)
 
-            # 🌟 BOTÓN DE ELIMINACIÓN CON REVERSIÓN TOTAL 🌟
             if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO DE TRADING", use_container_width=True):
                 if not df_trading.empty:
-                    # 1. Obtener datos del último movimiento de trading
                     ult_t = df_trading.iloc[-1]
                     cta_t = ult_t["Cuenta"]
                     tipo_t = ult_t["Tipo"]
                     monto_t = float(ult_t["Monto"])
                     concepto_t = ult_t["Concepto"]
 
-                    # 2. Revertir Saldo en Cuenta Bancaria
-                    # Si fue Inversión (monto_t > 0), en el banco se restó. Lo sumamos.
-                    # Si fue Retiro (monto_t < 0), en el banco se sumó. Lo restamos.
                     monto_a_revertir_banco = monto_t if tipo_t == "Inversión" else -abs(monto_t)
                     
                     if cta_t in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
                         df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_a_revertir_banco
                     
-                    # 3. Revertir sobre de "Inversion" en Gastos Fijos (Solo si fue Inversión)
                     if tipo_t == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
                         idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                        # Devolvemos el monto al sobre
                         df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) + abs(monto_t)
 
-                    # 4. Eliminar del Historial General (df_movs)
-                    # Buscamos el registro que coincida con este movimiento de trading
                     if not df_movs.empty:
                         concepto_buscado = f"TRADING: {concepto_t}"
                         mask_mov = (df_movs["Cuenta"] == cta_t) & (df_movs["Concepto"] == concepto_buscado)
                         if mask_mov.any():
-                            # Borramos la última coincidencia encontrada
                             idx_mov_borrar = df_movs[mask_mov].index[-1]
                             df_movs = df_movs.drop(idx_mov_borrar)
 
-                    # 5. Eliminar del Historial de Trading
                     df_trading = df_trading.drop(df_trading.index[-1])
 
-                    # 6. Actualización Masiva (Sheets y Sesión)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
@@ -1021,6 +1011,7 @@ with tab_trading:
         # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Editar Historial"):
             df_edit_t = df_trading.copy()
+           
             if "Fecha" in df_edit_t.columns:
                 df_edit_t["Fecha"] = pd.to_datetime(df_edit_t["Fecha"]).dt.date
             df_edit_t["Monto"] = pd.to_numeric(df_edit_t["Monto"], errors='coerce').fillna(0.0)
@@ -1031,27 +1022,29 @@ with tab_trading:
                 column_config={
                     "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
                     "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
-                    "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro"]),
+                    "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro", "Mover Dinero"]),
                 }
             )
             
             if st.button("💾 CONFIRMAR", type="primary"):
-                # Reversión y Aplicación (Lógica de balances que ya tenías)
                 for _, fila_v in st.session_state.df_trading.iterrows():
                     cta_v, m_v, tipo_v = fila_v["Cuenta"], float(fila_v["Monto"]), fila_v["Tipo"]
                     if cta_v in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
-                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v if tipo_v == "Retiro" else -abs(m_v))
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v if tipo_v in ["Retiro", "Mover Dinero"] else -abs(m_v))
+        
                     if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
                         idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
                         df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
 
                 df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
+   
                 for _, fila_n in df_final_t.iterrows():
                     cta_n, m_n, tipo_n = fila_n["Cuenta"], float(fila_n["Monto"]), fila_n["Tipo"]
                     if cta_n in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_n].tolist()[0]
-                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + (m_n if tipo_n == "Retiro" else -abs(m_n))
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + (m_n if tipo_n in ["Retiro", "Mover Dinero"] else -abs(m_n))
+                    
                     if tipo_n == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
                         idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
                         df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) - abs(m_n)
@@ -1060,6 +1053,7 @@ with tab_trading:
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+         
                 st.session_state.df_trading, st.session_state.df_cuentas, st.session_state.df_fijos = df_final_t, df_cuentas, df_fijos
                 st.success("¡Historial actualizado!")
                 st.rerun()

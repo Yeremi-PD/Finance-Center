@@ -818,157 +818,269 @@ with tab_trading:
     st.markdown("<h3 style='font-weight: 400; color: #FFFFFF;'>Gestión de Trading</h3>", unsafe_allow_html=True)
     
     # --- CÁLCULO SINCRONIZADO DE TRADING ---
+    # 1. El dinero disponible SIEMPRE viene del sobre 'Inversion' de Gastos Fijos
     cap_disponible = 0.0
     if "Inversion" in df_fijos["Categoría"].values:
         idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
         cap_disponible = float(df_fijos.at[idx_inv, "Fondo_Disponible"])
 
+    # 2. Los otros totales sí vienen del historial de la hoja Trading
     cap_invertido = 0.0
     cap_retirado = 0.0
     if not df_trading.empty:
         df_trading["Monto"] = pd.to_numeric(df_trading["Monto"]).fillna(0)
-        cap_invertido = df_trading[df_trading["Tipo"] == "Inversión"]["Monto"].sum()
+        cap_invertido = df_trading[df_trading["Monto"] > 0]["Monto"].sum()
+        # Ahora suma tanto los Retiros puros como cuando mueves dinero de vuelta al banco
         cap_retirado = abs(df_trading[df_trading["Tipo"].isin(["Retiro", "Mover Dinero"])]["Monto"].sum())
 
-    # Cálculo del Capital Real que tienes en las plataformas ahora mismo
-    capital_en_plataformas = cap_invertido - cap_retirado
-
-    # 3. Mostrar Métricas
-    col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+    # 3. Mostrar Métricas (Colores Rotados)
+    col_k1, col_k2, col_k3 = st.columns(3)
     with col_k1:
         st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50;">
             <p style="margin:0; color: #888; font-size: 11px;">FONDO DISPONIBLE</p>
             <h3 style="margin:0; color: #4CAF50;">${cap_disponible:,.2f}</h3></div>""", unsafe_allow_html=True)
     with col_k2:
         st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F44336;">
-            <p style="margin:0; color: #888; font-size: 11px;">TOTAL ENVIADO</p>
+            <p style="margin:0; color: #888; font-size: 11px;">TOTAL INVERTIDO</p>
             <h3 style="margin:0; color: #F44336;">${cap_invertido:,.2f}</h3></div>""", unsafe_allow_html=True)
     with col_k3:
         st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F57C00;">
-            <p style="margin:0; color: #888; font-size: 11px;">TOTAL RETIRADO</p>
+            <p style="margin:0; color: #888; font-size: 11px;">TOTAL RETIRADO / MOVIDO</p>
             <h3 style="margin:0; color: #F57C00;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
-    with col_k4:
-        # Esta métrica te muestra cuánto dinero "falta por volver" al banco
-        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #00E5FF;">
-            <p style="margin:0; color: #888; font-size: 11px;">CAPITAL EN TRADING</p>
-            <h3 style="margin:0; color: #00E5FF;">${capital_en_plataformas:,.2f}</h3></div>""", unsafe_allow_html=True)
     st.write("")
 
+# 🌟 FORMULARIO CERRADO PARA EVITAR REDIBUJO AUTOMÁTICO 🌟
     with st.form("formulario_ejecutar_trading", border=False):
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
         with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
+ 
         with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro", "Mover Dinero"])
         with col_t3: 
             lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "Mover Dinero", "OTRO"]
             c_sel_t = st.selectbox("Concepto:", lista_c)
             concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
         with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
+   
         with col_t5:
-            st.write("")
+            st.write("") # Espaciador para alinear el botón
             btn_ejecutar = st.form_submit_button("AGREGAR", use_container_width=True, type="primary")
         
     if btn_ejecutar:
         if monto_t > 0:
-            if tipo_t == "Mover Dinero" or c_sel_t == "Mover Dinero":
-                tipo_t, concepto_t = "Mover Dinero", "Mover Dinero"
+            # MAGIA: Sincronizar automáticamente Operación y Concepto si usas "Mover Dinero"
+            if tipo_t == "Mover Dinero":
+                concepto_t = "Mover Dinero"
+            elif c_sel_t == "Mover Dinero":
+                tipo_t = "Mover Dinero"
 
+            # Matemáticas: Mover Dinero saca de trading (negativo en el excel de trading) y mete en tu banco, tal cual lo pediste.
             monto_trading = monto_t if tipo_t == "Inversión" else -monto_t
             monto_banco = -monto_t if tipo_t == "Inversión" else monto_t
             fecha_actual = datetime.now().strftime("%Y-%m-%d")
             
-            # 1. Registrar Operación
+            # 1. Preparar datos de Trading e Historial General
             nueva_op = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
+    
             df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
-            df_movs = pd.concat([df_movs, pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Concepto": f"TRADING: {concepto_t}", "Monto": monto_banco}])], ignore_index=True)
             
-            # 2. Actualizar Banco
+            nuevo_mov_gen = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Concepto": f"TRADING: {concepto_t}", "Monto": monto_banco}])
+            df_movs = pd.concat([df_movs, nuevo_mov_gen], ignore_index=True)
+            
+            # 2. Actualizar Saldo de la Cuenta Bancaria
             idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
             df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco
             
-            # 3. 🌟 ACTUALIZAR SOBRES (Para que no se borre el saldo)
+            # 3. Si es Inversión, descontar del sobre "Inversion"
             if tipo_t == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
                 idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
                 df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
-            
-            # Si el dinero VUELVE al banco, lo metemos en "Ahorro" para que la pestaña Cuentas lo reconozca
-            elif tipo_t in ["Retiro", "Mover Dinero"]:
-                cat_dest = "Ahorro" if "Ahorro" in df_fijos["Categoría"].values else ("Otros" if "Otros" in df_fijos["Categoría"].values else None)
-                if cat_dest:
-                    idx_dest = df_fijos.index[df_fijos["Categoría"] == cat_dest].tolist()[0]
-                    df_fijos.at[idx_dest, "Fondo_Disponible"] = float(df_fijos.at[idx_dest, "Fondo_Disponible"]) + monto_t
 
-            # 4. Guardar y Refrescar
+            # 4. GUARDADO MASIVO INMEDIATO EN GOOGLE SHEETS
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-            st.session_state.df_trading, st.session_state.df_movs, st.session_state.df_cuentas, st.session_state.df_fijos = df_trading, df_movs, df_cuentas, df_fijos
-            st.success("Operación sincronizada con éxito.")
+     
+            # 5. Actualizar la memoria de la sesión local para reflejar al instante
+            st.session_state.df_trading = df_trading
+            st.session_state.df_movs = df_movs
+            st.session_state.df_cuentas = df_cuentas
+            st.session_state.df_fijos = df_fijos
+            
+            st.success("Operación ejecutada y guardada al instante en todas las bases de datos.")
             st.rerun()
 
     if not df_trading.empty:
         st.markdown("---")
+        st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL</h4>", unsafe_allow_html=True)
+        
+        # --- SISTEMA DE FILTROS LINDOS (FRAGMENTADO PARA NO PARPADEAR) ---
         @st.fragment
-        def mostrar_feed_trading_mejorado():
+        def mostrar_feed_trading():
             global df_trading, df_movs, df_cuentas, df_fijos
             
-            # Función de borrado con corrección de sobres
+            col_f1, col_f2 = st.columns(2)
+            
+            with col_f1:
+                f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Mover Dinero", "Inyección Semanal"])
+                
+            with col_f2:
+                if not df_trading.empty and "Concepto" in df_trading.columns:
+                    conceptos_limpios = df_trading["Concepto"].dropna().astype(str).unique().tolist()
+                    opciones_conceptos = ["TODOS"] + sorted(conceptos_limpios)
+                else:
+                    opciones_conceptos = ["TODOS"]
+                    
+                f_concepto = st.selectbox("Filtrar concepto", opciones_conceptos)
+            
+            # Aplicar Filtros
+            df_filtrado_t = df_trading.copy()
+            
+            if f_tipo != "TODOS":
+                df_filtrado_t = df_filtrado_t[df_filtrado_t["Tipo"] == f_tipo]
+            if f_concepto != "TODOS":
+                df_filtrado_t = df_filtrado_t[df_filtrado_t["Concepto"] == f_concepto]
+            
+            df_filtrado_t = df_filtrado_t.sort_index(ascending=False)
+
+            # Feed de tarjetas
+            html_feed_t = '<div style="max-height: 500px; overflow-y: auto; padding-right: 10px; margin-top: 10px;">'
+            for _, row in df_filtrado_t.iterrows():
+                monto = float(row["Monto"])
+                color_op = "#F44336" if row["Tipo"] == "Inversión" else "#4CAF50"
+                icon = "💸" if row["Tipo"] == "Inversión" else "💰"
+                
+                tarjeta = f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 10px; padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"><div style="display: flex; align-items: center; gap: 15px;"><div style="font-size: 24px;">{icon}</div><div><div style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</div><div style="color: #666; font-size: 11px; text-transform: uppercase;">{row["Fecha"]} • {row["Cuenta"]}</div></div></div><div style="text-align: right;"><div style="color: {color_op}; font-weight: bold; font-size: 18px;">${abs(monto):,.2f}</div><div style="color: #444; font-size: 10px; font-weight: bold; text-transform: uppercase;">{row["Tipo"]}</div></div></div>'
+                html_feed_t += tarjeta
+                
+            total_inversiones = df_filtrado_t[df_filtrado_t["Tipo"] == "Inversión"]["Monto"].astype(float).sum()
+            # Mover Dinero y Retiros cuentan como entradas de capital sumadas
+            total_entradas = df_filtrado_t[df_filtrado_t["Tipo"].isin(["Retiro", "Mover Dinero", "Inyección Semanal"])]["Monto"].astype(float).abs().sum()
+            
+            balance_neto = total_entradas - total_inversiones
+            
+            color_t_t = "#4CAF50" if balance_neto >= 0 else "#F44336"
+            signo_t_t = "+" if balance_neto > 0 else "-"
+            
+            html_feed_t += f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 10px; border-top: 2px solid {color_t_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">BALANCE</div><div style="color: {color_t_t}; font-weight: bold; font-size: 20px;">{signo_t_t}${abs(balance_neto):,.2f}</div></div>'
+            html_feed_t += '</div>'
+            st.markdown(html_feed_t, unsafe_allow_html=True)
+
+            if st.button("🗑️ ELIMINAR ÚLTIMO MOVIMIENTO DE TRADING", use_container_width=True):
+                if not df_trading.empty:
+                    ult_t = df_trading.iloc[-1]
+                    cta_t = ult_t["Cuenta"]
+                    tipo_t = ult_t["Tipo"]
+                    monto_t = float(ult_t["Monto"])
+                    concepto_t = ult_t["Concepto"]
+
+                    monto_a_revertir_banco = monto_t if tipo_t == "Inversión" else -abs(monto_t)
+                    
+                    if cta_t in df_cuentas["Cuenta"].values:
+                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_a_revertir_banco
+                    
+                    if tipo_t == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                        idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                        df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) + abs(monto_t)
+
+                    if not df_movs.empty:
+                        concepto_buscado = f"TRADING: {concepto_t}"
+                        mask_mov = (df_movs["Cuenta"] == cta_t) & (df_movs["Concepto"] == concepto_buscado)
+                        if mask_mov.any():
+                            idx_mov_borrar = df_movs[mask_mov].index[-1]
+                            df_movs = df_movs.drop(idx_mov_borrar)
+
+                    df_trading = df_trading.drop(df_trading.index[-1])
+
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                    
+                    st.session_state.df_trading = df_trading
+                    st.session_state.df_cuentas = df_cuentas
+                    st.session_state.df_fijos = df_fijos
+                    st.session_state.df_movs = df_movs
+                    
+                    st.success("Movimiento de Trading eliminado. Dinero devuelto a la cuenta y al sobre de inversión.")
+                    st.rerun()
+            
+        mostrar_feed_trading()
+
+# --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
+        with st.expander("🛠️ Administrar Historial"):
+            st.markdown("<p style='color: #888; font-size: 14px;'>Visualiza tus datos puros. Si seleccionas un movimiento antiguo en la lista de abajo, se <b>eliminará automáticamente</b> y se restaurarán los saldos sin recargar la página.</p>", unsafe_allow_html=True)
+            
+            # 🌟 FUNCION CALLBACK: Ejecuta todo ANTES de redibujar la pantalla para evitar doble parpadeo
             def ejecutar_borrado_silencioso():
                 if st.session_state.select_borrar_t != "Ninguno":
-                    idx = int(st.session_state.select_borrar_t.split("]")[0].replace("[", ""))
-                    df_t, df_c, df_f, df_m = st.session_state.df_trading, st.session_state.df_cuentas, st.session_state.df_fijos, st.session_state.df_movs
-                    fila = df_t.loc[idx]
-                    cta, monto, tipo, conc = fila["Cuenta"], float(fila["Monto"]), fila["Tipo"], fila["Concepto"]
+                    idx_real = int(st.session_state.select_borrar_t.split("]")[0].replace("[", ""))
                     
-                    # Revertir Banco
-                    monto_rev_banco = monto if tipo == "Inversión" else -abs(monto)
-                    if cta in df_c["Cuenta"].values:
-                        idx_c = df_c.index[df_c["Cuenta"] == cta].tolist()[0]
-                        df_c.at[idx_c, "Saldo"] = float(df_c.at[idx_c, "Saldo"]) + monto_rev_banco
+                    # Traemos los datos directamente de la memoria principal
+                    df_t = st.session_state.df_trading
+                    df_c = st.session_state.df_cuentas
+                    df_f = st.session_state.df_fijos
+                    df_m = st.session_state.df_movs
                     
-                    # Revertir Sobres
-                    if tipo == "Inversión" and "Inversion" in df_f["Categoría"].values:
+                    fila = df_t.loc[idx_real]
+                    cta_v = fila["Cuenta"]
+                    m_v = float(fila["Monto"])
+                    tipo_v = fila["Tipo"]
+                    concepto_v = fila["Concepto"]
+                    
+                    # 1. Revertir en Banco
+                    if cta_v in df_c["Cuenta"].values:
+                        idx_c = df_c.index[df_c["Cuenta"] == cta_v].tolist()[0]
+                        df_c.at[idx_c, "Saldo"] = float(df_c.at[idx_c, "Saldo"]) - (m_v if tipo_v in ["Retiro", "Mover Dinero"] else -abs(m_v))
+                    
+                    # 2. Revertir en Gastos Fijos (Fondo Inversión)
+                    if tipo_v == "Inversión" and "Inversion" in df_f["Categoría"].values:
                         idx_i = df_f.index[df_f["Categoría"] == "Inversion"].tolist()[0]
-                        df_f.at[idx_i, "Fondo_Disponible"] = float(df_f.at[idx_i, "Fondo_Disponible"]) + abs(monto)
-                    elif tipo in ["Retiro", "Mover Dinero"]:
-                        cat_r = "Ahorro" if "Ahorro" in df_f["Categoría"].values else ("Otros" if "Otros" in df_f["Categoría"].values else None)
-                        if cat_r:
-                            idx_r = df_f.index[df_f["Categoría"] == cat_r].tolist()[0]
-                            df_f.at[idx_r, "Fondo_Disponible"] = float(df_f.at[idx_r, "Fondo_Disponible"]) - abs(monto)
+                        df_f.at[idx_i, "Fondo_Disponible"] = float(df_f.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
 
-                    # Borrar registros
-                    df_m = df_m.drop(df_m[(df_m["Cuenta"] == cta) & (df_m["Concepto"] == f"TRADING: {conc}")].index[-1]) if not df_m.empty else df_m
-                    df_t = df_t.drop(idx)
+                    # 3. Eliminar del historial general de movimientos
+                    if not df_m.empty:
+                        mask_mov = (df_m["Cuenta"] == cta_v) & (df_m["Concepto"] == f"TRADING: {concepto_v}")
+                        if mask_mov.any():
+                            idx_mov_borrar = df_m[mask_mov].index[-1]
+                            df_m = df_m.drop(idx_mov_borrar)
+
+                    # 4. Eliminar de la base de Trading
+                    df_t = df_t.drop(idx_real)
                     
+                    # Guardar masivamente en Google Sheets
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_t)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_c)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_f)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_m)
-                    st.session_state.df_trading, st.session_state.df_cuentas, st.session_state.df_fijos, st.session_state.df_movs = df_t, df_c, df_f, df_m
+                    
+                    # Guardar en memoria local
+                    st.session_state.df_trading = df_t
+                    st.session_state.df_cuentas = df_c
+                    st.session_state.df_fijos = df_f
+                    st.session_state.df_movs = df_m
+                    
+                    # Resetear el selector y mostrar notificación amigable
                     st.session_state.select_borrar_t = "Ninguno"
-                    st.toast("Movimiento eliminado y saldos restaurados.")
+                    st.toast(f"Movimiento eliminado y saldos restaurados.", icon="✅")
 
-            col_f1, col_f2 = st.columns(2)
-            f_tipo = col_f1.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Mover Dinero", "Inyección Semanal"])
-            f_conc = col_f2.selectbox("Concepto", ["TODOS"] + sorted(df_trading["Concepto"].unique().tolist()))
+            # 1. Mostrar tabla estática y simple
+            st.dataframe(df_trading, use_container_width=True, hide_index=False)
             
-            df_fil = df_trading.copy()
-            if f_tipo != "TODOS": df_fil = df_fil[df_fil["Tipo"] == f_tipo]
-            if f_conc != "TODOS": df_fil = df_fil[df_fil["Concepto"] == f_conc]
-            df_fil = df_fil.sort_index(ascending=False)
-
-            html_feed = '<div style="max-height: 400px; overflow-y: auto; padding-right: 10px;">'
-            for _, r in df_fil.iterrows():
-                color = "#F44336" if r["Tipo"] == "Inversión" else "#4CAF50"
-                icon = "💸" if r["Tipo"] == "Inversión" else ("🔄" if r["Tipo"] == "Mover Dinero" else "💰")
-                html_feed += f'<div style="background: #1e1e1e; margin-bottom: 8px; padding: 12px; border-radius: 10px; border-left: 4px solid {color}; display: flex; justify-content: space-between; align-items: center;"><div style="display: flex; align-items: center; gap: 12px;"><div style="font-size: 20px;">{icon}</div><div><div style="color: #fff; font-weight: bold; font-size: 14px;">{r["Concepto"]}</div><div style="color: #666; font-size: 10px;">{r["Fecha"]} • {r["Cuenta"]}</div></div></div><div style="text-align: right;"><div style="color: {color}; font-weight: bold; font-size: 16px;">${abs(float(r["Monto"])):,.2f}</div><div style="color: #444; font-size: 9px; font-weight: bold; text-transform: uppercase;">{r["Tipo"]}</div></div></div>'
-            st.markdown(html_feed + '</div>', unsafe_allow_html=True)
-
-            with st.expander("🛠️ Administrar Historial"):
-                st.dataframe(df_trading, use_container_width=True)
-                st.selectbox("⚠️ Borrar movimiento al instante:", ["Ninguno"] + [f"[{i}] {r['Fecha']} | {r['Tipo']} | ${float(r['Monto']):.0f}" for i, r in df_trading.iterrows()], key="select_borrar_t", on_change=ejecutar_borrado_silencioso)
-        
-        mostrar_feed_trading_mejorado()
+            # 2. Selector de eliminación (Conectado a la función de arriba)
+            st.markdown("<hr style='margin: 15px 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+            if not df_trading.empty:
+                opciones_borrar = []
+                for idx, row in df_trading.iterrows():
+                    opciones_borrar.append(f"[{idx}] {row['Fecha']} | {row['Tipo']} | {row['Concepto']} | ${float(row['Monto']):.2f}")
+                
+                st.selectbox(
+                    "⚠️ Selecciona un movimiento para ELIMINAR al instante:", 
+                    ["Ninguno"] + opciones_borrar,
+                    key="select_borrar_t",
+                    on_change=ejecutar_borrado_silencioso
+                )
 
 # ---------------------------------------------------------
 # 4. CUENTAS (Cálculo Dinámico y Sobreescritura Forzada en Excel)

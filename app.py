@@ -855,7 +855,7 @@ with tab_trading:
 
 # 🌟 FORMULARIO CERRADO PARA EVITAR REDIBUJO AUTOMÁTICO 🌟
     with st.form("formulario_ejecutar_trading", border=False, clear_on_submit=True):
-        col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
+        col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1.2, 1])
         with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
  
         with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro", "Mover dinero"])
@@ -866,9 +866,9 @@ with tab_trading:
         with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
    
         with col_t5:
-            st.write("") # Espaciador para alinear el botón
-            # El botón de formulario detiene las recargas hasta que haces clic físicamente
-            btn_ejecutar = st.form_submit_button("ENVIAR", use_container_width=True, type="primary")
+            st.markdown("<br>", unsafe_allow_html=True) # Este salto de línea baja el botón al nivel de la caja de texto
+            # Botón ACEPTAR explícito al lado del monto
+            btn_ejecutar = st.form_submit_button("ACEPTAR", use_container_width=True, type="primary")
         
     if btn_ejecutar:
         if monto_t > 0:
@@ -1035,8 +1035,8 @@ with tab_trading:
             df_edit_t["Monto"] = pd.to_numeric(df_edit_t["Monto"], errors='coerce').fillna(0.0)
             df_edit_t["🗑️"] = False
             
-            # El formulario evita que al marcar un check "Borrar", la página se recargue inmediatamente
-            with st.form("formulario_editar_historial_trading", border=False):
+            # FORMULARIO OBLIGATORIO: Nada en la tabla se enviará a Sheets hasta que des clic al botón
+            with st.form("form_edicion_historial_trading", border=False):
                 edited_df_t = st.data_editor(
                     df_edit_t, use_container_width=True, hide_index=True,
                     column_config={
@@ -1046,8 +1046,8 @@ with tab_trading:
                     }
                 )
                 
-                # Este botón ahora es el que autoriza los cambios físicos
-                btn_confirmar_cambios = st.form_submit_button("💾 GUARDAR CAMBIOS", type="primary")
+                # BOTÓN FÍSICO AL FINAL DE LA TABLA
+                btn_confirmar_cambios = st.form_submit_button("💾 GUARDAR CAMBIOS", type="primary", use_container_width=True)
             
             if btn_confirmar_cambios:
                 # Reversión y Aplicación (Lógica de balances que ya tenías)

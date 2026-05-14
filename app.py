@@ -1029,6 +1029,7 @@ with tab_trading:
             
             edited_df_t = st.data_editor(
                 df_edit_t, use_container_width=True, hide_index=True,
+                key="memoria_tabla_trading", # 🌟 ESTO EVITA QUE OLVIDE LO QUE MARCASTE
                 column_config={
                     "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
                     "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
@@ -1041,41 +1042,48 @@ with tab_trading:
             
             # Si hay al menos una casilla marcada, mostramos la advertencia y el botón
             if not filas_a_borrar.empty:
-                st.warning("⚠️ ¿Seguro que quieres borrar? El dinero volverá a tus cuentas y sobres como estaba antes.")
+                st.markdown("<br>", unsafe_allow_html=True)
                 
-                if st.button("🚨 SÍ, BORRAR Y DEVOLVER DINERO", type="primary", use_container_width=True):
+                # 🌟 PONEMOS EL BOTÓN AL LADO DEL MENSAJE PARA QUE NO SE CORTE ABAJO 🌟
+                col_w1, col_w2 = st.columns([2, 1])
+                
+                with col_w1:
+                    st.warning("⚠️ ¿Seguro que quieres borrar? El dinero volverá a tus cuentas y sobres como estaba antes.")
                     
-                    # 1. Revertir el dinero a las cuentas y sobres
-                    for idx, fila_v in filas_a_borrar.iterrows():
-                        cta_v = fila_v["Cuenta"]
-                        m_v = float(fila_v["Monto"])
-                        tipo_v = fila_v["Tipo"]
+                with col_w2:
+                    if st.button("🚨 SÍ, BORRAR", type="primary", use_container_width=True):
                         
-                        if cta_v in df_cuentas["Cuenta"].values:
-                            idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
-                            # Reversión en el banco
-                            reverso_banco = -abs(m_v) if tipo_v == "Retiro" else abs(m_v)
-                            df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + reverso_banco
-                        
-                        if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
-                            idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                            # Reversión en el sobre de inversión
-                            df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
+                        # 1. Revertir el dinero a las cuentas y sobres
+                        for idx, fila_v in filas_a_borrar.iterrows():
+                            cta_v = fila_v["Cuenta"]
+                            m_v = float(fila_v["Monto"])
+                            tipo_v = fila_v["Tipo"]
+                            
+                            if cta_v in df_cuentas["Cuenta"].values:
+                                idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
+                                # Reversión en el banco
+                                reverso_banco = -abs(m_v) if tipo_v == "Retiro" else abs(m_v)
+                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + reverso_banco
+                            
+                            if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                                idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                                # Reversión en el sobre de inversión
+                                df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
 
-                    # 2. Eliminar del historial de Trading
-                    df_final_t = df_trading.drop(filas_a_borrar.index)
-                    
-                    # 3. Guardar todo en Google Sheets y en memoria
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                    
-                    st.session_state.df_trading = df_final_t
-                    st.session_state.df_cuentas = df_cuentas
-                    st.session_state.df_fijos = df_fijos
-                    
-                    st.success("¡Borrado y revertido con éxito!")
-                    st.rerun()
+                        # 2. Eliminar del historial de Trading
+                        df_final_t = df_trading.drop(filas_a_borrar.index)
+                        
+                        # 3. Guardar todo en Google Sheets y en memoria
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                        
+                        st.session_state.df_trading = df_final_t
+                        st.session_state.df_cuentas = df_cuentas
+                        st.session_state.df_fijos = df_fijos
+                        
+                        st.success("¡Borrado y revertido con éxito!")
+                        st.rerun()
 # ---------------------------------------------------------
 # 4. CUENTAS (Cálculo Dinámico y Sobreescritura Forzada en Excel)
 # ---------------------------------------------------------

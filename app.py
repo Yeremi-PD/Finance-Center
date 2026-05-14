@@ -1008,7 +1008,7 @@ with tab_trading:
             
         mostrar_feed_trading()
 
-        # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
+# --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Editar Historial"):
             df_edit_t = df_trading.copy()
            
@@ -1017,8 +1017,12 @@ with tab_trading:
             df_edit_t["Monto"] = pd.to_numeric(df_edit_t["Monto"], errors='coerce').fillna(0.0)
             df_edit_t["🗑️"] = False
             
+            # 🟢 FIX: Agregamos una altura fija (height=400) para que la tabla no tape el botón y permita scroll interno
             edited_df_t = st.data_editor(
-                df_edit_t, use_container_width=True, hide_index=True,
+                df_edit_t, 
+                use_container_width=True, 
+                hide_index=True,
+                height=400, 
                 column_config={
                     "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
                     "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
@@ -1026,7 +1030,12 @@ with tab_trading:
                 }
             )
             
-            if st.button("💾 CONFIRMAR", type="primary"):
+            # 🟢 FIX: Añadimos un pequeño espacio de seguridad
+            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+            
+            # 🟢 FIX: Botón con use_container_width=True para que ocupe todo el espacio y sea visible
+            if st.button("💾 GUARDAR CAMBIOS EN HISTORIAL", type="primary", use_container_width=True):
+                # Reversión y Aplicación (Lógica de balances)
                 for _, fila_v in st.session_state.df_trading.iterrows():
                     cta_v, m_v, tipo_v = fila_v["Cuenta"], float(fila_v["Monto"]), fila_v["Tipo"]
                     if cta_v in df_cuentas["Cuenta"].values:
@@ -1055,7 +1064,7 @@ with tab_trading:
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
          
                 st.session_state.df_trading, st.session_state.df_cuentas, st.session_state.df_fijos = df_final_t, df_cuentas, df_fijos
-                st.success("¡Historial actualizado!")
+                st.success("¡Historial actualizado correctamente!")
                 st.rerun()
 
 # ---------------------------------------------------------

@@ -845,7 +845,7 @@ with tab_trading:
             <h3 style="margin:0; color: #F44336;">${cap_invertido:,.2f}</h3></div>""", unsafe_allow_html=True)
     with col_k3:
         st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #F57C00;">
-            <p style="margin:0; color: #888; font-size: 11px;">TOTAL RETIRADO / MOVIDO</p>
+            <p style="margin:0; color: #888; font-size: 11px;">TOTAL RETIRADO</p>
             <h3 style="margin:0; color: #F57C00;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
     st.write("")
 

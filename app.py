@@ -1010,7 +1010,6 @@ with tab_trading:
 
 # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Administrar Historial"):
-            st.markdown("<p style='color: #888; font-size: 14px;'>Visualiza tus datos puros. Si seleccionas un movimiento antiguo en la lista de abajo, se <b>eliminará automáticamente</b> y se restaurarán los saldos.</p>", unsafe_allow_html=True)
             
             # 1. Mostrar tabla estática y simple
             st.dataframe(df_trading, use_container_width=True, hide_index=False)

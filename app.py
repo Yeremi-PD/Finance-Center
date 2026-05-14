@@ -1018,8 +1018,6 @@ with tab_trading:
             
         mostrar_feed_trading()
 
-mostrar_feed_trading()
-
         # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Editar Historial"):
             df_edit_t = df_trading.copy()
@@ -1078,7 +1076,6 @@ mostrar_feed_trading()
                     
                     st.success("¡Borrado y revertido con éxito!")
                     st.rerun()
-
 # ---------------------------------------------------------
 # 4. CUENTAS (Cálculo Dinámico y Sobreescritura Forzada en Excel)
 # ---------------------------------------------------------

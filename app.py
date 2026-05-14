@@ -1130,7 +1130,7 @@ with tab_cuentas:
 
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    # Menú oculto en un expander para no ensuciar la pantalla
+# Menú oculto en un expander para no ensuciar la pantalla
     with st.expander("Administrar Cuentas", expanded=False):
         col_e1, col_e2 = st.columns(2)
         
@@ -1149,6 +1149,7 @@ with tab_cuentas:
                         df_cuentas.loc[df_cuentas["Cuenta"] == n_nombre, "Saldo"] = n_saldo
                     else:
                         df_cuentas = pd.concat([df_cuentas, pd.DataFrame([{"Cuenta": n_nombre, "Saldo": n_saldo}])], ignore_index=True)
+    
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     st.cache_data.clear()
                     st.rerun()
@@ -1164,3 +1165,20 @@ with tab_cuentas:
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     st.cache_data.clear()
                     st.rerun()
+
+        # 🔄 BOTÓN DE SINCRONIZACIÓN MANUAL (FUERZA LA DESCARGA DESDE GOOGLE SHEET)
+        st.markdown("<hr>", unsafe_allow_html=True)
+        if st.button("🔄 SINCRONIZAR CON GOOGLE SHEET", use_container_width=True, type="primary"):
+            with st.spinner("Refrescando todos los datos desde la nube..."):
+                # Forzamos la recarga de todas las tablas de la base de datos 
+                st.session_state.df_fijos = cargar_base_datos("Gastos_Fijos")
+                st.session_state.df_movs = cargar_base_datos("Movimientos")
+                st.session_state.df_cuentas = cargar_base_datos("Cuentas")
+                st.session_state.df_excep = cargar_base_datos("Excepciones")
+                st.session_state.df_trading = cargar_base_datos("Trading")
+                st.session_state.df_cargos_auto = cargar_base_datos("Cargos_Auto")
+                
+                # Limpiamos caché y reiniciamos para mostrar los cambios 
+                st.cache_data.clear()
+                st.success("¡Sincronización completa con éxito!")
+                st.rerun()

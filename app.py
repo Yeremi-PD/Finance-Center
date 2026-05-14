@@ -854,7 +854,7 @@ with tab_trading:
     st.write("")
 
 # 🌟 FORMULARIO CERRADO PARA EVITAR REDIBUJO AUTOMÁTICO 🌟
-    with st.form("formulario_ejecutar_trading", border=False):
+    with st.form("formulario_ejecutar_trading", border=False, clear_on_submit=True):
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
         with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
  
@@ -867,8 +867,8 @@ with tab_trading:
    
         with col_t5:
             st.write("") # Espaciador para alinear el botón
-            # El botón de formulario detiene las recargas hasta que haces clic
-            btn_ejecutar = st.form_submit_button("AGREGAR", use_container_width=True, type="primary")
+            # El botón de formulario detiene las recargas hasta que haces clic físicamente
+            btn_ejecutar = st.form_submit_button("ENVIAR", use_container_width=True, type="primary")
         
     if btn_ejecutar:
         if monto_t > 0:
@@ -1035,16 +1035,21 @@ with tab_trading:
             df_edit_t["Monto"] = pd.to_numeric(df_edit_t["Monto"], errors='coerce').fillna(0.0)
             df_edit_t["🗑️"] = False
             
-            edited_df_t = st.data_editor(
-                df_edit_t, use_container_width=True, hide_index=True,
-                column_config={
-                    "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
-                    "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
-                    "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro", "Mover dinero"]),
-                }
-            )
+            # El formulario evita que al marcar un check "Borrar", la página se recargue inmediatamente
+            with st.form("formulario_editar_historial_trading", border=False):
+                edited_df_t = st.data_editor(
+                    df_edit_t, use_container_width=True, hide_index=True,
+                    column_config={
+                        "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
+                        "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
+                        "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro", "Mover dinero"]),
+                    }
+                )
+                
+                # Este botón ahora es el que autoriza los cambios físicos
+                btn_confirmar_cambios = st.form_submit_button("💾 GUARDAR CAMBIOS", type="primary")
             
-            if st.button("💾 CONFIRMAR", type="primary"):
+            if btn_confirmar_cambios:
                 # Reversión y Aplicación (Lógica de balances que ya tenías)
                 for _, fila_v in st.session_state.df_trading.iterrows():
                     cta_v, m_v, tipo_v = fila_v["Cuenta"], float(fila_v["Monto"]), fila_v["Tipo"]

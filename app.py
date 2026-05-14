@@ -1035,33 +1035,19 @@ with tab_trading:
                 }
             )
             
-            if st.button("💾 CONFIRMAR", type="primary"):
-                # Reversión y Aplicación (Lógica de balances que ya tenías)
-                for _, fila_v in st.session_state.df_trading.iterrows():
-                    cta_v, m_v, tipo_v = fila_v["Cuenta"], float(fila_v["Monto"]), fila_v["Tipo"]
-                    if cta_v in df_cuentas["Cuenta"].values:
-                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
-                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v if tipo_v == "Retiro" else -abs(m_v))
-                    if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
-                        idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                        df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
-
+            if st.button("💾 GUARDAR CAMBIOS SOLAMENTE", type="primary", use_container_width=True):
+                # Filtramos las filas eliminadas y limpiamos la columna de la basura
                 df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
-                for _, fila_n in df_final_t.iterrows():
-                    cta_n, m_n, tipo_n = fila_n["Cuenta"], float(fila_n["Monto"]), fila_n["Tipo"]
-                    if cta_n in df_cuentas["Cuenta"].values:
-                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_n].tolist()[0]
-                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + (m_n if tipo_n == "Retiro" else -abs(m_n))
-                    if tipo_n == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
-                        idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                        df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) - abs(m_n)
-
-                if "Fecha" in df_final_t.columns: df_final_t["Fecha"] = df_final_t["Fecha"].astype(str)
+                
+                # Aseguramos que la fecha se guarde correctamente
+                if "Fecha" in df_final_t.columns: 
+                    df_final_t["Fecha"] = df_final_t["Fecha"].astype(str)
+                
+                # Solo guardamos y actualizamos la hoja de Trading, sin afectar los balances
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                st.session_state.df_trading, st.session_state.df_cuentas, st.session_state.df_fijos = df_final_t, df_cuentas, df_fijos
-                st.success("¡Historial actualizado!")
+                st.session_state.df_trading = df_final_t
+                
+                st.success("¡Cambios guardados exitosamente!")
                 st.rerun()
 
 # ---------------------------------------------------------

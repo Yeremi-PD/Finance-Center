@@ -1018,7 +1018,7 @@ with tab_trading:
             
         mostrar_feed_trading()
 
-        # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
+# --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Editar Historial"):
             df_edit_t = df_trading.copy()
             
@@ -1036,7 +1036,8 @@ with tab_trading:
                 }
             )
             
-            st.write("")
+            # Agregué una línea divisoria para asegurarnos de que se ve
+            st.markdown("<hr>", unsafe_allow_html=True) 
             
             if st.button("💾 GUARDAR CAMBIOS SOLAMENTE", type="primary", use_container_width=True):
                 # Filtramos las filas eliminadas y limpiamos la columna de la basura

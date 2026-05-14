@@ -824,14 +824,15 @@ with tab_trading:
         idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
         cap_disponible = float(df_fijos.at[idx_inv, "Fondo_Disponible"])
 
-    # 2. Los otros totales sí vienen del historial de la hoja Trading
+# 2. Los otros totales sí vienen del historial de la hoja Trading
     cap_invertido = 0.0
     cap_retirado = 0.0
+  
     if not df_trading.empty:
         df_trading["Monto"] = pd.to_numeric(df_trading["Monto"]).fillna(0)
         cap_invertido = df_trading[df_trading["Monto"] > 0]["Monto"].sum()
-        # Ahora solo suma los registros que tú marcaste como 'Retiro' manualmente
-        cap_retirado = abs(df_trading[df_trading["Tipo"] == "Retiro"]["Monto"].sum())
+        # Ahora suma los registros que marcaste como 'Retiro' o 'Mover dinero' manualmente
+        cap_retirado = abs(df_trading[df_trading["Tipo"].isin(["Retiro", "Mover dinero"])]["Monto"].sum())
 
     # 3. Mostrar Métricas (Colores Rotados)
     col_k1, col_k2, col_k3 = st.columns(3)
@@ -924,7 +925,7 @@ with tab_trading:
             col_f1, col_f2 = st.columns(2)
             
             with col_f1:
-                f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Inyección Semanal"])
+                f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Mover dinero", "Inyección Semanal"])
                 
             with col_f2:
                 # 🛡️ ESCUDO ANTI-ERRORES DEFINITIVO PARA STREAMLIT CLOUD 🌟
@@ -938,6 +939,7 @@ with tab_trading:
             
             # Aplicar Filtros
             df_filtrado_t = df_trading.copy()
+            
             if f_tipo != "TODOS":
                 df_filtrado_t = df_filtrado_t[df_filtrado_t["Tipo"] == f_tipo]
             if f_concepto != "TODOS":
@@ -949,17 +951,17 @@ with tab_trading:
             html_feed_t = '<div style="max-height: 500px; overflow-y: auto; padding-right: 10px; margin-top: 10px;">'
             for _, row in df_filtrado_t.iterrows():
                 monto = float(row["Monto"])
-                # Inversiones en rojo (salida de capital), retiros/inyecciones en verde (entrada)
+                # Inversiones en rojo (salida de capital), retiros/inyecciones/mover dinero en verde (entrada)
                 color_op = "#F44336" if row["Tipo"] == "Inversión" else "#4CAF50"
                 icon = "💸" if row["Tipo"] == "Inversión" else "💰"
                 
                 tarjeta = f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 10px; padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"><div style="display: flex; align-items: center; gap: 15px;"><div style="font-size: 24px;">{icon}</div><div><div style="color: #fff; font-weight: bold; font-size: 15px;">{row["Concepto"]}</div><div style="color: #666; font-size: 11px; text-transform: uppercase;">{row["Fecha"]} • {row["Cuenta"]}</div></div></div><div style="text-align: right;"><div style="color: {color_op}; font-weight: bold; font-size: 18px;">${abs(monto):,.2f}</div><div style="color: #444; font-size: 10px; font-weight: bold; text-transform: uppercase;">{row["Tipo"]}</div></div></div>'
                 html_feed_t += tarjeta
                 
-            # 🌟 NUEVO CÁLCULO DEL TOTAL TRADING (INVERSIÓN = NEGATIVO, RETIRO/INYECCIÓN = POSITIVO) 🌟
+            # 🌟 NUEVO CÁLCULO DEL TOTAL TRADING (INVERSIÓN = NEGATIVO, RETIRO/INYECCIÓN/MOVER = POSITIVO) 🌟
             total_inversiones = df_filtrado_t[df_filtrado_t["Tipo"] == "Inversión"]["Monto"].astype(float).sum()
-            # Sumamos Retiros e Inyecciones Semanales como entradas de capital
-            total_entradas = df_filtrado_t[df_filtrado_t["Tipo"].isin(["Retiro", "Inyección Semanal"])]["Monto"].astype(float).abs().sum()
+            # Sumamos Retiros, Mover dinero e Inyecciones Semanales como entradas de capital
+            total_entradas = df_filtrado_t[df_filtrado_t["Tipo"].isin(["Retiro", "Mover dinero", "Inyección Semanal"])]["Monto"].astype(float).abs().sum()
             
             # La matemática del Trader: Lo que entró menos lo que invirtió
             balance_neto = total_entradas - total_inversiones
@@ -983,15 +985,15 @@ with tab_trading:
 
                     # 2. Revertir Saldo en Cuenta Bancaria
                     # Si fue Inversión (monto_t > 0), en el banco se restó. Lo sumamos.
-                    # Si fue Retiro (monto_t < 0), en el banco se sumó. Lo restamos.
+                    # Si fue Retiro o Mover dinero (monto_t < 0), en el banco se sumó. Lo restamos.
                     monto_a_revertir_banco = monto_t if tipo_t == "Inversión" else -abs(monto_t)
                     
                     if cta_t in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
                         df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + monto_a_revertir_banco
                     
-                    # 3. Revertir sobre de "Inversion" en Gastos Fijos (Solo si fue Inversión)
-                    if tipo_t == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                    # 3. Revertir sobre de "Inversion" en Gastos Fijos (Solo si fue Inversión o Mover dinero)
+                    if tipo_t in ["Inversión", "Mover dinero"] and "Inversion" in df_fijos["Categoría"].values:
                         idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
                         # Devolvemos el monto al sobre
                         df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) + abs(monto_t)
@@ -1038,7 +1040,7 @@ with tab_trading:
                 column_config={
                     "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
                     "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
-                    "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro"]),
+                    "Tipo": st.column_config.SelectboxColumn("Operación", options=["Inversión", "Retiro", "Mover dinero"]),
                 }
             )
             
@@ -1048,25 +1050,30 @@ with tab_trading:
                     cta_v, m_v, tipo_v = fila_v["Cuenta"], float(fila_v["Monto"]), fila_v["Tipo"]
                     if cta_v in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
-                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v if tipo_v == "Retiro" else -abs(m_v))
-                    if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v if tipo_v in ["Retiro", "Mover dinero"] else -abs(m_v))
+        
+                    if tipo_v in ["Inversión", "Mover dinero"] and "Inversion" in df_fijos["Categoría"].values:
                         idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
                         df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
 
                 df_final_t = edited_df_t[edited_df_t["🗑️"] == False].drop(columns=["🗑️"])
+   
                 for _, fila_n in df_final_t.iterrows():
                     cta_n, m_n, tipo_n = fila_n["Cuenta"], float(fila_n["Monto"]), fila_n["Tipo"]
                     if cta_n in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_n].tolist()[0]
-                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + (m_n if tipo_n == "Retiro" else -abs(m_n))
-                    if tipo_n == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+      
+                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + (m_n if tipo_n in ["Retiro", "Mover dinero"] else -abs(m_n))
+                    if tipo_n in ["Inversión", "Mover dinero"] and "Inversion" in df_fijos["Categoría"].values:
                         idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+               
                         df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) - abs(m_n)
 
                 if "Fecha" in df_final_t.columns: df_final_t["Fecha"] = df_final_t["Fecha"].astype(str)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+         
                 st.session_state.df_trading, st.session_state.df_cuentas, st.session_state.df_fijos = df_final_t, df_cuentas, df_fijos
                 st.success("¡Historial actualizado!")
                 st.rerun()

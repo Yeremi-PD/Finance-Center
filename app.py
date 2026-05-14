@@ -1018,6 +1018,52 @@ with tab_trading:
             
         mostrar_feed_trading()
 
+        # 🌟 CREAMOS LA VENTANITA FLOTANTE (POP-UP REAL) 🌟
+        @st.dialog("⚠️ Confirmar Borrado")
+        def dialog_confirmar_borrado(filas_borrar):
+            global df_trading, df_cuentas, df_fijos # Aseguramos acceso a tus datos
+            
+            st.markdown("¿Estás seguro de que deseas eliminar estos registros?<br>**El dinero volverá a tus cuentas bancarias y sobres automáticamente.**", unsafe_allow_html=True)
+            st.write("")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("🚨 SÍ, BORRAR", type="primary", use_container_width=True):
+                    # 1. Revertir el dinero a las cuentas y sobres
+                    for idx, fila_v in filas_borrar.iterrows():
+                        cta_v = fila_v["Cuenta"]
+                        m_v = float(fila_v["Monto"])
+                        tipo_v = fila_v["Tipo"]
+                        
+                        if cta_v in df_cuentas["Cuenta"].values:
+                            idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
+                            # Reversión en el banco
+                            reverso_banco = -abs(m_v) if tipo_v == "Retiro" else abs(m_v)
+                            df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + reverso_banco
+                        
+                        if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
+                            idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                            # Reversión en el sobre de inversión
+                            df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
+
+                    # 2. Eliminar del historial de Trading
+                    df_final_t = df_trading.drop(filas_borrar.index)
+                    
+                    # 3. Guardar todo en Google Sheets y en memoria
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    
+                    st.session_state.df_trading = df_final_t
+                    st.session_state.df_cuentas = df_cuentas
+                    st.session_state.df_fijos = df_fijos
+                    
+                    st.success("¡Borrado y revertido con éxito!")
+                    st.rerun()
+            with c2:
+                if st.button("❌ CANCELAR", use_container_width=True):
+                    st.rerun()
+
         # --- PANEL OCULTO PARA ADMINISTRACIÓN (Edición/Borrado) ---
         with st.expander("🛠️ Editar Historial"):
             df_edit_t = df_trading.copy()
@@ -1039,68 +1085,14 @@ with tab_trading:
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # 🌟 BOTÓN SIEMPRE VISIBLE 🌟
-            if st.button("🗑️ ELIMINAR LOS QUE MARQUÉ ARRIBA", use_container_width=True):
+            # Botón que invoca la ventanita
+            if st.button("🗑️ ELIMINAR LOS QUE MARQUÉ", type="primary", use_container_width=True):
                 filas_a_borrar = edited_df_t[edited_df_t["🗑️"] == True]
                 if filas_a_borrar.empty:
-                    st.warning("⚠️ No has marcado ninguna casilla en la columna 'Borrar'.")
+                    st.warning("⚠️ No has marcado ninguna casilla para borrar.")
                 else:
-                    st.session_state.ventana_borrar_abierta = True
-                    st.rerun()
-
-            # 🌟 LA "VENTANITA" DE CONFIRMACIÓN 🌟
-            if st.session_state.get("ventana_borrar_abierta", False):
-                st.markdown("""
-                <div style='background-color: #2b0000; padding: 20px; border-radius: 10px; border: 2px solid #ff4b4b; margin-top: 15px; margin-bottom: 15px;'>
-                    <h3 style='color: white; margin-top: 0;'>⚠️ Confirmar Borrado</h3>
-                    <p style='color: #dddddd;'>¿Estás seguro de que deseas eliminar estos registros? El dinero volverá a tus cuentas bancarias y sobres automáticamente para que todo quede como estaba.</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                filas_a_borrar = edited_df_t[edited_df_t["🗑️"] == True]
-                
-                col_btn1, col_btn2 = st.columns(2)
-                with col_btn1:
-                    if st.button("🚨 SÍ, ESTOY SEGURO (BORRAR)", type="primary", use_container_width=True):
-                        # 1. Revertir el dinero a las cuentas y sobres
-                        for idx, fila_v in filas_a_borrar.iterrows():
-                            cta_v = fila_v["Cuenta"]
-                            m_v = float(fila_v["Monto"])
-                            tipo_v = fila_v["Tipo"]
-                            
-                            if cta_v in df_cuentas["Cuenta"].values:
-                                idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
-                                # Reversión en el banco
-                                reverso_banco = -abs(m_v) if tipo_v == "Retiro" else abs(m_v)
-                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + reverso_banco
-                            
-                            if tipo_v == "Inversión" and "Inversion" in df_fijos["Categoría"].values:
-                                idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                                # Reversión en el sobre de inversión
-                                df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
-
-                        # 2. Eliminar del historial de Trading
-                        df_final_t = df_trading.drop(filas_a_borrar.index)
-                        
-                        # 3. Guardar todo en Google Sheets y en memoria
-                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_final_t)
-                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                        
-                        st.session_state.df_trading = df_final_t
-                        st.session_state.df_cuentas = df_cuentas
-                        st.session_state.df_fijos = df_fijos
-                        
-                        # Cerramos la ventanita
-                        st.session_state.ventana_borrar_abierta = False
-                        st.success("¡Borrado y revertido con éxito!")
-                        st.rerun()
-                        
-                with col_btn2:
-                    if st.button("❌ CANCELAR", use_container_width=True):
-                        # Cerramos la ventanita sin hacer nada
-                        st.session_state.ventana_borrar_abierta = False
-                        st.rerun()
+                    # Aquí es donde llamamos a la ventanita real
+                    dialog_confirmar_borrado(filas_a_borrar)
 # ---------------------------------------------------------
 # 4. CUENTAS (Cálculo Dinámico y Sobreescritura Forzada en Excel)
 # ---------------------------------------------------------

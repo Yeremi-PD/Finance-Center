@@ -1029,7 +1029,7 @@ with tab_trading:
             
             edited_df_t = st.data_editor(
                 df_edit_t, use_container_width=True, hide_index=True,
-                key="memoria_tabla_trading", # 🌟 ESTO EVITA QUE OLVIDE LO QUE MARCASTE
+                key="memoria_tabla_trading_segura",
                 column_config={
                     "🗑️": st.column_config.CheckboxColumn("Borrar", width="small"),
                     "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f"),
@@ -1037,22 +1037,31 @@ with tab_trading:
                 }
             )
             
-            # Detectamos si marcaste alguna casilla en la columna "🗑️"
-            filas_a_borrar = edited_df_t[edited_df_t["🗑️"] == True]
+            st.markdown("<br>", unsafe_allow_html=True)
             
-            # Si hay al menos una casilla marcada, mostramos la advertencia y el botón
-            if not filas_a_borrar.empty:
-                st.markdown("<br>", unsafe_allow_html=True)
+            # 🌟 BOTÓN SIEMPRE VISIBLE 🌟
+            if st.button("🗑️ ELIMINAR LOS QUE MARQUÉ ARRIBA", use_container_width=True):
+                filas_a_borrar = edited_df_t[edited_df_t["🗑️"] == True]
+                if filas_a_borrar.empty:
+                    st.warning("⚠️ No has marcado ninguna casilla en la columna 'Borrar'.")
+                else:
+                    st.session_state.ventana_borrar_abierta = True
+                    st.rerun()
+
+            # 🌟 LA "VENTANITA" DE CONFIRMACIÓN 🌟
+            if st.session_state.get("ventana_borrar_abierta", False):
+                st.markdown("""
+                <div style='background-color: #2b0000; padding: 20px; border-radius: 10px; border: 2px solid #ff4b4b; margin-top: 15px; margin-bottom: 15px;'>
+                    <h3 style='color: white; margin-top: 0;'>⚠️ Confirmar Borrado</h3>
+                    <p style='color: #dddddd;'>¿Estás seguro de que deseas eliminar estos registros? El dinero volverá a tus cuentas bancarias y sobres automáticamente para que todo quede como estaba.</p>
+                </div>
+                """, unsafe_allow_html=True)
                 
-                # 🌟 PONEMOS EL BOTÓN AL LADO DEL MENSAJE PARA QUE NO SE CORTE ABAJO 🌟
-                col_w1, col_w2 = st.columns([2, 1])
+                filas_a_borrar = edited_df_t[edited_df_t["🗑️"] == True]
                 
-                with col_w1:
-                    st.warning("⚠️ ¿Seguro que quieres borrar? El dinero volverá a tus cuentas y sobres como estaba antes.")
-                    
-                with col_w2:
-                    if st.button("🚨 SÍ, BORRAR", type="primary", use_container_width=True):
-                        
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("🚨 SÍ, ESTOY SEGURO (BORRAR)", type="primary", use_container_width=True):
                         # 1. Revertir el dinero a las cuentas y sobres
                         for idx, fila_v in filas_a_borrar.iterrows():
                             cta_v = fila_v["Cuenta"]
@@ -1082,7 +1091,15 @@ with tab_trading:
                         st.session_state.df_cuentas = df_cuentas
                         st.session_state.df_fijos = df_fijos
                         
+                        # Cerramos la ventanita
+                        st.session_state.ventana_borrar_abierta = False
                         st.success("¡Borrado y revertido con éxito!")
+                        st.rerun()
+                        
+                with col_btn2:
+                    if st.button("❌ CANCELAR", use_container_width=True):
+                        # Cerramos la ventanita sin hacer nada
+                        st.session_state.ventana_borrar_abierta = False
                         st.rerun()
 # ---------------------------------------------------------
 # 4. CUENTAS (Cálculo Dinámico y Sobreescritura Forzada en Excel)

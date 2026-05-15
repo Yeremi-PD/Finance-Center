@@ -714,8 +714,8 @@ with tab_pagos:
         st.markdown("<hr>", unsafe_allow_html=True)
         
         # --- CARGOS AUTOMÁTICOS ---
-        with st.expander("🤖 Configurar Cargos Automáticos", expanded=False):
-            st.markdown("<p style='color: #888; font-size: 14px;'>Configura cobros mensuales que se debitarán solos (Ej: Netflix, Préstamos, Internet).</p>", unsafe_allow_html=True)
+        with st.expander("Configurar Cargos Automáticos", expanded=False):
+            st.markdown("<p style='color: #888; font-size: 14px;'>Los Cobros mensuales que se debitarán solos.</p>", unsafe_allow_html=True)
             
             with st.form("form_nuevo_cargo_auto", border=False):
                 ca1, ca2, ca3 = st.columns([1.5, 1.5, 1])

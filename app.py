@@ -728,7 +728,7 @@ with tab_pagos:
                 
                 col_c1, col_c2 = st.columns([2, 1])
                 with col_c1:
-                    c_auto_concepto = st.text_input("Concepto del Recibo (Ej: Spotify):")
+                    c_auto_concepto = st.text_input("Concepto del Recibo:")
                 with col_c2:
                     c_auto_monto = st.number_input("Monto a descontar ($):", min_value=0.0, step=100.0)
                 

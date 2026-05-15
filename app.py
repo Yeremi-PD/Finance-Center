@@ -209,6 +209,7 @@ if not df_cargos_auto.empty:
             cat_auto = cargo["Categoria"]
             monto_auto = float(cargo["Monto"])
             concepto_auto = cargo["Concepto"]
+            fecha_hoy = datetime.now().strftime("%Y-%m-%d")
             
             # 1. Descontar de Gastos Fijos (El fondo de ese sobre)
             if cat_auto in df_fijos["Categoría"].values:
@@ -216,19 +217,19 @@ if not df_cargos_auto.empty:
                 df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - monto_auto
             
             # 2. Guardar en Movimientos Generales
-            nuevo_mov = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta_auto, "Concepto": cat_auto, "Monto": -monto_auto}])
+            nuevo_mov = pd.DataFrame([{"Fecha": fecha_hoy, "Cuenta": cta_auto, "Concepto": cat_auto, "Monto": -monto_auto}])
             df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
 
-            # 🌟 NUEVA LÓGICA: Si el concepto es 'inversion', registrarlo también en la tabla de Trading
+            # 🌟 SINCRONIZACIÓN CON TRADING: Si el concepto es 'inversion', aparecerá en la tabla e historial de Trading
             if str(concepto_auto).lower() == "inversion":
-                nueva_op_trading_auto = pd.DataFrame([{
-                    "Fecha": datetime.now().strftime("%Y-%m-%d"), 
+                nueva_op_t = pd.DataFrame([{
+                    "Fecha": fecha_hoy, 
                     "Cuenta": cta_auto, 
                     "Tipo": "Inversión", 
                     "Concepto": "Inversión Automática", 
-                    "Monto": monto_auto
+                    "Monto": monto_auto # Aparece como capital enviado en Trading
                 }])
-                df_trading = pd.concat([df_trading, nueva_op_trading_auto], ignore_index=True)
+                df_trading = pd.concat([df_trading, nueva_op_t], ignore_index=True)
             
             # 3. Marcar como cobrado en la base de datos de cargos
             df_cargos_auto.at[idx, "Ultimo_Mes_Cobrado"] = mes_actual
@@ -254,7 +255,7 @@ if not df_cargos_auto.empty:
                 - Cuenta Bancaria: {cta_auto}
                 - Fecha de ejecución: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 
-                Este movimiento ya fue registrado en tu historial de Google Sheets y tus saldos han sido actualizados.
+                Este movimiento ya fue registrado en tu historial de Trading, historial general y Google Sheets.
                 """
                 msg.attach(MIMEText(cuerpo, 'plain'))
                 
@@ -266,17 +267,17 @@ if not df_cargos_auto.empty:
             except Exception as e:
                 st.error(f"El cargo se hizo, pero hubo un error al enviar el correo: {e}")
 
-# Si hubo un cobro, guardamos la base de datos (Incluyendo ahora la de Trading)
+# Si hubo un cobro, guardamos TODO masivamente (Incluyendo la nueva tabla de Trading)
 if cambios_auto:
     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
-    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading) # Guardar en Trading
+    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading) # 🌟 Se guarda en la tabla de Trading
     
     st.session_state.df_fijos = df_fijos
     st.session_state.df_movs = df_movs
     st.session_state.df_cargos_auto = df_cargos_auto
-    st.session_state.df_trading = df_trading # Actualizar memoria local
+    st.session_state.df_trading = df_trading # 🌟 Se actualiza el historial visual al instante
 # -----------------------------------------------------
 
 

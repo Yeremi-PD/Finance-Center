@@ -895,14 +895,18 @@ with tab_trading:
                 idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
                 df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco
                 
-                # 🌟 MAGIA: Actualizar el Fondo Disponible según la operación para que la pestaña CUENTAS no lo borre 🌟
-                if "Inversion" in df_fijos["Categoría"].values:
+                # 🌟 MAGIA: Descontar de Inversión o alojar Retiros en "Inyección del trading" 🌟
+                if tipo_t in ["Inversión", "Mover Dinero"] and "Inversion" in df_fijos["Categoría"].values:
                     idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                    if tipo_t in ["Inversión", "Mover Dinero"]:
-                        df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
-                    elif tipo_t == "Retiro":
-                        # El retiro suma dinero a tu banco, así que lo inyectamos al sobre "Inversion" para que el recálculo cuadre
-                        df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) + monto_t
+                    df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
+                elif tipo_t == "Retiro":
+                    cat_retiro = "Inyección del trading"
+                    if cat_retiro in df_fijos["Categoría"].values:
+                        idx_ret = df_fijos.index[df_fijos["Categoría"] == cat_retiro].tolist()[0]
+                        df_fijos.at[idx_ret, "Fondo_Disponible"] = float(df_fijos.at[idx_ret, "Fondo_Disponible"]) + monto_t
+                    else:
+                        nueva_cat = pd.DataFrame([{"Categoría": cat_retiro, "Monto_Mensual": 0.0, "Fondo_Disponible": monto_t}])
+                        df_fijos = pd.concat([df_fijos, nueva_cat], ignore_index=True)
 
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
@@ -990,6 +994,9 @@ with tab_trading:
                         if tipo_v in ["Inversión", "Mover Dinero"] and "Inversion" in df_fijos["Categoría"].values:
                             idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
                             df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v)
+                        elif tipo_v == "Retiro" and "Inyección del trading" in df_fijos["Categoría"].values:
+                            idx_r = df_fijos.index[df_fijos["Categoría"] == "Inyección del trading"].tolist()[0]
+                            df_fijos.at[idx_r, "Fondo_Disponible"] = float(df_fijos.at[idx_r, "Fondo_Disponible"]) - abs(m_v)
 
                         # 3. Borrar del historial General
                         if not df_movs.empty:
@@ -1032,6 +1039,9 @@ with tab_trading:
                         if tipo_v in ["Inversión", "Mover Dinero"] and "Inversion" in df_fijos["Categoría"].values:
                             idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
                             df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) + abs(m_v_old)
+                        elif tipo_v == "Retiro" and "Inyección del trading" in df_fijos["Categoría"].values:
+                            idx_r = df_fijos.index[df_fijos["Categoría"] == "Inyección del trading"].tolist()[0]
+                            df_fijos.at[idx_r, "Fondo_Disponible"] = float(df_fijos.at[idx_r, "Fondo_Disponible"]) - abs(m_v_old)
 
                         # B) Aplicar los valores nuevos
                         m_v_new = new_monto if tipo_v == "Inversión" else -new_monto
@@ -1044,6 +1054,9 @@ with tab_trading:
                         if tipo_v in ["Inversión", "Mover Dinero"] and "Inversion" in df_fijos["Categoría"].values:
                             idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
                             df_fijos.at[idx_i, "Fondo_Disponible"] = float(df_fijos.at[idx_i, "Fondo_Disponible"]) - new_monto
+                        elif tipo_v == "Retiro" and "Inyección del trading" in df_fijos["Categoría"].values:
+                            idx_r = df_fijos.index[df_fijos["Categoría"] == "Inyección del trading"].tolist()[0]
+                            df_fijos.at[idx_r, "Fondo_Disponible"] = float(df_fijos.at[idx_r, "Fondo_Disponible"]) + new_monto
 
                         # C) Actualizar los textos y números en la base de datos
                         df_trading.at[idx, "Concepto"] = new_concepto

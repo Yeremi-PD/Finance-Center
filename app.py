@@ -570,7 +570,6 @@ with tab_pagos:
                     st.warning("No hay inyección reciente para deshacer.")
                     st.rerun()
 
-        st.markdown("<hr>", unsafe_allow_html=True)
   
         # --- FORMULARIO DE GASTO ---
         st.markdown("<h4 style='color: #2E7D32;'>Aplicar Gasto</h4>", unsafe_allow_html=True)

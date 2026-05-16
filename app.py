@@ -576,7 +576,6 @@ with tab_pagos:
                     # --- Lógica para registrar inyección en Trading ---
                     for cta_inv in (nombres_cuentas if cuenta_maestra == "TODAS" else [cuenta_maestra]):
                         l_negra_inv = df_excep[df_excep["Cuenta"] == cta_inv]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                        # Si "Inversion" no está excluida en esta cuenta, registramos el movimiento en Trading
                         if "Inversion" not in l_negra_inv and "Inversion" in df_fijos["Categoría"].values:
                             monto_inv_sem = float(df_fijos.loc[df_fijos["Categoría"] == "Inversion", "Monto_Mensual"].values[0]) / 4
                             nueva_op_t = pd.DataFrame([{
@@ -614,7 +613,6 @@ with tab_pagos:
                         
                         df_movs = df_movs.drop(a_revertir.index)
                         
-                        # Revertir también en Trading buscando el nuevo Tipo
                         if not df_trading.empty:
                             fecha_str = str(ult_f).strip()
                             mask_t = (df_trading["Tipo"] == "Inyección Semanal") & (df_trading["Fecha"].astype(str).str.strip() == fecha_str)
@@ -710,7 +708,6 @@ with tab_pagos:
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                     st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
-                
                     st.rerun()
 
         st.markdown("<hr>", unsafe_allow_html=True)
@@ -799,6 +796,245 @@ with tab_pagos:
                             st.markdown("</div>", unsafe_allow_html=True)
 
     mostrar_panel_pagos_unificado()
+
+# ---------------------------------------------------------
+# NUEVA SECCIÓN: TRADING (Sincronizada con Fondo Disponible)
+# ---------------------------------------------------------
+with tab_trading:
+    st.markdown("<h3 style='font-weight: 400; color: #FFFFFF;'>Gestión de Trading</h3>", unsafe_allow_html=True)
+    
+    # --- CÁLCULO DEL FONDO DISPONIBLE (Sobre de Inversión) ---
+    cap_disponible = 0.0
+    if "Inversion" in df_fijos["Categoría"].values:
+        idx_inv = df_fijos["Categoría"] == "Inversion"
+        cap_disponible = float(df_fijos.loc[idx_inv, "Fondo_Disponible"].iloc[0])
+
+    # Métrica limpia y directa
+    col_k1, _ = st.columns([1.5, 2])
+    with col_k1:
+        st.markdown(f"""<div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50;">
+            <p style="margin:0; color: #888; font-size: 12px; font-weight: bold;">FONDO DISPONIBLE (TRADING)</p>
+            <h2 style="margin:0; color: #4CAF50;">${cap_disponible:,.2f}</h2></div>""", unsafe_allow_html=True)
+    
+    st.write("")
+
+    # --- FORMULARIO DE OPERACIÓN ---
+    with st.form("formulario_ejecutar_trading", border=False):
+        col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
+        with col_t1: cta_t = st.selectbox("Cuenta Bancaria destino/origen:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
+        with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro", "Mover Dinero"])
+        with col_t3: 
+            lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "Mover Dinero", "OTRO"]
+            c_sel_t = st.selectbox("Concepto:", lista_c)
+            concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
+        with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
+        with col_t5:
+            st.write("")
+            btn_ejecutar = st.form_submit_button("AGREGAR", use_container_width=True, type="primary")
+        
+    if btn_ejecutar:
+        if monto_t > 0:
+            if tipo_t == "Mover Dinero" or c_sel_t == "Mover Dinero":
+                tipo_t, concepto_t = "Mover Dinero", "Mover Dinero"
+
+            monto_trading_excel = monto_t if tipo_t == "Inversión" else -monto_t
+            monto_banco_efecto = -monto_t if tipo_t == "Inversión" else monto_t
+            fecha_act = datetime.now().strftime("%Y-%m-%d")
+            
+            # 1. Actualizar Fondos y Sobres (df_fijos)
+            if "Inversion" in df_fijos["Categoría"].values:
+                idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                
+                if tipo_t == "Inversión":
+                    df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
+                else:
+                    # Mover Dinero/Retiro: Resta del Fondo Disponible e ingresa a la cuenta bancaria
+                    df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
+                    cat_aux = "Ahorro" if "Ahorro" in df_fijos["Categoría"].values else ("Otros" if "Otros" in df_fijos["Categoría"].values else None)
+                    if cat_aux:
+                        idx_aux = df_fijos.index[df_fijos["Categoría"] == cat_aux].tolist()[0]
+                        df_fijos.at[idx_aux, "Fondo_Disponible"] = float(df_fijos.at[idx_aux, "Fondo_Disponible"]) + monto_t
+
+            # 2. Actualizar Banco y Movimientos
+            idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
+            df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco_efecto
+            
+            df_trading = pd.concat([df_trading, pd.DataFrame([{"Fecha": fecha_act, "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading_excel}])], ignore_index=True)
+            df_movs = pd.concat([df_movs, pd.DataFrame([{"Fecha": fecha_act, "Cuenta": cta_t, "Concepto": f"TRADING: {concepto_t}", "Monto": monto_banco_efecto}])], ignore_index=True)
+
+            # 3. Guardado Masivo
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+            
+            st.session_state.df_trading, st.session_state.df_movs, st.session_state.df_cuentas, st.session_state.df_fijos = df_trading, df_movs, df_cuentas, df_fijos
+            st.success(f"✅ {tipo_t} procesado. Fondo Disponible actualizado.")
+            st.rerun()
+
+    # --- HISTORIAL Y ADMINISTRACIÓN ---
+    if not df_trading.empty:
+        st.markdown("---")
+        @st.fragment
+        def mostrar_panel_trading_final():
+            global df_trading, df_movs, df_cuentas, df_fijos
+            
+            def cb_borrar_trading():
+                if st.session_state.sel_borrar_t != "Ninguno":
+                    idx = int(st.session_state.sel_borrar_t.split("]")[0].replace("[", ""))
+                    fila = st.session_state.df_trading.loc[idx]
+                    cta, monto, tipo, conc = fila["Cuenta"], float(fila["Monto"]), fila["Tipo"], fila["Concepto"]
+                    
+                    df_t, df_c, df_f, df_m = st.session_state.df_trading, st.session_state.df_cuentas, st.session_state.df_fijos, st.session_state.df_movs
+                    
+                    rev_banco = monto if tipo == "Inversión" else -abs(monto)
+                    if cta in df_c["Cuenta"].values:
+                        idx_c = df_c.index[df_c["Cuenta"] == cta].tolist()[0]
+                        df_c.at[idx_c, "Saldo"] = float(df_c.at[idx_c, "Saldo"]) + rev_banco
+                    
+                    if "Inversion" in df_f["Categoría"].values:
+                        idx_i = df_f.index[df_f["Categoría"] == "Inversion"].tolist()[0]
+                        df_f.at[idx_i, "Fondo_Disponible"] = float(df_f["Fondo_Disponible"].iloc[idx_i]) + monto
+                        
+                        if tipo in ["Retiro", "Mover Dinero"]:
+                            cat_a = "Ahorro" if "Ahorro" in df_f["Categoría"].values else ("Otros" if "Otros" in df_f["Categoría"].values else None)
+                            if cat_a:
+                                idx_a = df_f.index[df_f["Categoría"] == cat_a].tolist()[0]
+                                df_f.at[idx_a, "Fondo_Disponible"] = float(df_f.at[idx_a, "Fondo_Disponible"]) - abs(monto)
+
+                    df_t = df_t.drop(idx)
+                    mask_m = (df_m["Cuenta"] == cta) & (df_m["Concepto"] == f"TRADING: {conc}")
+                    if mask_m.any(): df_m = df_m.drop(df_m[mask_m].index[-1])
+                    
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_t)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_c)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_f)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_m)
+                    st.session_state.df_trading, st.session_state.df_cuentas, st.session_state.df_fijos, st.session_state.df_movs = df_t, df_c, df_f, df_m
+                    st.session_state.sel_borrar_t = "Ninguno"
+                    st.toast("Movimiento eliminado.")
+
+            col_f1, col_f2 = st.columns(2)
+            df_fil = df_trading.copy()
+            f_t = col_f1.selectbox("Filtrar Tipo:", ["TODOS", "Inversión", "Retiro", "Mover Dinero"])
+            if f_t != "TODOS": df_fil = df_fil[df_fil["Tipo"] == f_t]
+            
+            html_f = '<div style="max-height: 350px; overflow-y: auto;">'
+            for _, r in df_fil.sort_index(ascending=False).iterrows():
+                col = "#F44336" if r["Tipo"] == "Inversión" else "#4CAF50"
+                html_f += f'<div style="background: #1e1e1e; margin-bottom: 6px; padding: 10px; border-radius: 8px; border-left: 4px solid {col}; display: flex; justify-content: space-between; align-items: center;"><div><div style="font-size: 13px; font-weight: bold;">{r["Concepto"]}</div><div style="font-size: 10px; color: #666;">{r["Fecha"]} • {r["Cuenta"]}</div></div><div style="color: {col}; font-weight: bold;">${abs(float(r["Monto"])):,.0f}</div></div>'
+            st.markdown(html_f + '</div>', unsafe_allow_html=True)
+
+            with st.expander("🛠️ Administrar Historial"):
+                st.dataframe(df_trading, use_container_width=True)
+                st.selectbox("⚠️ Seleccionar para BORRAR:", ["Ninguno"] + [f"[{i}] {r['Fecha']} | {r['Tipo']} | ${float(r['Monto']):.0f}" for i, r in df_trading.iterrows()], key="sel_borrar_t", on_change=cb_borrar_trading)
+        
+        mostrar_panel_trading_final()
+
+# ---------------------------------------------------------
+# 4. CUENTAS (Cálculo Dinámico y Sobreescritura Forzada en Excel)
+# ---------------------------------------------------------
+with tab_cuentas:
+    st.write("") 
+    
+    if not df_cuentas.empty and not df_fijos.empty:
+        # 🌟 BALANCE TOTAL DINÁMICO
+        fondos_limpios = df_fijos["Fondo_Disponible"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
+        t_total = pd.to_numeric(fondos_limpios, errors='coerce').fillna(0).sum()
+        
+        st.markdown(f"""
+            <div style="background: linear-gradient(90deg, #0F2027 0%, #2C5364 100%);
+            padding: 15px; border-radius: 12px; text-align: center; color: white; margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <p style="margin: 0; font-size: 11px; letter-spacing: 2px; color: #b0bec5; font-weight: 600;">BALANCE TOTAL DE FONDOS</p>
+                <h1 style="margin: 0; font-size: 38px; font-weight: 700;">${t_total:,.2f}</h1>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        cols = st.columns(4)
+        colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
+        
+        hubo_cambios_en_excel = False # 🛡️ Control para no saturar la conexión a Google Sheets
+        
+        for i, (index, row) in enumerate(df_cuentas.iterrows()):
+            # 1. Extraer categorías excluidas de esta cuenta
+            excluidas = df_excep[df_excep["Cuenta"] == row['Cuenta']]["Categoria_Excluida"].tolist() if not df_excep.empty else []
+            
+            # 2. Filtrar y sumar sobres permitidos (El saldo real que la cuenta debería tener)
+            cats_permitidas = df_fijos[~df_fijos["Categoría"].isin(excluidas)].copy()
+            try:
+                saldos_v = cats_permitidas["Fondo_Disponible"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
+                saldo_calculado = pd.to_numeric(saldos_v, errors='coerce').fillna(0).sum()
+            except:
+                saldo_calculado = 0.0
+                
+            # 3. Leer el saldo fijo y congelado que está actualmente en la base de datos
+            try:
+                saldo_viejo_excel = float(str(row['Saldo']).replace("$", "").replace(",", ""))
+            except ValueError:
+                saldo_viejo_excel = 0.0
+            
+            # 4. 🌟 LA MAGIA: Si el cálculo nuevo es diferente al Excel, modificamos los datos
+            if round(saldo_viejo_excel, 2) != round(saldo_calculado, 2):
+                df_cuentas.at[index, "Saldo"] = saldo_calculado
+                hubo_cambios_en_excel = True
+
+            # Dibujamos la tarjeta con el saldo correcto
+            color_acento = colores_neon[i % len(colores_neon)]
+            with cols[i % 4]:
+                st.markdown(f"""
+                    <div style="background: linear-gradient(145deg, #222, #111);
+                    padding: 20px; border-radius: 12px; border-top: 3px solid {color_acento}; margin-bottom: 15px;
+                    box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30;">
+                        <p style="margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 1px;">{row['Cuenta']}</p>
+                        <h4 style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">${saldo_calculado:,.2f}</h4>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+        # 5. 🌟 SOBREESCRIBIR EXCEL FORZOSAMENTE 🌟
+        if hubo_cambios_en_excel:
+            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+            st.session_state.df_cuentas = df_cuentas
+    else:
+        st.info("Aún no tienes cuentas registradas.")
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    # Menú oculto en un expander para no ensuciar la pantalla
+    with st.expander("Administrar Cuentas", expanded=False):
+        col_e1, col_e2 = st.columns(2)
+        
+        with col_e1:
+            st.markdown("<p style='color:#666; font-size:14px; margin-bottom:5px;'><b>Crear o Modificar</b></p>", unsafe_allow_html=True)
+            opc = ["➕ NUEVA CUENTA"] + (df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
+            c_edit = st.selectbox("Selecciona:", opc, label_visibility="collapsed")
+            
+            s_base = float(df_cuentas.loc[df_cuentas["Cuenta"] == c_edit, "Saldo"].values[0]) if c_edit != "➕ NUEVA CUENTA" else 0.0
+            n_nombre = st.text_input("Nombre de la cuenta:", placeholder="Ej: Efectivo") if c_edit == "➕ NUEVA CUENTA" else c_edit
+            n_saldo = st.number_input("Saldo Actual:", value=s_base, step=100.0)
+            
+            if st.button("Guardar Cambios", use_container_width=True):
+                if n_nombre:
+                    if not df_cuentas.empty and n_nombre in df_cuentas["Cuenta"].values:
+                        df_cuentas.loc[df_cuentas["Cuenta"] == n_nombre, "Saldo"] = n_saldo
+                    else:
+                        df_cuentas = pd.concat([df_cuentas, pd.DataFrame([{"Cuenta": n_nombre, "Saldo": n_saldo}])], ignore_index=True)
+    
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    st.cache_data.clear()
+                    st.rerun()
+
+        with col_e2:
+            st.markdown("<p style='color:#666; font-size:14px; margin-bottom:5px;'><b>Eliminar Cuenta</b></p>", unsafe_allow_html=True)
+            if not df_cuentas.empty:
+                c_del = st.selectbox("Borrar:", df_cuentas["Cuenta"].tolist(), label_visibility="collapsed")
+                st.write("") # Espaciador
+                st.write("") # Espaciador
+                if st.button("Eliminar Permanentemente", use_container_width=True):
+                    df_cuentas = df_cuentas[df_cuentas["Cuenta"] != c_del]
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    st.cache_data.clear()
+                    st.rerun()
 # ---------------------------------------------------------
 with tab_trading:
     st.markdown("<h3 style='font-weight: 400; color: #FFFFFF;'>Gestión de Trading</h3>", unsafe_allow_html=True)

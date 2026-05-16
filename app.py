@@ -685,91 +685,155 @@ with tab_pagos:
                         st.session_state.df_movs, st.session_state.df_fijos = df_movs, df_fijos
                         st.rerun()
 
-        # --- DINERO Y HISTORIAL (SOLO DE LA CUENTA SELECCIONADA) ---
-        cf1, cf2 = st.columns([1.5, 2])
-        with cf1:
-            st.markdown(f"<h4 style='color: #2E7D32;'>Disponible: {cuenta_maestra}</h4>", unsafe_allow_html=True)
-            l_n_v = df_excep[df_excep["Cuenta"] == cuenta_maestra]["Categoria_Excluida"].tolist() if (not df_excep.empty and cuenta_maestra != "TODAS") else []
-            df_sobres = df_fijos[~df_fijos["Categoría"].isin(l_n_v)]
-            html_s = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
-            for _, r in df_sobres.iterrows():
-                f = float(str(r["Fondo_Disponible"]).replace("$", "").replace(",", ""))
-                c = "#4CAF50" if f >= 0 else "#F44336"
-                html_s += f'<div style="background: #1a1a1a; border-left: 4px solid {c}; padding: 10px; border-radius: 8px; flex: 1 1 calc(50% - 10px); display: flex; justify-content: space-between;"><span style="font-size: 13px;">{r["Categoría"]}</span><span style="color: {c}; font-weight: bold;">${f:,.0f}</span></div>'
-            st.markdown(html_s + '</div>', unsafe_allow_html=True)
-
-        with cf2:
-            st.markdown(f"<h4 style='color: #1565C0;'>Historial: {cuenta_maestra}</h4>", unsafe_allow_html=True)
-            df_h = df_movs.copy()
-            if cuenta_maestra != "TODAS": df_h = df_h[df_h["Cuenta"] == cuenta_maestra]
-            # 🌟 Lógica Dinámica de Fechas (Solo muestra lo que existe) 🌟
-            opciones_tiempo = ["TODO"]
-            meses_es = {1:"Enero", 2:"Febrero", 3:"Marzo", 4:"Abril", 5:"Mayo", 6:"Junio", 7:"Julio", 8:"Agosto", 9:"Septiembre", 10:"Octubre", 11:"Noviembre", 12:"Diciembre"}
-            
-            if not df_h.empty:
-                df_h["Fecha_DT"] = pd.to_datetime(df_h["Fecha"], errors='coerce')
-                año_actual = datetime.now().year
-                
-                # Extraer los meses que sí tienen datos en el año actual
-                meses_con_datos = df_h[df_h["Fecha_DT"].dt.year == año_actual]["Fecha_DT"].dt.month.dropna().unique()
-                opciones_tiempo += [meses_es[m] for m in sorted(meses_con_datos)]
-                
-                # Extraer los años pasados que sí tienen datos
-                años_con_datos = df_h["Fecha_DT"].dt.year.dropna().unique()
-                opciones_tiempo += [str(int(a)) for a in sorted(años_con_datos, reverse=True) if a < año_actual]
-
-            col_fh1, col_fh2 = st.columns(2)
-            with col_fh1:
-                f_cat = st.selectbox("Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist(), key="filtrar_cat_historial_sel")
-            with col_fh2:
-                f_fecha = st.selectbox("Tiempo:", opciones_tiempo, key="filtrar_fecha_historial")
-            
-            if f_cat != "VER TODO": 
-                df_h = df_h[df_h["Concepto"] == f_cat]
-            
-            # 🌟 Aplicar Filtro de Fechas Dinámico 🌟
-            if not df_h.empty and f_fecha != "TODO":
-                if f_fecha in meses_es.values():
-                    mes_num = list(meses_es.keys())[list(meses_es.values()).index(f_fecha)]
-                    df_h = df_h[(df_h["Fecha_DT"].dt.month == mes_num) & (df_h["Fecha_DT"].dt.year == año_actual)]
-                else: # Es un año pasado
-                    df_h = df_h[df_h["Fecha_DT"].dt.year == int(f_fecha)]
-                    
-            # Limpiar la columna temporal
-            if not df_h.empty and "Fecha_DT" in df_h.columns:
-                df_h = df_h.drop(columns=["Fecha_DT"])
-
-            df_h = df_h.sort_index(ascending=False)
-            
-            html_hist = '<div style="max-height: 350px; overflow-y: auto;">'
-            for _, r in df_h.iterrows():
-                m = float(r["Monto"])
-                color = "#4CAF50" if m >= 0 else "#F44336"
-                html_hist += f'<div style="background: #1e1e1e; margin-bottom: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between;"><div><div style="font-size: 13px; font-weight: bold;">{r["Concepto"]}</div><div style="font-size: 10px; color: #888;">{r["Fecha"]} • {r["Cuenta"]}</div></div><div style="color: {color}; font-weight: bold;">${m:,.2f}</div></div>'
-            
-            t_h = df_h["Monto"].sum()
-            c_t = "#4CAF50" if t_h >= 0 else "#F44336"
-            html_hist += f'</div><div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {c_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL</div><div style="color: {c_t}; font-weight: bold; font-size: 20px;">${t_h:,.2f}</div></div>'
-            st.markdown(html_hist, unsafe_allow_html=True)
-            
-            if st.button("🗑️ BORRAR ÚLTIMO", use_container_width=True, key="btn_borrar_ultimo_mov_gen"):
-                if not df_movs.empty:
-                    ult = df_movs.iloc[-1]
-                    cta_m, conc_m, m_m = ult["Cuenta"], ult["Concepto"], float(ult["Monto"])
-                    if conc_m in df_fijos["Categoría"].values:
-                        idx_f = df_fijos.index[df_fijos["Categoría"] == conc_m].tolist()[0]
-                        df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - m_m
-           
-                    if cta_m in df_cuentas["Cuenta"].values:
-                        idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_m].tolist()[0]
-                        df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_m
-                    df_movs = df_movs.drop(df_movs.index[-1])
+# --- 1. SECCIÓN DISPONIBLE (TODO ARRIBA) ---
+        st.markdown(f"<h4 style='color: #2E7D32;'>Disponible en: {cuenta_maestra}</h4>", unsafe_allow_html=True)
+        l_n_v = df_excep[df_excep["Cuenta"] == cuenta_maestra]["Categoria_Excluida"].tolist() if (not df_excep.empty and cuenta_maestra != "TODAS") else []
+        df_sobres = df_fijos[~df_fijos["Categoría"].isin(l_n_v)]
         
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+        # Tarjetas en cuadrícula (Ocupan el 100% del ancho dividiéndose en bloques)
+        html_s = '<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">'
+        for _, r in df_sobres.iterrows():
+            f = float(str(r["Fondo_Disponible"]).replace("$", "").replace(",", ""))
+            c = "#4CAF50" if f >= 0 else "#F44336"
+            html_s += f'<div style="background: #1a1a1a; border-left: 4px solid {c}; padding: 15px; border-radius: 8px; flex: 1 1 calc(25% - 10px); min-width: 150px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"><span style="font-size: 15px; font-weight: bold; color: #ccc;">{r["Categoría"]}</span><span style="color: {c}; font-weight: bold; font-size: 18px;">${f:,.0f}</span></div>'
+        st.markdown(html_s + '</div>', unsafe_allow_html=True)
+
+        st.markdown("<hr style='border-color: rgba(255,255,255,0.1); margin: 10px 0 20px 0;'>", unsafe_allow_html=True)
+
+        # --- 2. SECCIÓN HISTORIAL (TODO ABAJO) ---
+        st.markdown(f"<h4 style='color: #1565C0;'>Historial de Movimientos</h4>", unsafe_allow_html=True)
+        df_h = df_movs.copy()
+        if cuenta_maestra != "TODAS": df_h = df_h[df_h["Cuenta"] == cuenta_maestra]
+        
+        # Extraer fechas para el filtro
+        opciones_tiempo = ["TODO"]
+        meses_es = {1:"Enero", 2:"Febrero", 3:"Marzo", 4:"Abril", 5:"Mayo", 6:"Junio", 7:"Julio", 8:"Agosto", 9:"Septiembre", 10:"Octubre", 11:"Noviembre", 12:"Diciembre"}
+        if not df_h.empty:
+            df_h["Fecha_DT"] = pd.to_datetime(df_h["Fecha"], errors='coerce')
+            año_actual = datetime.now().year
+            meses_con_datos = df_h[df_h["Fecha_DT"].dt.year == año_actual]["Fecha_DT"].dt.month.dropna().unique()
+            opciones_tiempo += [meses_es[m] for m in sorted(meses_con_datos)]
+            años_con_datos = df_h["Fecha_DT"].dt.year.dropna().unique()
+            opciones_tiempo += [str(int(a)) for a in sorted(años_con_datos, reverse=True) if a < año_actual]
+
+        col_fh1, col_fh2 = st.columns(2)
+        with col_fh1:
+            f_cat = st.selectbox("Filtrar Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist(), key="filtrar_cat_historial_sel")
+        with col_fh2:
+            f_fecha = st.selectbox("Filtrar Tiempo:", opciones_tiempo, key="filtrar_fecha_historial")
+        
+        if f_cat != "VER TODO": df_h = df_h[df_h["Concepto"] == f_cat]
+        
+        if not df_h.empty and f_fecha != "TODO":
+            if f_fecha in meses_es.values():
+                mes_num = list(meses_es.keys())[list(meses_es.values()).index(f_fecha)]
+                df_h = df_h[(df_h["Fecha_DT"].dt.month == mes_num) & (df_h["Fecha_DT"].dt.year == año_actual)]
+            else:
+                df_h = df_h[df_h["Fecha_DT"].dt.year == int(f_fecha)]
+                
+        if not df_h.empty and "Fecha_DT" in df_h.columns:
+            df_h = df_h.drop(columns=["Fecha_DT"])
+
+        df_h = df_h.sort_index(ascending=False)
+
+        # 🌟 FEED DE TARJETAS (MISMO DISEÑO Y ESPACIO QUE TRADING) 🌟
+        st.markdown('<div style="max-height: 450px; overflow-y: auto; padding-right: 10px; margin-top: 10px;">', unsafe_allow_html=True)
+        
+        for idx_h, r_h in df_h.iterrows():
+            m_h = float(r_h["Monto"])
+            c_h = "#4CAF50" if m_h >= 0 else "#F44336"
+            icon_h = "💰" if m_h >= 0 else "💸"
+            
+            col_h1, col_h_edit, col_h_del = st.columns([6, 0.35, 0.35], gap="small")
+            
+            with col_h1:
+                tj = f'<div style="background: linear-gradient(145deg, #1e1e1e, #121212); margin-bottom: 8px; padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"><div style="display: flex; align-items: center; gap: 15px;"><div style="font-size: 24px;">{icon_h}</div><div><div style="font-size: 15px; font-weight: bold; color: #fff;">{r_h["Concepto"]}</div><div style="font-size: 11px; color: #888; text-transform: uppercase;">{r_h["Fecha"]} • {r_h["Cuenta"]}</div></div></div><div style="color: {c_h}; font-weight: bold; font-size: 18px;">${abs(m_h):,.2f}</div></div>'
+                st.markdown(tj, unsafe_allow_html=True)
+            
+            with col_h_edit:
+                st.write("")
+                if st.button("✏️", key=f"ed_h_{idx_h}", help="Editar Gasto"):
+                    st.session_state[f"edit_h_{idx_h}"] = not st.session_state.get(f"edit_h_{idx_h}", False)
+                    st.session_state[f"del_h_{idx_h}"] = False
+            
+            with col_h_del:
+                st.write("")
+                if st.button("🗑️", key=f"rm_h_{idx_h}", help="Borrar Gasto"):
+                    st.session_state[f"del_h_{idx_h}"] = not st.session_state.get(f"del_h_{idx_h}", False)
+                    st.session_state[f"edit_h_{idx_h}"] = False
+            
+            # --- LÓGICA BORRAR (RESTAURA SALDOS AUTOMÁTICAMENTE) ---
+            if st.session_state.get(f"del_h_{idx_h}", False):
+                st.warning("⚠️ ¿Borrar este movimiento y devolver el dinero a las cuentas?")
+                cy_h, cn_h = st.columns(2)
+                if cy_h.button("✅ Sí, Borrar", key=f"y_h_{idx_h}"):
+                    cta_del, conc_del, monto_del = r_h["Cuenta"], r_h["Concepto"], float(r_h["Monto"])
+                    
+                    if cta_del in df_cuentas["Cuenta"].values:
+                        i_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_del].tolist()[0]
+                        df_cuentas.at[i_c, "Saldo"] = float(df_cuentas.at[i_c, "Saldo"]) - monto_del
+                        
+                    if conc_del in df_fijos["Categoría"].values:
+                        i_f = df_fijos.index[df_fijos["Categoría"] == conc_del].tolist()[0]
+                        df_fijos.at[i_f, "Fondo_Disponible"] = float(df_fijos.at[i_f, "Fondo_Disponible"]) - monto_del
+                        
+                    df_movs = df_movs.drop(idx_h)
+                    
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-                    st.session_state.df_fijos, st.session_state.df_cuentas, st.session_state.df_movs = df_fijos, df_cuentas, df_movs
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    st.session_state.df_movs, st.session_state.df_cuentas, st.session_state.df_fijos = df_movs, df_cuentas, df_fijos
+                    st.session_state[f"del_h_{idx_h}"] = False
                     st.rerun()
+                if cn_h.button("❌ Cancelar", key=f"n_h_{idx_h}"):
+                    st.session_state[f"del_h_{idx_h}"] = False
+                    st.rerun()
+
+            # --- LÓGICA EDITAR (AJUSTA MATEMÁTICAS AUTOMÁTICAMENTE) ---
+            if st.session_state.get(f"edit_h_{idx_h}", False):
+                st.markdown("<div style='background: #262730; padding: 15px; border-radius: 10px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+                ce_h1, ce_h2 = st.columns([2, 1])
+                new_conc_h = ce_h1.selectbox("Cambiar Categoría:", df_fijos["Categoría"].tolist(), index=df_fijos["Categoría"].tolist().index(r_h["Concepto"]) if r_h["Concepto"] in df_fijos["Categoría"].values else 0, key=f"in_ch_{idx_h}")
+                new_mon_h = ce_h2.number_input("Modificar Monto ($):", value=float(abs(r_h["Monto"])), min_value=0.0, key=f"in_mh_{idx_h}")
+                
+                if st.button("💾 GUARDAR CAMBIOS", key=f"sv_h_{idx_h}", use_container_width=True, type="primary"):
+                    cta_ed, conc_old, monto_old = r_h["Cuenta"], r_h["Concepto"], float(r_h["Monto"])
+                    
+                    # 1. Revertir impacto del gasto viejo
+                    if cta_ed in df_cuentas["Cuenta"].values:
+                        i_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_ed].tolist()[0]
+                        df_cuentas.at[i_c, "Saldo"] = float(df_cuentas.at[i_c, "Saldo"]) - monto_old
+                    if conc_old in df_fijos["Categoría"].values:
+                        i_f = df_fijos.index[df_fijos["Categoría"] == conc_old].tolist()[0]
+                        df_fijos.at[i_f, "Fondo_Disponible"] = float(df_fijos.at[i_f, "Fondo_Disponible"]) - monto_old
+                        
+                    # 2. Aplicar el impacto del gasto nuevo
+                    monto_nuevo_real = -new_mon_h if monto_old < 0 else new_mon_h # Mantiene el signo negativo si era un gasto
+                    if cta_ed in df_cuentas["Cuenta"].values:
+                        i_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_ed].tolist()[0]
+                        df_cuentas.at[i_c, "Saldo"] = float(df_cuentas.at[i_c, "Saldo"]) + monto_nuevo_real
+                    if new_conc_h in df_fijos["Categoría"].values:
+                        i_f = df_fijos.index[df_fijos["Categoría"] == new_conc_h].tolist()[0]
+                        df_fijos.at[i_f, "Fondo_Disponible"] = float(df_fijos.at[i_f, "Fondo_Disponible"]) + monto_nuevo_real
+                        
+                    # 3. Guardar en base de datos
+                    df_movs.at[idx_h, "Concepto"] = new_conc_h
+                    df_movs.at[idx_h, "Monto"] = monto_nuevo_real
+                    
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                    st.session_state.df_movs, st.session_state.df_cuentas, st.session_state.df_fijos = df_movs, df_cuentas, df_fijos
+                    st.session_state[f"edit_h_{idx_h}"] = False
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # BALANCE TOTAL DEL HISTORIAL FILTRADO
+        t_h = df_h["Monto"].sum()
+        c_t = "#4CAF50" if t_h >= 0 else "#F44336"
+        st.markdown(f'<div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 10px; border-top: 2px solid {c_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL FILTRADO</div><div style="color: {c_t}; font-weight: bold; font-size: 20px;">${t_h:,.2f}</div></div>', unsafe_allow_html=True)
 
         st.markdown("<hr>", unsafe_allow_html=True)
         
@@ -817,7 +881,7 @@ with tab_pagos:
                         <span style="color: #F44336; font-weight: bold; font-size: 18px;">${float(row["Monto"]):,.2f}</span>
                     </div>
                     '''
-                    ca_col1, ca_col2, ca_col3 = st.columns([5, 0.6, 0.6])
+                    ca_col1, ca_col2, ca_col3 = st.columns([6, 0.35, 0.35], gap="small")
                     with ca_col1: st.markdown(html_cargo, unsafe_allow_html=True)
                     with ca_col2: 
                         st.write("")

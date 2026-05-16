@@ -219,6 +219,11 @@ if not df_cargos_auto.empty:
             nuevo_mov = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta_auto, "Concepto": cat_auto, "Monto": -monto_auto}])
             df_movs = pd.concat([df_movs, nuevo_mov], ignore_index=True)
             
+            # 🌟 MAGIA: Si el cargo automático es Inversión, copiarlo a Trading 🌟
+            if cat_auto == "Inversion":
+                nueva_op_t = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": cta_auto, "Tipo": "Inversión", "Concepto": concepto_auto, "Monto": monto_auto}])
+                df_trading = pd.concat([df_trading, nueva_op_t], ignore_index=True)
+            
             # 3. Marcar como cobrado en la base de datos de cargos
             df_cargos_auto.at[idx, "Ultimo_Mes_Cobrado"] = mes_actual
             cambios_auto = True
@@ -263,9 +268,11 @@ if cambios_auto:
     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
+    conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
     st.session_state.df_fijos = df_fijos
     st.session_state.df_movs = df_movs
     st.session_state.df_cargos_auto = df_cargos_auto
+    st.session_state.df_trading = df_trading
 # -----------------------------------------------------
 
 
@@ -652,6 +659,13 @@ with tab_pagos:
              
                         idx_f = df_fijos.index[df_fijos["Categoría"] == s_gasto].tolist()[0]
                         df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - m_gasto
+                        # 🌟 MAGIA: Si el gasto es Inversión, enviarlo a Trading automáticamente 🌟
+                        if s_gasto == "Inversion":
+                            nueva_op_t = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": c_gasto, "Tipo": "Inversión", "Concepto": "Gasto Manual Inversión", "Monto": m_gasto}])
+                            df_trading = pd.concat([df_trading, nueva_op_t], ignore_index=True)
+                            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+                            st.session_state.df_trading = df_trading
+
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
    

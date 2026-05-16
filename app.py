@@ -445,9 +445,6 @@ with tab_ajustes:
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)
 # ---------------------------------------------------------
-# ---------------------------------------------------------
-# 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)
-# ---------------------------------------------------------
 with tab_pagos:
     # 🌟 TODO EL PANEL UNIFICADO EN UN FRAGMENTO PARA EVITAR PARPADEOS 🌟
     @st.fragment
@@ -455,8 +452,8 @@ with tab_pagos:
         # Conectamos con la memoria global de la app
         global df_fijos, df_movs, df_cuentas, df_excep, df_trading, df_cargos_auto
         
-        st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
-        
+st.markdown("<h4 style='color: #2E7D32;'>Aplicar Gasto</h4>", unsafe_allow_html=True)
+
         nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
         
         # 🟢 FIX DEFINITIVO: Columnas principales aplanadas para que Streamlit no oculte los botones

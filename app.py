@@ -1202,7 +1202,9 @@ with tab_cuentas:
             </div>
         """, unsafe_allow_html=True)
         
-        cols = st.columns(4)
+        # 🌟 COLUMNAS INTELIGENTES: Se adaptan al ancho completo (Si tienes 2, se divide mitad y mitad automáticamente)
+        num_ctas = len(df_cuentas)
+        cols = st.columns(num_ctas if num_ctas > 0 else 4)
         colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
         
         hubo_cambios_en_excel = False # 🛡️ Control para no saturar la conexión a Google Sheets
@@ -1224,19 +1226,19 @@ with tab_cuentas:
                 saldo_viejo_excel = float(str(row['Saldo']).replace("$", "").replace(",", ""))
             except ValueError:
                 saldo_viejo_excel = 0.0
-                
+            
             # 4. 🌟 LA MAGIA: Si el cálculo nuevo es diferente al Excel, modificamos los datos
             if round(saldo_viejo_excel, 2) != round(saldo_calculado, 2):
                 df_cuentas.at[index, "Saldo"] = saldo_calculado
                 hubo_cambios_en_excel = True
 
-            # Dibujamos la tarjeta con el saldo correcto
+            # Dibujamos la tarjeta con un diseño más grande, centrado y estilizado
             color_acento = colores_neon[i % len(colores_neon)]
-            with cols[i % 4]:
+            with cols[i]:
                 st.markdown(f"""
-                    <div style="background: linear-gradient(145deg, #222, #111); padding: 20px; border-radius: 12px; border-top: 3px solid {color_acento}; margin-bottom: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30;">
-                        <p style="margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 1px;">{row['Cuenta']}</p>
-                        <h4 style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">${saldo_calculado:,.2f}</h4>
+                    <div style="background: linear-gradient(145deg, #222, #111); padding: 25px; border-radius: 12px; border-top: 4px solid {color_acento}; margin-bottom: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30; text-align: center;">
+                        <p style="margin: 0; font-size: 14px; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 2px;">{row['Cuenta']}</p>
+                        <h4 style="margin: 15px 0 0 0; font-size: 32px; font-weight: bold; color: #fff;">${saldo_calculado:,.2f}</h4>
                     </div>
                 """, unsafe_allow_html=True)
                 

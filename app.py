@@ -442,18 +442,20 @@ with tab_ajustes:
                         st.cache_data.clear()
                         st.rerun()
 
-
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)
 # ---------------------------------------------------------
-        st.markdown("<h4 style='color: #2E7D32;'>Aplicar Gasto</h4>", unsafe_allow_html=True)
+# ---------------------------------------------------------
+# 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)
+# ---------------------------------------------------------
 with tab_pagos:
     # 🌟 TODO EL PANEL UNIFICADO EN UN FRAGMENTO PARA EVITAR PARPADEOS 🌟
     @st.fragment
     def mostrar_panel_pagos_unificado():
         # Conectamos con la memoria global de la app
         global df_fijos, df_movs, df_cuentas, df_excep, df_trading, df_cargos_auto
-    
+        
+        st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
         
         nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
         
@@ -485,7 +487,6 @@ with tab_pagos:
                     st.session_state.df_excep = df_final_excep
                     st.success(f"Configuración de {cuenta_maestra} guardada.")
                     st.rerun()
-                    
 
         with col_btn_add:
             st.write("") # Empuja el botón hacia abajo para alinearlo
@@ -606,8 +607,8 @@ with tab_pagos:
         with st.expander("Mover Dinero"):
             with st.form("form_mover_entre_sobres_interno", border=False):
                 cm1, cm2, cm3 = st.columns([2, 2, 1])
-                with cm1: cat_origen = st.selectbox("De:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="mov_sobres_origen")
-                with cm2: cat_destino = st.selectbox("A:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="mov_sobres_destino")
+                with cm1: cat_origen = st.selectbox("De (Quitar de):", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="mov_sobres_origen")
+                with cm2: cat_destino = st.selectbox("A (Mover a):", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="mov_sobres_destino")
                 with cm3: monto_a_mover = st.number_input("Monto ($):", min_value=0.0, step=10.0, key="mov_sobres_monto")
                 
                 if st.form_submit_button("REALIZAR TRASPASO", use_container_width=True, type="primary"):
@@ -785,7 +786,9 @@ with tab_pagos:
         st.markdown("<hr>", unsafe_allow_html=True)
         
         # --- CARGOS AUTOMÁTICOS ---
-        with st.expander("Configurar Cargos Automáticos", expanded=False):            
+        with st.expander("🤖 Configurar Cargos Automáticos", expanded=False):
+            st.markdown("<p style='color: #888; font-size: 14px;'>Configura cobros mensuales que se debitarán solos (Ej: Netflix, Préstamos, Internet).</p>", unsafe_allow_html=True)
+            
             with st.form("form_nuevo_cargo_auto_nuevo", border=False):
                 ca1, ca2, ca3 = st.columns([1.5, 1.5, 1])
                 with ca1: c_auto_cta = st.selectbox("Cuenta Bancaria:", nombres_cuentas, key="auto_cta_n")
@@ -793,7 +796,7 @@ with tab_pagos:
                 with ca3: c_auto_dia = st.number_input("Día del cobro (1-31):", min_value=1, max_value=31, value=15, key="auto_dia_n")
       
                 col_c1, col_c2 = st.columns([2, 1])
-                with col_c1: c_auto_concepto = st.text_input("Concepto del Recibo:", key="auto_concepto_n")
+                with col_c1: c_auto_concepto = st.text_input("Concepto del Recibo (Ej: Spotify):", key="auto_concepto_n")
                 with col_c2: c_auto_monto = st.number_input("Monto a descontar ($):", min_value=0.0, step=100.0, key="auto_monto_n")
                 
                 if st.form_submit_button("Crear Cargo Automático", type="primary", use_container_width=True):

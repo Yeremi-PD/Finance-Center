@@ -112,6 +112,19 @@ st.markdown("""
         border-color: #4CAF50 !important;
         box-shadow: 0 8px 20px rgba(76, 175, 80, 0.35) !important; 
     }
+
+    /* 📱 OPTIMIZACIÓN RESPONSIVA EXCLUSIVA PARA MÓVILES 📱 */
+    @media (max-width: 768px) {
+        /* Fuerza a que las tarjetas personalizadas se apilen hacia abajo en vez de aplastarse */
+        div[style*="flex: 1 1 calc"] {
+            flex: 1 1 100% !important;
+            min-width: 100% !important;
+            margin-bottom: 10px !important;
+        }
+        /* Ajusta los tamaños de los textos gigantes para que no rompan la pantalla */
+        h1 { font-size: 28px !important; }
+        div[data-testid="metric-container"] h2 { font-size: 22px !important; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -689,8 +702,26 @@ with tab_pagos:
             st.markdown(f"<h4 style='color: #1565C0;'>Historial: {cuenta_maestra}</h4>", unsafe_allow_html=True)
             df_h = df_movs.copy()
             if cuenta_maestra != "TODAS": df_h = df_h[df_h["Cuenta"] == cuenta_maestra]
-            f_cat = st.selectbox("Filtrar por Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist(), key="filtrar_cat_historial_sel")
+            col_fh1, col_fh2 = st.columns(2)
+            with col_fh1:
+                f_cat = st.selectbox("Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist(), key="filtrar_cat_historial_sel")
+            with col_fh2:
+                f_fecha = st.selectbox("Tiempo:", ["TODO", "Últimos 7 días", "Últimos 30 días", "Este Mes"], key="filtrar_fecha_historial")
+            
             if f_cat != "VER TODO": df_h = df_h[df_h["Concepto"] == f_cat]
+            
+            # 🌟 Filtro Mágico de Fechas 🌟
+            if not df_h.empty and f_fecha != "TODO":
+                df_h["Fecha_DT"] = pd.to_datetime(df_h["Fecha"], errors='coerce')
+                hoy = pd.to_datetime(datetime.now().strftime("%Y-%m-%d"))
+                if f_fecha == "Últimos 7 días":
+                    df_h = df_h[df_h["Fecha_DT"] >= (hoy - pd.Timedelta(days=7))]
+                elif f_fecha == "Últimos 30 días":
+                    df_h = df_h[df_h["Fecha_DT"] >= (hoy - pd.Timedelta(days=30))]
+                elif f_fecha == "Este Mes":
+                    df_h = df_h[df_h["Fecha_DT"].dt.month == hoy.month]
+                df_h = df_h.drop(columns=["Fecha_DT"])
+
             df_h = df_h.sort_index(ascending=False)
             
             html_hist = '<div style="max-height: 350px; overflow-y: auto;">'
@@ -931,8 +962,8 @@ with tab_trading:
         def mostrar_feed_trading():
             global df_trading, df_movs, df_cuentas, df_fijos
             
-            col_f1, col_f2 = st.columns(2)
-            
+            col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
+           
             with col_f1:
                 f_tipo = st.selectbox("Filtrar", ["TODOS", "Inversión", "Retiro", "Mover Dinero", "Inyección Semanal"])
                 
@@ -942,11 +973,25 @@ with tab_trading:
                     opciones_conceptos = ["TODOS"] + sorted(conceptos_limpios)
                 else:
                     opciones_conceptos = ["TODOS"]
-                    
-                f_concepto = st.selectbox("Filtrar concepto", opciones_conceptos)
+                f_concepto = st.selectbox("Concepto", opciones_conceptos)
+                
+            with col_f3:
+                f_fecha_t = st.selectbox("Tiempo", ["TODO", "Últimos 7 días", "Últimos 30 días", "Este Mes"], key="filtro_tiempo_trading")
             
             # Aplicar Filtros
             df_filtrado_t = df_trading.copy()
+            
+            # 🌟 Filtro Mágico de Fechas para Trading 🌟
+            if not df_filtrado_t.empty and f_fecha_t != "TODO":
+                df_filtrado_t["Fecha_DT"] = pd.to_datetime(df_filtrado_t["Fecha"], errors='coerce')
+                hoy_t = pd.to_datetime(datetime.now().strftime("%Y-%m-%d"))
+                if f_fecha_t == "Últimos 7 días":
+                    df_filtrado_t = df_filtrado_t[df_filtrado_t["Fecha_DT"] >= (hoy_t - pd.Timedelta(days=7))]
+                elif f_fecha_t == "Últimos 30 días":
+                    df_filtrado_t = df_filtrado_t[df_filtrado_t["Fecha_DT"] >= (hoy_t - pd.Timedelta(days=30))]
+                elif f_fecha_t == "Este Mes":
+                    df_filtrado_t = df_filtrado_t[df_filtrado_t["Fecha_DT"].dt.month == hoy_t.month]
+                df_filtrado_t = df_filtrado_t.drop(columns=["Fecha_DT"])
             
             if f_tipo != "TODOS":
                 df_filtrado_t = df_filtrado_t[df_filtrado_t["Tipo"] == f_tipo]

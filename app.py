@@ -784,7 +784,6 @@ with tab_pagos:
         
         # --- CARGOS AUTOMÁTICOS ---
         with st.expander("Configurar Cargos Automáticos", expanded=False):
-            st.markdown("<p style='color: #888; font-size: 14px;'>Configura cobros mensuales que se debitarán solos (Ej: Netflix, Préstamos, Internet).</p>", unsafe_allow_html=True)
             
             with st.form("form_nuevo_cargo_auto_nuevo", border=False):
                 ca1, ca2, ca3 = st.columns([1.5, 1.5, 1])
@@ -793,7 +792,7 @@ with tab_pagos:
                 with ca3: c_auto_dia = st.number_input("Día del cobro (1-31):", min_value=1, max_value=31, value=15, key="auto_dia_n")
       
                 col_c1, col_c2 = st.columns([2, 1])
-                with col_c1: c_auto_concepto = st.text_input("Concepto del Recibo (Ej: Spotify):", key="auto_concepto_n")
+                with col_c1: c_auto_concepto = st.text_input("Concepto del Recibo:", key="auto_concepto_n")
                 with col_c2: c_auto_monto = st.number_input("Monto a descontar ($):", min_value=0.0, step=100.0, key="auto_monto_n")
                 
                 if st.form_submit_button("Crear Cargo Automático", type="primary", use_container_width=True):

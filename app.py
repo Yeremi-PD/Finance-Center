@@ -848,15 +848,17 @@ with tab_trading:
             <h3 style="margin:0; color: #F57C00;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
     st.write("")
 
-# 🌟 CONTENEDOR ABIERTO PARA SINCRONIZACIÓN EN VIVO 🌟
-    with st.container():
+# 🌟 FRAGMENTO PARA SINCRONIZAR SIN REDIBUJAR TODA LA APP 🌟
+    @st.fragment
+    def formulario_trading_dinamico():
+        global df_trading, df_movs, df_cuentas, df_fijos
+        
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
         with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
  
         with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro", "Mover Dinero"])
         
         with col_t3: 
-            # 🌟 MAGIA: Filtramos la lista dependiendo de la Operación en tiempo real 🌟
             if tipo_t == "Mover Dinero":
                 lista_c = ["Mover Dinero"]
             elif tipo_t == "Retiro":
@@ -871,54 +873,46 @@ with tab_trading:
    
         with col_t5:
             st.write("") 
-            # Cambiamos form_submit_button por un button normal
             btn_ejecutar = st.button("AGREGAR", use_container_width=True, type="primary")
-        
-    if btn_ejecutar:
-        if monto_t > 0:
-            # MAGIA: Sincronizar automáticamente Operación y Concepto si usas "Mover Dinero"
-            if tipo_t == "Mover Dinero":
-                concepto_t = "Mover Dinero"
-            elif c_sel_t == "Mover Dinero":
-                tipo_t = "Mover Dinero"
+            
+        if btn_ejecutar:
+            if monto_t > 0:
+                if tipo_t == "Mover Dinero":
+                    concepto_t = "Mover Dinero"
+                elif c_sel_t == "Mover Dinero":
+                    tipo_t = "Mover Dinero"
 
-            # Matemáticas: Mover Dinero saca de trading (negativo en el excel de trading) y mete en tu banco, tal cual lo pediste.
-            monto_trading = monto_t if tipo_t == "Inversión" else -monto_t
-            monto_banco = -monto_t if tipo_t == "Inversión" else monto_t
-            fecha_actual = datetime.now().strftime("%Y-%m-%d")
-            
-            # 1. Preparar datos de Trading e Historial General
-            nueva_op = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
-    
-            df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
-            
-            nuevo_mov_gen = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Concepto": f"TRADING: {concepto_t}", "Monto": monto_banco}])
-            df_movs = pd.concat([df_movs, nuevo_mov_gen], ignore_index=True)
-            
-            # 2. Actualizar Saldo de la Cuenta Bancaria
-            idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
-            df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco
-            
-            # 3. Si es Inversión o Mover Dinero, descontar del sobre "Inversion" (Fondo Disponible)
-            if tipo_t in ["Inversión", "Mover Dinero"] and "Inversion" in df_fijos["Categoría"].values:
-                idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
+                monto_trading = monto_t if tipo_t == "Inversión" else -monto_t
+                monto_banco = -monto_t if tipo_t == "Inversión" else monto_t
+                fecha_actual = datetime.now().strftime("%Y-%m-%d")
+                
+                nueva_op = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Tipo": tipo_t, "Concepto": concepto_t, "Monto": monto_trading}])
+                df_trading = pd.concat([df_trading, nueva_op], ignore_index=True)
+                
+                nuevo_mov_gen = pd.DataFrame([{"Fecha": fecha_actual, "Cuenta": cta_t, "Concepto": f"TRADING: {concepto_t}", "Monto": monto_banco}])
+                df_movs = pd.concat([df_movs, nuevo_mov_gen], ignore_index=True)
+                
+                idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
+                df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco
+                
+                if tipo_t in ["Inversión", "Mover Dinero"] and "Inversion" in df_fijos["Categoría"].values:
+                    idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
+                    df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
 
-            # 4. GUARDADO MASIVO INMEDIATO EN GOOGLE SHEETS
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
-            conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
-     
-            # 5. Actualizar la memoria de la sesión local para reflejar al instante
-            st.session_state.df_trading = df_trading
-            st.session_state.df_movs = df_movs
-            st.session_state.df_cuentas = df_cuentas
-            st.session_state.df_fijos = df_fijos
-            
-            st.success("Operación ejecutada y guardada al instante en todas las bases de datos.")
-            st.rerun()
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
+                conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+         
+                st.session_state.df_trading = df_trading
+                st.session_state.df_movs = df_movs
+                st.session_state.df_cuentas = df_cuentas
+                st.session_state.df_fijos = df_fijos
+                
+                st.success("Operación ejecutada y guardada al instante en todas las bases de datos.")
+                st.rerun()
 
+    formulario_trading_dinamico()
     if not df_trading.empty:
         st.markdown("---")
         st.markdown("<h4 style='color: #888; letter-spacing: 1px;'>📝 HISTORIAL</h4>", unsafe_allow_html=True)

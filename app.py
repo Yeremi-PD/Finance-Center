@@ -848,21 +848,31 @@ with tab_trading:
             <h3 style="margin:0; color: #F57C00;">${cap_retirado:,.2f}</h3></div>""", unsafe_allow_html=True)
     st.write("")
 
-# 🌟 FORMULARIO CERRADO PARA EVITAR REDIBUJO AUTOMÁTICO 🌟
-    with st.form("formulario_ejecutar_trading", border=False):
+# 🌟 CONTENEDOR ABIERTO PARA SINCRONIZACIÓN EN VIVO 🌟
+    with st.container():
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
         with col_t1: cta_t = st.selectbox("Cuenta Bancaria:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
  
         with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro", "Mover Dinero"])
+        
         with col_t3: 
-            lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "Mover Dinero", "OTRO"]
+            # 🌟 MAGIA: Filtramos la lista dependiendo de la Operación en tiempo real 🌟
+            if tipo_t == "Mover Dinero":
+                lista_c = ["Mover Dinero"]
+            elif tipo_t == "Retiro":
+                lista_c = ["Cuenta de fondeo"]
+            else:
+                lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "OTRO"]
+                
             c_sel_t = st.selectbox("Concepto:", lista_c)
             concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
+            
         with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
    
         with col_t5:
-            st.write("") # Espaciador para alinear el botón
-            btn_ejecutar = st.form_submit_button("AGREGAR", use_container_width=True, type="primary")
+            st.write("") 
+            # Cambiamos form_submit_button por un button normal
+            btn_ejecutar = st.button("AGREGAR", use_container_width=True, type="primary")
         
     if btn_ejecutar:
         if monto_t > 0:

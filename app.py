@@ -895,9 +895,14 @@ with tab_trading:
                 idx_cta = df_cuentas.index[df_cuentas["Cuenta"] == cta_t].tolist()[0]
                 df_cuentas.at[idx_cta, "Saldo"] = float(df_cuentas.at[idx_cta, "Saldo"]) + monto_banco
                 
-                if tipo_t in ["Inversión", "Mover Dinero"] and "Inversion" in df_fijos["Categoría"].values:
+                # 🌟 MAGIA: Actualizar el Fondo Disponible según la operación para que la pestaña CUENTAS no lo borre 🌟
+                if "Inversion" in df_fijos["Categoría"].values:
                     idx_inv = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]
-                    df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
+                    if tipo_t in ["Inversión", "Mover Dinero"]:
+                        df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
+                    elif tipo_t == "Retiro":
+                        # El retiro suma dinero a tu banco, así que lo inyectamos al sobre "Inversion" para que el recálculo cuadre
+                        df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) + monto_t
 
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Trading", data=df_trading)
                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)

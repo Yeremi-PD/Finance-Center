@@ -577,8 +577,9 @@ with tab_pagos:
             cg1, cg2, cg3, cg4 = st.columns([1.5, 1.5, 1, 1.2])
             with cg1: c_gasto = st.selectbox("Cuenta:", nombres_cuentas, index=nombres_cuentas.index(cuenta_maestra) if cuenta_maestra in nombres_cuentas else 0, key="gasto_cuenta_sel")
             with cg2: 
-                l_n_g = df_excep[df_excep["Cuenta"] == c_gasto]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                s_gasto = st.selectbox("Categoría:", df_fijos[~df_fijos["Categoría"].isin(l_n_g)]["Categoría"].tolist() if not df_fijos.empty else [], key="gasto_cat_sel")
+                # 🌟 LISTA COMPLETA: Muestra absolutamente todas las categorías de la base de datos (Inversión, Inyección del trading, etc.)
+                lista_sobres_completos = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
+                s_gasto = st.selectbox("Categoría:", lista_sobres_completos, key="gasto_cat_sel")
             with cg3: m_gasto = st.number_input("Monto:", min_value=0.0, key="gasto_monto_input")
             with cg4: 
                 st.write("")
@@ -600,6 +601,36 @@ with tab_pagos:
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
    
                         st.session_state.df_movs, st.session_state.df_fijos = df_movs, df_fijos
+                        st.rerun()
+
+        # 🔄 APARTADO NUEVO: MOVER DINERO ENTRE SOBRES (PRESTAR ENTRE CATEGORÍAS) 🔄
+        with st.expander("🔄 Mover Dinero entre Sobres (Prestar Capital)"):
+            with st.form("form_mover_entre_sobres_interno", border=False):
+                cm1, cm2, cm3 = st.columns([2, 2, 1])
+                with cm1: cat_origen = st.selectbox("De (Quitar de):", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="mov_sobres_origen")
+                with cm2: cat_destino = st.selectbox("A (Mover a):", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="mov_sobres_destino")
+                with cm3: monto_a_mover = st.number_input("Monto ($):", min_value=0.0, step=10.0, key="mov_sobres_monto")
+                
+                if st.form_submit_button("REALIZAR TRASPASO", use_container_width=True, type="primary"):
+                    if monto_a_mover > 0 and cat_origen != cat_destino:
+                        idx_o = df_fijos.index[df_fijos["Categoría"] == cat_origen].tolist()[0]
+                        idx_d = df_fijos.index[df_fijos["Categoría"] == cat_destino].tolist()[0]
+                        
+                        # Matemáticas de traspaso interno
+                        df_fijos.at[idx_o, "Fondo_Disponible"] = float(df_fijos.at[idx_o, "Fondo_Disponible"]) - monto_a_mover
+                        df_fijos.at[idx_d, "Fondo_Disponible"] = float(df_fijos.at[idx_d, "Fondo_Disponible"]) + monto_a_mover
+                        
+                        # Dejamos un rastro en el historial para saber qué se prestó
+                        nuevo_mov_traspaso = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": "SISTEMA", "Concepto": f"TRASPASO: {cat_origen} ➔ {cat_destino}", "Monto": 0.0}])
+                        df_movs = pd.concat([df_movs, nuevo_mov_traspaso], ignore_index=True)
+                        
+                        # Guardamos en Google Sheets
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+                        conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
+                        
+                        st.session_state.df_fijos = df_fijos
+                        st.session_state.df_movs = df_movs
+                        st.success(f"✅ Se movieron ${monto_a_mover:,.2f} de '{cat_origen}' a '{cat_destino}' correctamente.")
                         st.rerun()
 
 # --- 1. SECCIÓN DISPONIBLE (TODO ARRIBA) ---

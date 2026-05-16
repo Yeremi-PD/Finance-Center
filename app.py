@@ -985,10 +985,13 @@ with tab_trading:
                     if cy.button("✅ Sí, Borrar", key=f"y_{idx}"):
                         cta_v, m_v, tipo_v, concepto_v = row["Cuenta"], float(row["Monto"]), row["Tipo"], row["Concepto"]
                         
-                        # 1. Restaurar Banco
+                        # 1. Restaurar Banco (Matemática de signos corregida)
                         if cta_v in df_cuentas["Cuenta"].values:
                             idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
-                            df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v if tipo_v in ["Retiro", "Mover Dinero"] else -abs(m_v))
+                            if tipo_v == "Inversión":
+                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + abs(m_v)
+                            else: # Si fue Retiro o Mover Dinero, se lo quitamos al banco
+                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - abs(m_v)
                         
                         # 2. Restaurar Fondo Disponible
                         if tipo_v in ["Inversión", "Mover Dinero"] and "Inversion" in df_fijos["Categoría"].values:
@@ -1034,7 +1037,10 @@ with tab_trading:
                         # A) Revertir la operación vieja matemáticamente para evitar descuadres
                         if cta_v in df_cuentas["Cuenta"].values:
                             idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_v].tolist()[0]
-                            df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - (m_v_old if tipo_v in ["Retiro", "Mover Dinero"] else -abs(m_v_old))
+                            if tipo_v == "Inversión":
+                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) + abs(m_v_old)
+                            else: # Si fue Retiro o Mover Dinero
+                                df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - abs(m_v_old)
                         
                         if tipo_v in ["Inversión", "Mover Dinero"] and "Inversion" in df_fijos["Categoría"].values:
                             idx_i = df_fijos.index[df_fijos["Categoría"] == "Inversion"].tolist()[0]

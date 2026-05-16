@@ -702,24 +702,41 @@ with tab_pagos:
             st.markdown(f"<h4 style='color: #1565C0;'>Historial: {cuenta_maestra}</h4>", unsafe_allow_html=True)
             df_h = df_movs.copy()
             if cuenta_maestra != "TODAS": df_h = df_h[df_h["Cuenta"] == cuenta_maestra]
+            # 🌟 Lógica Dinámica de Fechas (Solo muestra lo que existe) 🌟
+            opciones_tiempo = ["TODO"]
+            meses_es = {1:"Enero", 2:"Febrero", 3:"Marzo", 4:"Abril", 5:"Mayo", 6:"Junio", 7:"Julio", 8:"Agosto", 9:"Septiembre", 10:"Octubre", 11:"Noviembre", 12:"Diciembre"}
+            
+            if not df_h.empty:
+                df_h["Fecha_DT"] = pd.to_datetime(df_h["Fecha"], errors='coerce')
+                año_actual = datetime.now().year
+                
+                # Extraer los meses que sí tienen datos en el año actual
+                meses_con_datos = df_h[df_h["Fecha_DT"].dt.year == año_actual]["Fecha_DT"].dt.month.dropna().unique()
+                opciones_tiempo += [meses_es[m] for m in sorted(meses_con_datos)]
+                
+                # Extraer los años pasados que sí tienen datos
+                años_con_datos = df_h["Fecha_DT"].dt.year.dropna().unique()
+                opciones_tiempo += [str(int(a)) for a in sorted(años_con_datos, reverse=True) if a < año_actual]
+
             col_fh1, col_fh2 = st.columns(2)
             with col_fh1:
                 f_cat = st.selectbox("Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist(), key="filtrar_cat_historial_sel")
             with col_fh2:
-                f_fecha = st.selectbox("Tiempo:", ["TODO", "Últimos 7 días", "Últimos 30 días", "Este Mes"], key="filtrar_fecha_historial")
+                f_fecha = st.selectbox("Tiempo:", opciones_tiempo, key="filtrar_fecha_historial")
             
-            if f_cat != "VER TODO": df_h = df_h[df_h["Concepto"] == f_cat]
+            if f_cat != "VER TODO": 
+                df_h = df_h[df_h["Concepto"] == f_cat]
             
-            # 🌟 Filtro Mágico de Fechas 🌟
+            # 🌟 Aplicar Filtro de Fechas Dinámico 🌟
             if not df_h.empty and f_fecha != "TODO":
-                df_h["Fecha_DT"] = pd.to_datetime(df_h["Fecha"], errors='coerce')
-                hoy = pd.to_datetime(datetime.now().strftime("%Y-%m-%d"))
-                if f_fecha == "Últimos 7 días":
-                    df_h = df_h[df_h["Fecha_DT"] >= (hoy - pd.Timedelta(days=7))]
-                elif f_fecha == "Últimos 30 días":
-                    df_h = df_h[df_h["Fecha_DT"] >= (hoy - pd.Timedelta(days=30))]
-                elif f_fecha == "Este Mes":
-                    df_h = df_h[df_h["Fecha_DT"].dt.month == hoy.month]
+                if f_fecha in meses_es.values():
+                    mes_num = list(meses_es.keys())[list(meses_es.values()).index(f_fecha)]
+                    df_h = df_h[(df_h["Fecha_DT"].dt.month == mes_num) & (df_h["Fecha_DT"].dt.year == año_actual)]
+                else: # Es un año pasado
+                    df_h = df_h[df_h["Fecha_DT"].dt.year == int(f_fecha)]
+                    
+            # Limpiar la columna temporal
+            if not df_h.empty and "Fecha_DT" in df_h.columns:
                 df_h = df_h.drop(columns=["Fecha_DT"])
 
             df_h = df_h.sort_index(ascending=False)
@@ -962,6 +979,21 @@ with tab_trading:
         def mostrar_feed_trading():
             global df_trading, df_movs, df_cuentas, df_fijos
             
+            # 🌟 Lógica Dinámica de Fechas para Trading 🌟
+            opciones_tiempo_t = ["TODO"]
+            meses_es_t = {1:"Enero", 2:"Febrero", 3:"Marzo", 4:"Abril", 5:"Mayo", 6:"Junio", 7:"Julio", 8:"Agosto", 9:"Septiembre", 10:"Octubre", 11:"Noviembre", 12:"Diciembre"}
+            
+            if not df_trading.empty:
+                df_temp_t = df_trading.copy()
+                df_temp_t["Fecha_DT"] = pd.to_datetime(df_temp_t["Fecha"], errors='coerce')
+                año_actual_t = datetime.now().year
+                
+                meses_datos_t = df_temp_t[df_temp_t["Fecha_DT"].dt.year == año_actual_t]["Fecha_DT"].dt.month.dropna().unique()
+                opciones_tiempo_t += [meses_es_t[m] for m in sorted(meses_datos_t)]
+                
+                años_datos_t = df_temp_t["Fecha_DT"].dt.year.dropna().unique()
+                opciones_tiempo_t += [str(int(a)) for a in sorted(años_datos_t, reverse=True) if a < año_actual_t]
+
             col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
            
             with col_f1:
@@ -976,21 +1008,20 @@ with tab_trading:
                 f_concepto = st.selectbox("Concepto", opciones_conceptos)
                 
             with col_f3:
-                f_fecha_t = st.selectbox("Tiempo", ["TODO", "Últimos 7 días", "Últimos 30 días", "Este Mes"], key="filtro_tiempo_trading")
+                f_fecha_t = st.selectbox("Tiempo", opciones_tiempo_t, key="filtro_tiempo_trading")
             
             # Aplicar Filtros
             df_filtrado_t = df_trading.copy()
             
-            # 🌟 Filtro Mágico de Fechas para Trading 🌟
+            # 🌟 Aplicar Filtro de Fechas Dinámico en Trading 🌟
             if not df_filtrado_t.empty and f_fecha_t != "TODO":
                 df_filtrado_t["Fecha_DT"] = pd.to_datetime(df_filtrado_t["Fecha"], errors='coerce')
-                hoy_t = pd.to_datetime(datetime.now().strftime("%Y-%m-%d"))
-                if f_fecha_t == "Últimos 7 días":
-                    df_filtrado_t = df_filtrado_t[df_filtrado_t["Fecha_DT"] >= (hoy_t - pd.Timedelta(days=7))]
-                elif f_fecha_t == "Últimos 30 días":
-                    df_filtrado_t = df_filtrado_t[df_filtrado_t["Fecha_DT"] >= (hoy_t - pd.Timedelta(days=30))]
-                elif f_fecha_t == "Este Mes":
-                    df_filtrado_t = df_filtrado_t[df_filtrado_t["Fecha_DT"].dt.month == hoy_t.month]
+                if f_fecha_t in meses_es_t.values():
+                    mes_num = list(meses_es_t.keys())[list(meses_es_t.values()).index(f_fecha_t)]
+                    df_filtrado_t = df_filtrado_t[(df_filtrado_t["Fecha_DT"].dt.month == mes_num) & (df_filtrado_t["Fecha_DT"].dt.year == año_actual_t)]
+                else: # Es un año pasado
+                    df_filtrado_t = df_filtrado_t[df_filtrado_t["Fecha_DT"].dt.year == int(f_fecha_t)]
+                    
                 df_filtrado_t = df_filtrado_t.drop(columns=["Fecha_DT"])
             
             if f_tipo != "TODOS":

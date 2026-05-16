@@ -573,6 +573,7 @@ with tab_pagos:
         st.markdown("<hr>", unsafe_allow_html=True)
   
         # --- FORMULARIO DE GASTO ---
+        st.markdown("<h4 style='color: #2E7D32;'>Aplicar Gasto</h4>", unsafe_allow_html=True)
         with st.form("form_gasto_unificado_nuevo", border=False):
             cg1, cg2, cg3, cg4 = st.columns([1.5, 1.5, 1, 1.2])
             with cg1: c_gasto = st.selectbox("Cuenta:", nombres_cuentas, index=nombres_cuentas.index(cuenta_maestra) if cuenta_maestra in nombres_cuentas else 0, key="gasto_cuenta_sel")

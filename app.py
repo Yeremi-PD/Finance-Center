@@ -486,7 +486,8 @@ with tab_pagos:
                     st.session_state.df_excep = df_final_excep
                     st.success(f"Configuración de {cuenta_maestra} guardada.")
                     st.rerun()
-
+                    
+        st.markdown("<h4 style='color: #2E7D32;'>Aplicar Gasto</h4>", unsafe_allow_html=True)
         with col_btn_add:
             st.write("") # Empuja el botón hacia abajo para alinearlo
             st.write("")
@@ -793,7 +794,7 @@ with tab_pagos:
                 with ca3: c_auto_dia = st.number_input("Día del cobro (1-31):", min_value=1, max_value=31, value=15, key="auto_dia_n")
       
                 col_c1, col_c2 = st.columns([2, 1])
-                with col_c1: c_auto_concepto = st.text_input("Concepto del Recibo (Ej: Spotify):", key="auto_concepto_n")
+                with col_c1: c_auto_concepto = st.text_input("Concepto del Recibo:", key="auto_concepto_n")
                 with col_c2: c_auto_monto = st.number_input("Monto a descontar ($):", min_value=0.0, step=100.0, key="auto_monto_n")
                 
                 if st.form_submit_button("Crear Cargo Automático", type="primary", use_container_width=True):

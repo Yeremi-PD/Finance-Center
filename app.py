@@ -524,7 +524,7 @@ with tab_pagos:
             opciones_inyec = ["TODAS"] + nombres_cuentas
             # Este es el FILTRO MAESTRO: Todo lo que veas abajo será de esta cuenta
             cuenta_maestra = st.selectbox("Cuenta", opciones_inyec)
-            
+       
             if cuenta_maestra != "TODAS":
                 # Mostramos las excepciones solo de la cuenta seleccionada
                 exc_c = df_excep[df_excep["Cuenta"] == cuenta_maestra]["Categoria_Excluida"].tolist() if not df_excep.empty else []
@@ -597,7 +597,6 @@ with tab_pagos:
             
             with col_b2:
                 if st.button("DESHACER", use_container_width=True):
-                    # Ahora busca el nombre correcto: "NÓMINA SEMANAL"
                     if not df_movs.empty and "NÓMINA SEMANAL" in df_movs["Concepto"].values:
                         ult_f = df_movs[df_movs["Concepto"] == "NÓMINA SEMANAL"]["Fecha"].iloc[-1]
                         a_revertir = df_movs[(df_movs["Concepto"] == "NÓMINA SEMANAL") & (df_movs["Fecha"] == ult_f)]
@@ -617,11 +616,10 @@ with tab_pagos:
                         
                         # Revertir también en Trading buscando el nuevo Tipo
                         if not df_trading.empty:
-                            # Forzamos la fecha a texto puro para evitar errores de formato con Google Sheets
                             fecha_str = str(ult_f).strip()
                             mask_t = (df_trading["Tipo"] == "Inyección Semanal") & (df_trading["Fecha"].astype(str).str.strip() == fecha_str)
                             df_trading = df_trading[~mask_t]
-            
+      
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
@@ -639,7 +637,7 @@ with tab_pagos:
                         st.rerun()
 
         st.markdown("<hr>", unsafe_allow_html=True)
-        
+  
         # --- FORMULARIO DE GASTO ---
         with st.form("form_gasto_unificado", border=False):
             cg1, cg2, cg3, cg4 = st.columns([1.5, 1.5, 1, 1.2])
@@ -654,10 +652,12 @@ with tab_pagos:
                     if m_gasto > 0:
                         nuevo_m = pd.DataFrame([{"Fecha": datetime.now().strftime("%Y-%m-%d"), "Cuenta": c_gasto, "Concepto": s_gasto, "Monto": -m_gasto}])
                         df_movs = pd.concat([df_movs, nuevo_m], ignore_index=True)
+             
                         idx_f = df_fijos.index[df_fijos["Categoría"] == s_gasto].tolist()[0]
                         df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - m_gasto
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
+   
                         st.session_state.df_movs, st.session_state.df_fijos = df_movs, df_fijos
                         st.rerun()
 
@@ -700,10 +700,12 @@ with tab_pagos:
                     if conc_m in df_fijos["Categoría"].values:
                         idx_f = df_fijos.index[df_fijos["Categoría"] == conc_m].tolist()[0]
                         df_fijos.at[idx_f, "Fondo_Disponible"] = float(df_fijos.at[idx_f, "Fondo_Disponible"]) - m_m
+           
                     if cta_m in df_cuentas["Cuenta"].values:
                         idx_c = df_cuentas.index[df_cuentas["Cuenta"] == cta_m].tolist()[0]
                         df_cuentas.at[idx_c, "Saldo"] = float(df_cuentas.at[idx_c, "Saldo"]) - m_m
                     df_movs = df_movs.drop(df_movs.index[-1])
+        
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Gastos_Fijos", data=df_fijos)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Movimientos", data=df_movs)
@@ -714,23 +716,18 @@ with tab_pagos:
         st.markdown("<hr>", unsafe_allow_html=True)
         
         # --- CARGOS AUTOMÁTICOS ---
-        with st.expander("Configurar Cargos Automáticos", expanded=False):
-            st.markdown("<p style='color: #888; font-size: 14px;'>Los Cobros mensuales que se debitarán solos.</p>", unsafe_allow_html=True)
+        with st.expander("🤖 Configurar Cargos Automáticos", expanded=False):
+            st.markdown("<p style='color: #888; font-size: 14px;'>Configura cobros mensuales que se debitarán solos (Ej: Netflix, Préstamos, Internet).</p>", unsafe_allow_html=True)
             
             with st.form("form_nuevo_cargo_auto", border=False):
                 ca1, ca2, ca3 = st.columns([1.5, 1.5, 1])
-                with ca1:
-                    c_auto_cta = st.selectbox("Cuenta Bancaria:", nombres_cuentas, key="auto_cta")
-                with ca2:
-                    c_auto_cat = st.selectbox("Categoría afectada:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="auto_cat")
-                with ca3:
-                    c_auto_dia = st.number_input("Día del cobro (1-31):", min_value=1, max_value=31, value=15)
-                
+                with ca1: c_auto_cta = st.selectbox("Cuenta Bancaria:", nombres_cuentas, key="auto_cta")
+                with ca2: c_auto_cat = st.selectbox("Categoría afectada:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="auto_cat")
+                with ca3: c_auto_dia = st.number_input("Día del cobro (1-31):", min_value=1, max_value=31, value=15)
+      
                 col_c1, col_c2 = st.columns([2, 1])
-                with col_c1:
-                    c_auto_concepto = st.text_input("Concepto del Recibo:")
-                with col_c2:
-                    c_auto_monto = st.number_input("Monto a descontar ($):", min_value=0.0, step=100.0)
+                with col_c1: c_auto_concepto = st.text_input("Concepto del Recibo (Ej: Spotify):")
+                with col_c2: c_auto_monto = st.number_input("Monto a descontar ($):", min_value=0.0, step=100.0)
                 
                 if st.form_submit_button("Crear Cargo Automático", type="primary", use_container_width=True):
                     if c_auto_monto > 0 and c_auto_concepto:
@@ -740,7 +737,7 @@ with tab_pagos:
                             "Cuenta": c_auto_cta, 
                             "Monto": c_auto_monto, 
                             "Dia_Cobro": c_auto_dia, 
-                            "Ultimo_Mes_Cobrado": "" # Vacío para que cobre inmediatamente la primera vez que toque la fecha
+                            "Ultimo_Mes_Cobrado": "" 
                         }])
                         df_cargos_auto = pd.concat([df_cargos_auto, nuevo_cargo], ignore_index=True)
                         conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
@@ -751,11 +748,8 @@ with tab_pagos:
             if not df_cargos_auto.empty:
                 st.markdown("<br><h4 style='color: #4CAF50;'>Cargos Activos</h4>", unsafe_allow_html=True)
                 for i, row in df_cargos_auto.iterrows():
-                    # Inicializar estado de edición para cada fila si no existe
-                    if f"edit_auto_{i}" not in st.session_state:
-                        st.session_state[f"edit_auto_{i}"] = False
+                    if f"edit_auto_{i}" not in st.session_state: st.session_state[f"edit_auto_{i}"] = False
 
-                    # Tarjeta visual para los cargos
                     html_cargo = f'''
                     <div style="background: #1a1a1a; padding: 10px 15px; border-radius: 8px; border-left: 3px solid #1565C0; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
@@ -765,12 +759,10 @@ with tab_pagos:
                         <span style="color: #F44336; font-weight: bold; font-size: 18px;">${float(row["Monto"]):,.2f}</span>
                     </div>
                     '''
-                    
                     ca_col1, ca_col2, ca_col3 = st.columns([5, 0.6, 0.6])
-                    with ca_col1:
-                        st.markdown(html_cargo, unsafe_allow_html=True)
-                    with ca_col2:
-                        st.write("") 
+                    with ca_col1: st.markdown(html_cargo, unsafe_allow_html=True)
+                    with ca_col2: 
+                        st.write("")
                         if st.button("✏️", key=f"btn_edit_{i}", help="Editar Cargo"):
                             st.session_state[f"edit_auto_{i}"] = not st.session_state[f"edit_auto_{i}"]
                             st.rerun()
@@ -782,7 +774,6 @@ with tab_pagos:
                             st.session_state.df_cargos_auto = df_cargos_auto
                             st.rerun()
                     
-                    # --- FORMULARIO DE EDICIÓN (Se muestra si se activó el botón ✏️) ---
                     if st.session_state[f"edit_auto_{i}"]:
                         with st.container():
                             st.markdown("<div style='background: #262730; padding: 15px; border-radius: 10px; margin-bottom: 20px;'>", unsafe_allow_html=True)
@@ -790,18 +781,16 @@ with tab_pagos:
                             new_concepto = ce1.text_input("Concepto:", value=row["Concepto"], key=f"inp_con_{i}")
                             new_monto = ce2.number_input("Monto:", value=float(row["Monto"]), key=f"inp_mon_{i}")
                             new_dia = ce3.number_input("Día:", value=int(row["Dia_Cobro"]), min_value=1, max_value=31, key=f"inp_dia_{i}")
-                            
                             ce4, ce5 = st.columns(2)
                             new_cta = ce4.selectbox("Cuenta:", nombres_cuentas, index=nombres_cuentas.index(row["Cuenta"]) if row["Cuenta"] in nombres_cuentas else 0, key=f"inp_cta_{i}")
                             new_cat = ce5.selectbox("Categoría:", df_fijos["Categoría"].tolist(), index=df_fijos["Categoría"].tolist().index(row["Categoria"]) if row["Categoria"] in df_fijos["Categoría"].tolist() else 0, key=f"inp_cat_{i}")
-                            
+                         
                             if st.button("💾 GUARDAR CAMBIOS", key=f"save_edit_{i}", use_container_width=True, type="primary"):
                                 df_cargos_auto.at[i, "Concepto"] = new_concepto
                                 df_cargos_auto.at[i, "Monto"] = new_monto
                                 df_cargos_auto.at[i, "Dia_Cobro"] = new_dia
                                 df_cargos_auto.at[i, "Cuenta"] = new_cta
                                 df_cargos_auto.at[i, "Categoria"] = new_cat
-                                
                                 conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
                                 st.session_state.df_cargos_auto = df_cargos_auto
                                 st.session_state[f"edit_auto_{i}"] = False
@@ -810,9 +799,6 @@ with tab_pagos:
                             st.markdown("</div>", unsafe_allow_html=True)
 
     mostrar_panel_pagos_unificado()
-
-# ---------------------------------------------------------
-# NUEVA SECCIÓN: TRADING (Inversiones y Retiros)
 # ---------------------------------------------------------
 with tab_trading:
     st.markdown("<h3 style='font-weight: 400; color: #FFFFFF;'>Gestión de Trading</h3>", unsafe_allow_html=True)

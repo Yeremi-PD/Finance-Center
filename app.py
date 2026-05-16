@@ -452,8 +452,8 @@ with tab_pagos:
         # Conectamos con la memoria global de la app
         global df_fijos, df_movs, df_cuentas, df_excep, df_trading, df_cargos_auto
         
-st.markdown("<h4 style='color: #2E7D32;'>Aplicar Gasto</h4>", unsafe_allow_html=True)
-
+        st.markdown("<h4 style='color: #2E7D32;'>Aplicar Gasto</h4>", unsafe_allow_html=True)
+        
         nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
         
         # 🟢 FIX DEFINITIVO: Columnas principales aplanadas para que Streamlit no oculte los botones

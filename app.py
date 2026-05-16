@@ -1175,10 +1175,11 @@ with tab_cuentas:
             </div>
         """, unsafe_allow_html=True)
         
-        cols = st.columns(4)
         colores_neon = ["#00E5FF", "#B388FF", "#FF8A80", "#69F0AE", "#FFD180", "#82B1FF"]
-        
         hubo_cambios_en_excel = False # 🛡️ Control para no saturar la conexión a Google Sheets
+        
+        # 🌟 CONTENEDOR FLEXBOX PARA LAS TARJETAS 🌟
+        html_cuentas = '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px;">'
         
         for i, (index, row) in enumerate(df_cuentas.iterrows()):
             # 1. Extraer categorías excluidas de esta cuenta
@@ -1197,21 +1198,23 @@ with tab_cuentas:
                 saldo_viejo_excel = float(str(row['Saldo']).replace("$", "").replace(",", ""))
             except ValueError:
                 saldo_viejo_excel = 0.0
-                
+            
             # 4. 🌟 LA MAGIA: Si el cálculo nuevo es diferente al Excel, modificamos los datos
             if round(saldo_viejo_excel, 2) != round(saldo_calculado, 2):
                 df_cuentas.at[index, "Saldo"] = saldo_calculado
                 hubo_cambios_en_excel = True
 
-            # Dibujamos la tarjeta con el saldo correcto
+            # Dibujamos la tarjeta con el saldo correcto integrándola al HTML principal
             color_acento = colores_neon[i % len(colores_neon)]
-            with cols[i % 4]:
-                st.markdown(f"""
-                    <div style="background: linear-gradient(145deg, #222, #111); padding: 20px; border-radius: 12px; border-top: 3px solid {color_acento}; margin-bottom: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30;">
-                        <p style="margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 1px;">{row['Cuenta']}</p>
-                        <h4 style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">${saldo_calculado:,.2f}</h4>
-                    </div>
-                """, unsafe_allow_html=True)
+            html_cuentas += f'''
+                <div style="background: linear-gradient(145deg, #222, #111); padding: 25px; border-radius: 12px; border-top: 4px solid {color_acento}; box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 12px {color_acento}30; flex: 1 1 calc(50% - 20px); min-width: 250px; text-align: center;">
+                    <p style="margin: 0; font-size: 14px; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 2px;">{row['Cuenta']}</p>
+                    <h4 style="margin: 15px 0 0 0; font-size: 32px; font-weight: bold; color: #fff;">${saldo_calculado:,.2f}</h4>
+                </div>
+            '''
+            
+        html_cuentas += '</div>'
+        st.markdown(html_cuentas, unsafe_allow_html=True)
                 
         # 5. 🌟 SOBREESCRIBIR EXCEL FORZOSAMENTE 🌟
         # Si la app detectó que los valores fijos no cuadran con el cálculo, reescribe toda la hoja

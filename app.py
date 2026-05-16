@@ -442,12 +442,11 @@ with tab_ajustes:
                         st.cache_data.clear()
                         st.rerun()
 
+
 # ---------------------------------------------------------
 # 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)
 # ---------------------------------------------------------
-# ---------------------------------------------------------
-# 3. PAGOS Y EXCEPCIONES (Filtro Maestro por Cuenta)
-# ---------------------------------------------------------
+        st.markdown("<h4 style='color: #2E7D32;'>Aplicar Gasto</h4>", unsafe_allow_html=True)
 with tab_pagos:
     # 🌟 TODO EL PANEL UNIFICADO EN UN FRAGMENTO PARA EVITAR PARPADEOS 🌟
     @st.fragment
@@ -487,7 +486,7 @@ with tab_pagos:
                     st.success(f"Configuración de {cuenta_maestra} guardada.")
                     st.rerun()
                     
-        st.markdown("<h4 style='color: #2E7D32;'>Aplicar Gasto</h4>", unsafe_allow_html=True)
+
         with col_btn_add:
             st.write("") # Empuja el botón hacia abajo para alinearlo
             st.write("")

@@ -523,7 +523,7 @@ with tab_pagos:
         with col_i1:
             opciones_inyec = ["TODAS"] + nombres_cuentas
             # Este es el FILTRO MAESTRO: Todo lo que veas abajo será de esta cuenta
-            cuenta_maestra = st.selectbox("Cuenta", opciones_inyec)
+            cuenta_maestra = st.selectbox("Cuenta", opciones_inyec, key="cuenta_maestra_select")
        
             if cuenta_maestra != "TODAS":
                 # Mostramos las excepciones solo de la cuenta seleccionada
@@ -531,8 +531,8 @@ with tab_pagos:
                 categorias_v = df_fijos["Categoría"].tolist() if not df_fijos.empty else []
                 exc_c_v = [cat for cat in exc_c if cat in categorias_v]
                 
-                with st.form("form_excepciones", border=False):
-                    nuevas_exc = st.multiselect(f"Excluir categorías en {cuenta_maestra}:", categorias_v, default=exc_c_v)
+                with st.form("form_excepciones_nuevo", border=False):
+                    nuevas_exc = st.multiselect(f"Excluir categorías en {cuenta_maestra}:", categorias_v, default=exc_c_v, key="multiselect_exc")
                     btn_guardar_exc = st.form_submit_button("💾 Guardar en Excel")
                     
                 if btn_guardar_exc:
@@ -556,7 +556,7 @@ with tab_pagos:
             st.write("")
             col_b1, col_b2 = st.columns(2)
             with col_b1:
-                if st.button("AGREGAR SEMANA", use_container_width=True, type="primary"):
+                if st.button("AGREGAR SEMANA", use_container_width=True, type="primary", key="btn_agregar_semana_principal"):
                     ctas_a_procesar = nombres_cuentas if cuenta_maestra == "TODAS" else [cuenta_maestra]
                     for cta in ctas_a_procesar:
                         l_negra = df_excep[df_excep["Cuenta"] == cta]["Categoria_Excluida"].tolist() if not df_excep.empty else []
@@ -595,7 +595,7 @@ with tab_pagos:
                     st.rerun()
             
             with col_b2:
-                if st.button("DESHACER", use_container_width=True):
+                if st.button("DESHACER", use_container_width=True, key="btn_deshacer_semana_principal"):
                     if not df_movs.empty and "NÓMINA SEMANAL" in df_movs["Concepto"].values:
                         ult_f = df_movs[df_movs["Concepto"] == "NÓMINA SEMANAL"]["Fecha"].iloc[-1]
                         a_revertir = df_movs[(df_movs["Concepto"] == "NÓMINA SEMANAL") & (df_movs["Fecha"] == ult_f)]
@@ -637,13 +637,13 @@ with tab_pagos:
         st.markdown("<hr>", unsafe_allow_html=True)
   
         # --- FORMULARIO DE GASTO ---
-        with st.form("form_gasto_unificado", border=False):
+        with st.form("form_gasto_unificado_nuevo", border=False):
             cg1, cg2, cg3, cg4 = st.columns([1.5, 1.5, 1, 1.2])
-            with cg1: c_gasto = st.selectbox("Cuenta:", nombres_cuentas, index=nombres_cuentas.index(cuenta_maestra) if cuenta_maestra in nombres_cuentas else 0)
+            with cg1: c_gasto = st.selectbox("Cuenta:", nombres_cuentas, index=nombres_cuentas.index(cuenta_maestra) if cuenta_maestra in nombres_cuentas else 0, key="gasto_cuenta_sel")
             with cg2: 
                 l_n_g = df_excep[df_excep["Cuenta"] == c_gasto]["Categoria_Excluida"].tolist() if not df_excep.empty else []
-                s_gasto = st.selectbox("Categoría:", df_fijos[~df_fijos["Categoría"].isin(l_n_g)]["Categoría"].tolist() if not df_fijos.empty else [])
-            with cg3: m_gasto = st.number_input("Monto:", min_value=0.0)
+                s_gasto = st.selectbox("Categoría:", df_fijos[~df_fijos["Categoría"].isin(l_n_g)]["Categoría"].tolist() if not df_fijos.empty else [], key="gasto_cat_sel")
+            with cg3: m_gasto = st.number_input("Monto:", min_value=0.0, key="gasto_monto_input")
             with cg4: 
                 st.write("")
                 if st.form_submit_button("APLICAR GASTO", use_container_width=True, type="primary"):
@@ -676,7 +676,7 @@ with tab_pagos:
             st.markdown(f"<h4 style='color: #1565C0;'>Historial: {cuenta_maestra}</h4>", unsafe_allow_html=True)
             df_h = df_movs.copy()
             if cuenta_maestra != "TODAS": df_h = df_h[df_h["Cuenta"] == cuenta_maestra]
-            f_cat = st.selectbox("Filtrar por Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist())
+            f_cat = st.selectbox("Filtrar por Categoría:", ["VER TODO"] + df_fijos["Categoría"].tolist(), key="filtrar_cat_historial_sel")
             if f_cat != "VER TODO": df_h = df_h[df_h["Concepto"] == f_cat]
             df_h = df_h.sort_index(ascending=False)
             
@@ -691,7 +691,7 @@ with tab_pagos:
             html_hist += f'</div><div style="background: linear-gradient(145deg, #121212, #0a0a0a); margin-top: 15px; padding: 15px; border-radius: 8px; border-top: 2px solid {c_t}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);"><div style="color: #fff; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">TOTAL</div><div style="color: {c_t}; font-weight: bold; font-size: 20px;">${t_h:,.2f}</div></div>'
             st.markdown(html_hist, unsafe_allow_html=True)
             
-            if st.button("🗑️ BORRAR ÚLTIMO", use_container_width=True):
+            if st.button("🗑️ BORRAR ÚLTIMO", use_container_width=True, key="btn_borrar_ultimo_mov_gen"):
                 if not df_movs.empty:
                     ult = df_movs.iloc[-1]
                     cta_m, conc_m, m_m = ult["Cuenta"], ult["Concepto"], float(ult["Monto"])
@@ -716,15 +716,15 @@ with tab_pagos:
         with st.expander("🤖 Configurar Cargos Automáticos", expanded=False):
             st.markdown("<p style='color: #888; font-size: 14px;'>Configura cobros mensuales que se debitarán solos (Ej: Netflix, Préstamos, Internet).</p>", unsafe_allow_html=True)
             
-            with st.form("form_nuevo_cargo_auto", border=False):
+            with st.form("form_nuevo_cargo_auto_nuevo", border=False):
                 ca1, ca2, ca3 = st.columns([1.5, 1.5, 1])
-                with ca1: c_auto_cta = st.selectbox("Cuenta Bancaria:", nombres_cuentas, key="auto_cta")
-                with ca2: c_auto_cat = st.selectbox("Categoría afectada:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="auto_cat")
-                with ca3: c_auto_dia = st.number_input("Día del cobro (1-31):", min_value=1, max_value=31, value=15)
+                with ca1: c_auto_cta = st.selectbox("Cuenta Bancaria:", nombres_cuentas, key="auto_cta_n")
+                with ca2: c_auto_cat = st.selectbox("Categoría afectada:", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="auto_cat_n")
+                with ca3: c_auto_dia = st.number_input("Día del cobro (1-31):", min_value=1, max_value=31, value=15, key="auto_dia_n")
       
                 col_c1, col_c2 = st.columns([2, 1])
-                with col_c1: c_auto_concepto = st.text_input("Concepto del Recibo (Ej: Spotify):")
-                with col_c2: c_auto_monto = st.number_input("Monto a descontar ($):", min_value=0.0, step=100.0)
+                with col_c1: c_auto_concepto = st.text_input("Concepto del Recibo (Ej: Spotify):", key="auto_concepto_n")
+                with col_c2: c_auto_monto = st.number_input("Monto a descontar ($):", min_value=0.0, step=100.0, key="auto_monto_n")
                 
                 if st.form_submit_button("Crear Cargo Automático", type="primary", use_container_width=True):
                     if c_auto_monto > 0 and c_auto_concepto:
@@ -760,12 +760,12 @@ with tab_pagos:
                     with ca_col1: st.markdown(html_cargo, unsafe_allow_html=True)
                     with ca_col2: 
                         st.write("")
-                        if st.button("✏️", key=f"btn_edit_{i}", help="Editar Cargo"):
+                        if st.button("✏️", key=f"btn_edit_{i}_n", help="Editar Cargo"):
                             st.session_state[f"edit_auto_{i}"] = not st.session_state[f"edit_auto_{i}"]
                             st.rerun()
                     with ca_col3:
                         st.write("") 
-                        if st.button("🗑️", key=f"del_auto_{i}", help="Eliminar Cargo"):
+                        if st.button("🗑️", key=f"del_auto_{i}_n", help="Eliminar Cargo"):
                             df_cargos_auto = df_cargos_auto.drop(i)
                             conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cargos_Auto", data=df_cargos_auto)
                             st.session_state.df_cargos_auto = df_cargos_auto
@@ -775,14 +775,14 @@ with tab_pagos:
                         with st.container():
                             st.markdown("<div style='background: #262730; padding: 15px; border-radius: 10px; margin-bottom: 20px;'>", unsafe_allow_html=True)
                             ce1, ce2, ce3 = st.columns([2, 1, 1])
-                            new_concepto = ce1.text_input("Concepto:", value=row["Concepto"], key=f"inp_con_{i}")
-                            new_monto = ce2.number_input("Monto:", value=float(row["Monto"]), key=f"inp_mon_{i}")
-                            new_dia = ce3.number_input("Día:", value=int(row["Dia_Cobro"]), min_value=1, max_value=31, key=f"inp_dia_{i}")
+                            new_concepto = ce1.text_input("Concepto:", value=row["Concepto"], key=f"inp_con_{i}_n")
+                            new_monto = ce2.number_input("Monto:", value=float(row["Monto"]), key=f"inp_mon_{i}_n")
+                            new_dia = ce3.number_input("Día:", value=int(row["Dia_Cobro"]), min_value=1, max_value=31, key=f"inp_dia_{i}_n")
                             ce4, ce5 = st.columns(2)
-                            new_cta = ce4.selectbox("Cuenta:", nombres_cuentas, index=nombres_cuentas.index(row["Cuenta"]) if row["Cuenta"] in nombres_cuentas else 0, key=f"inp_cta_{i}")
-                            new_cat = ce5.selectbox("Categoría:", df_fijos["Categoría"].tolist(), index=df_fijos["Categoría"].tolist().index(row["Categoria"]) if row["Categoria"] in df_fijos["Categoría"].tolist() else 0, key=f"inp_cat_{i}")
+                            new_cta = ce4.selectbox("Cuenta:", nombres_cuentas, index=nombres_cuentas.index(row["Cuenta"]) if row["Cuenta"] in nombres_cuentas else 0, key=f"inp_cta_{i}_n")
+                            new_cat = ce5.selectbox("Categoría:", df_fijos["Categoría"].tolist(), index=df_fijos["Categoría"].tolist().index(row["Categoria"]) if row["Categoria"] in df_fijos["Categoría"].tolist() else 0, key=f"inp_cat_{i}_n")
                          
-                            if st.button("💾 GUARDAR CAMBIOS", key=f"save_edit_{i}", use_container_width=True, type="primary"):
+                            if st.button("💾 GUARDAR CAMBIOS", key=f"save_edit_{i}_n", use_container_width=True, type="primary"):
                                 df_cargos_auto.at[i, "Concepto"] = new_concepto
                                 df_cargos_auto.at[i, "Monto"] = new_monto
                                 df_cargos_auto.at[i, "Dia_Cobro"] = new_dia
@@ -819,15 +819,16 @@ with tab_trading:
     st.write("")
 
     # --- FORMULARIO DE OPERACIÓN ---
-    with st.form("formulario_ejecutar_trading", border=False):
+    # 🌟 CLAVE TOTALMENTE NUEVA PARA EVITAR EL ERROR DE DUPLICADO 🌟
+    with st.form("formulario_ejecutar_trading_nuevo", border=False):
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns([2, 2, 2, 1, 1])
-        with col_t1: cta_t = st.selectbox("Cuenta Bancaria destino/origen:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
-        with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro", "Mover Dinero"])
+        with col_t1: cta_t = st.selectbox("Cuenta Bancaria destino/origen:", df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [], key="trading_cta_sel")
+        with col_t2: tipo_t = st.selectbox("Operación:", ["Inversión", "Retiro", "Mover Dinero"], key="trading_tipo_sel")
         with col_t3: 
             lista_c = ["Trading View", "Cuenta de fondeo", "Fx Replay", "Mentoria", "Mover Dinero", "OTRO"]
-            c_sel_t = st.selectbox("Concepto:", lista_c)
-            concepto_t = st.text_input("Escribe el concepto:") if c_sel_t == "OTRO" else c_sel_t
-        with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0)
+            c_sel_t = st.selectbox("Concepto:", lista_c, key="trading_concepto_sel_pre")
+            concepto_t = st.text_input("Escribe el concepto:", key="trading_concepto_input_libre") if c_sel_t == "OTRO" else c_sel_t
+        with col_t4: monto_t = st.number_input("Monto ($):", min_value=0.0, step=100.0, key="trading_monto_input")
         with col_t5:
             st.write("")
             btn_ejecutar = st.form_submit_button("AGREGAR", use_container_width=True, type="primary")
@@ -852,7 +853,7 @@ with tab_trading:
                     df_fijos.at[idx_inv, "Fondo_Disponible"] = float(df_fijos.at[idx_inv, "Fondo_Disponible"]) - monto_t
                     cat_aux = "Ahorro" if "Ahorro" in df_fijos["Categoría"].values else ("Otros" if "Otros" in df_fijos["Categoría"].values else None)
                     if cat_aux:
-                        idx_aux = df_fijos.index[df_fijos["Categoría"] == cat_aux].tolist()[0]
+                        idx_aux = df_fijos.index[df_fijos["Categoría"] == "Ahorro" if "Ahorro" in df_fijos["Categoría"].values else "Otros"].tolist()[0]
                         df_fijos.at[idx_aux, "Fondo_Disponible"] = float(df_fijos.at[idx_aux, "Fondo_Disponible"]) + monto_t
 
             # 2. Actualizar Banco y Movimientos
@@ -916,9 +917,9 @@ with tab_trading:
 
             col_f1, col_f2 = st.columns(2)
             df_fil = df_trading.copy()
-            f_t = col_f1.selectbox("Filtrar Tipo:", ["TODOS", "Inversión", "Retiro", "Mover Dinero"])
-            if f_t != "TODOS": df_fil = df_fil[df_fil["Tipo"] == f_t]
+            f_t = col_f1.selectbox("Filtrar Tipo:", ["TODOS", "Inversión", "Retiro", "Mover Dinero"], key="filtro_tipo_trading_sel")
             
+            # Crear feed
             html_f = '<div style="max-height: 350px; overflow-y: auto;">'
             for _, r in df_fil.sort_index(ascending=False).iterrows():
                 col = "#F44336" if r["Tipo"] == "Inversión" else "#4CAF50"
@@ -1007,13 +1008,13 @@ with tab_cuentas:
         with col_e1:
             st.markdown("<p style='color:#666; font-size:14px; margin-bottom:5px;'><b>Crear o Modificar</b></p>", unsafe_allow_html=True)
             opc = ["➕ NUEVA CUENTA"] + (df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else [])
-            c_edit = st.selectbox("Selecciona:", opc, label_visibility="collapsed")
+            c_edit = st.selectbox("Selecciona:", opc, label_visibility="collapsed", key="adm_cuentas_sel")
             
             s_base = float(df_cuentas.loc[df_cuentas["Cuenta"] == c_edit, "Saldo"].values[0]) if c_edit != "➕ NUEVA CUENTA" else 0.0
-            n_nombre = st.text_input("Nombre de la cuenta:", placeholder="Ej: Efectivo") if c_edit == "➕ NUEVA CUENTA" else c_edit
-            n_saldo = st.number_input("Saldo Actual:", value=s_base, step=100.0)
+            n_nombre = st.text_input("Nombre de la cuenta:", placeholder="Ej: Efectivo", key="adm_cuentas_nombre") if c_edit == "➕ NUEVA CUENTA" else c_edit
+            n_saldo = st.number_input("Saldo Actual:", value=s_base, step=100.0, key="adm_cuentas_saldo")
             
-            if st.button("Guardar Cambios", use_container_width=True):
+            if st.button("Guardar Cambios", use_container_width=True, key="adm_cuentas_save_btn"):
                 if n_nombre:
                     if not df_cuentas.empty and n_nombre in df_cuentas["Cuenta"].values:
                         df_cuentas.loc[df_cuentas["Cuenta"] == n_nombre, "Saldo"] = n_saldo
@@ -1027,10 +1028,10 @@ with tab_cuentas:
         with col_e2:
             st.markdown("<p style='color:#666; font-size:14px; margin-bottom:5px;'><b>Eliminar Cuenta</b></p>", unsafe_allow_html=True)
             if not df_cuentas.empty:
-                c_del = st.selectbox("Borrar:", df_cuentas["Cuenta"].tolist(), label_visibility="collapsed")
-                st.write("") # Espaciador
-                st.write("") # Espaciador
-                if st.button("Eliminar Permanentemente", use_container_width=True):
+                c_del = st.selectbox("Borrar:", df_cuentas["Cuenta"].tolist(), label_visibility="collapsed", key="adm_cuentas_del_sel")
+                st.write("") 
+                st.write("") 
+                if st.button("Eliminar Permanentemente", use_container_width=True, key="adm_cuentas_del_btn"):
                     df_cuentas = df_cuentas[df_cuentas["Cuenta"] != c_del]
                     conn.update(spreadsheet=URL_GOOGLE_SHEET, worksheet="Cuentas", data=df_cuentas)
                     st.cache_data.clear()

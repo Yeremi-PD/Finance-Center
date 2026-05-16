@@ -325,7 +325,7 @@ st.markdown("""
     }
 
     /* 🚫 ELIMINAR FLECHAS DE DESPLAZAMIENTO DE LAS PESTAÑAS 🚫 */
-    div[data-testid="stTabs"] button:not([role="tab"]) {
+    div[data-baseweb="tab-list"] button:not([role="tab"]) {
         display: none !important;
     }
 </style>

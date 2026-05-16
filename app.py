@@ -454,8 +454,7 @@ with tab_pagos:
     def mostrar_panel_pagos_unificado():
         # Conectamos con la memoria global de la app
         global df_fijos, df_movs, df_cuentas, df_excep, df_trading, df_cargos_auto
-        
-        st.markdown("<h2 style='color: #1565C0;'>💸 Gestión de Fondos y Gastos</h2>", unsafe_allow_html=True)
+    
         
         nombres_cuentas = df_cuentas["Cuenta"].tolist() if not df_cuentas.empty else []
         
@@ -604,7 +603,7 @@ with tab_pagos:
                         st.rerun()
 
         # 🔄 APARTADO NUEVO: MOVER DINERO ENTRE SOBRES (PRESTAR ENTRE CATEGORÍAS) 🔄
-        with st.expander("🔄 Mover Dinero entre Sobres (Prestar Capital)"):
+        with st.expander("Mover Dinero"):
             with st.form("form_mover_entre_sobres_interno", border=False):
                 cm1, cm2, cm3 = st.columns([2, 2, 1])
                 with cm1: cat_origen = st.selectbox("De (Quitar de):", df_fijos["Categoría"].tolist() if not df_fijos.empty else [], key="mov_sobres_origen")

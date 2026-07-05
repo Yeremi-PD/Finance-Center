@@ -215,15 +215,15 @@ df_cargos_auto = st.session_state.df_cargos_auto
 
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
-# Título centrado y responsivo para que no choque con los botones
-st.markdown("<h1 style='text-align: center; color: #4CAF50; font-size: clamp(28px, 5vw, 45px); z-index: 100; font-weight: 800; margin-top: 40px; margin-bottom: 15px;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+# Título centrado con menos espacio abajo
+st.markdown("<h1 style='text-align: center; color: #4CAF50; font-size: clamp(28px, 5vw, 45px); z-index: 100; font-weight: 800; margin-top: 40px; margin-bottom: 0px;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
-    /* 1. Contenedor general de las pestañas */
+    /* 1. Contenedor general de las pestañas (Subido con margen negativo para acercarlo al título) */
     div[data-testid="stTabs"] {
         padding: 0px !important; 
-        margin-top: 5px !important; /* Bajamos los botones 10px adicionales */
+        margin-top: -20px !important; 
     }
 
     /* 2. Estilizar cada pestaña individualmente para simular un botón */

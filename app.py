@@ -121,8 +121,16 @@ st.markdown("""
             min-width: 100% !important;
             margin-bottom: 10px !important;
         }
-        /* Ajusta los tamaños de los textos gigantes para que no rompan la pantalla */
-        h1 { font-size: 28px !important; }
+        
+        /* 🌟 MAGIA: Hace que los botones del menú se vean como cuadrícula (Grid) de 2 columnas en móvil 🌟 */
+        div[data-testid="stTabs"] button {
+            flex: 1 1 calc(50% - 15px) !important;
+            margin: 5px !important;
+            padding: 10px !important;
+            font-size: 13px !important;
+        }
+        
+        /* Ajusta los tamaños de los textos gigantes */
         div[data-testid="metric-container"] h2 { font-size: 22px !important; }
     }
 </style>
@@ -207,8 +215,8 @@ df_cargos_auto = st.session_state.df_cargos_auto
 
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
-# Usamos un contenedor HTML para forzar el nombre a la izquierda y permitir que las pestañas suban
-st.markdown("<h1 style='position: absolute; top: 35px; left: 10px; color: #4CAF50; font-size: 45px; z-index: 100; font-weight: 800; display: flex; align-items: center;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+# Título centrado y responsivo para que no choque con los botones
+st.markdown("<h1 style='text-align: center; color: #4CAF50; font-size: clamp(28px, 5vw, 45px); z-index: 100; font-weight: 800; margin-top: 10px; margin-bottom: 15px;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
@@ -256,8 +264,9 @@ st.markdown("""
     div[data-baseweb="tab-list"] {
         gap: 10px !important;
         border-bottom: none !important;
-        justify-content: flex-end !important; /* ESTO MUEVE LOS BOTONES A LA DERECHA */
-        padding-top: 15px !important;
+        justify-content: center !important; /* Centra los botones bajo el título */
+        flex-wrap: wrap !important; /* PERMITE QUE LOS BOTONES BAJEN A LA SIGUIENTE LÍNEA */
+        padding-top: 10px !important;
         padding-bottom: 10px !important;
     }
 

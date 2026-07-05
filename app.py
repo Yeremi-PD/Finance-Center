@@ -216,7 +216,7 @@ df_cargos_auto = st.session_state.df_cargos_auto
 
 # --- NAVEGACIÓN CON PESTAÑAS ESTILO BOTONES PREMIUM (INSTANTÁNEO) ---
 # Título centrado y responsivo para que no choque con los botones
-st.markdown("<h1 style='text-align: center; color: #4CAF50; font-size: clamp(28px, 5vw, 45px); z-index: 100; font-weight: 800; margin-top: 10px; margin-bottom: 15px;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #4CAF50; font-size: clamp(28px, 5vw, 45px); z-index: 100; font-weight: 800; margin-top: 40px; margin-bottom: 15px;'>FINANCIAL CENTER</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
